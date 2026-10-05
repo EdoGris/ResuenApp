@@ -1,6 +1,14 @@
 package cl.lossless.player.playback
 
+import android.app.PendingIntent
 import android.content.Intent
+import android.graphics.Bitmap
+import androidx.core.graphics.drawable.toBitmap
+import androidx.media3.datasource.DataSourceBitmapLoader
+import androidx.media3.session.CacheBitmapLoader
+import androidx.media3.session.DefaultMediaNotificationProvider
+import cl.lossless.player.MainActivity
+import cl.lossless.player.R
 import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
@@ -49,9 +57,37 @@ class PlaybackService : MediaSessionService() {
             }
         })
 
+        // Notificación multimedia con el isotipo de la app en la barra de estado.
+        setMediaNotificationProvider(
+            DefaultMediaNotificationProvider.Builder(this)
+                .setChannelName(R.string.playback_channel_name)
+                .build()
+                .apply { setSmallIcon(R.drawable.ic_stat_resuen) }
+        )
+
         session = MediaSession.Builder(this, player)
             .setCallback(SessionCallback())
+            // Tocar la notificación (o el reproductor de la pantalla de bloqueo) abre la app
+            // directamente en "Reproduciendo".
+            .setSessionActivity(
+                PendingIntent.getActivity(
+                    this,
+                    0,
+                    Intent(this, MainActivity::class.java)
+                        .putExtra(MainActivity.EXTRA_OPEN_NOW_PLAYING, true)
+                        .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+                )
+            )
+            .setBitmapLoader(
+                LogoFallbackBitmapLoader(CacheBitmapLoader(DataSourceBitmapLoader(this))) { logoBitmap }
+            )
             .build()
+    }
+
+    /** Logo de la app como carátula de respaldo (se genera una sola vez). */
+    private val logoBitmap: Bitmap by lazy {
+        getDrawable(R.mipmap.ic_launcher)!!.toBitmap(512, 512)
     }
 
     /** Lee el archivo y configura la salida (bit-perfect si hay DAC USB). */

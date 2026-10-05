@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Isotipo ResuenApp: "R" de frecuencia lineal (barras de espectro + trazo de onda). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Resplandor: capas concéntricas de opacidad decreciente (los vectores no admiten desenfoque) -->
+    <path android:pathData="M40.3,35.1 C50.2,29.7 70.0,27.0 74.5,40.5 C78.1,53.1 66.4,63.9 40.3,64.8" android:strokeColor="#0D3FD8B8" android:strokeWidth="10" android:strokeLineCap="round" />
+    <path android:pathData="M49.3,63.4 L74.2,77.6" android:strokeColor="#0DFFB800" android:strokeWidth="10" android:strokeLineCap="round" />
+    <path android:pathData="M40.3,35.1 C50.2,29.7 70.0,27.0 74.5,40.5 C78.1,53.1 66.4,63.9 40.3,64.8" android:strokeColor="#173FD8B8" android:strokeWidth="7.5" android:strokeLineCap="round" />
+    <path android:pathData="M49.3,63.4 L74.2,77.6" android:strokeColor="#17FFB800" android:strokeWidth="7.5" android:strokeLineCap="round" />
+    <path android:pathData="M40.3,35.1 C50.2,29.7 70.0,27.0 74.5,40.5 C78.1,53.1 66.4,63.9 40.3,64.8" android:strokeColor="#263FD8B8" android:strokeWidth="5.2" android:strokeLineCap="round" />
+    <path android:pathData="M49.3,63.4 L74.2,77.6" android:strokeColor="#26FFB800" android:strokeWidth="5.2" android:strokeLineCap="round" />
+    <!-- Barras de espectro -->
+    <path android:pathData="M31.9,32.76 h6.5" android:strokeColor="#FF14C4CC" android:strokeWidth="1.4" android:strokeLineCap="round" />
+    <path android:pathData="M31.9,36.54 h7.0" android:strokeColor="#FFFFB800" android:strokeWidth="1.4" android:strokeLineCap="round" />
+    <path android:pathData="M31.9,40.32 h9.0" android:strokeColor="#FF14C4CC" android:strokeWidth="1.4" android:strokeLineCap="round" />
+    <path android:pathData="M31.9,44.10 h11.0" android:strokeColor="#FFFFB800" android:strokeWidth="1.4" android:strokeLineCap="round" />
+    <path android:pathData="M31.9,47.88 h13.0" android:strokeColor="#FF14C4CC" android:strokeWidth="1.4" android:strokeLineCap="round" />
+    <path android:pathData="M31.9,51.66 h13.9" android:strokeColor="#FFFFB800" android:strokeWidth="1.4" android:strokeLineCap="round" />
+    <path android:pathData="M31.9,55.44 h13.9" android:strokeColor="#FF14C4CC" android:strokeWidth="1.4" android:strokeLineCap="round" />
+    <path android:pathData="M31.9,59.22 h12.6" android:strokeColor="#FFFFB800" android:strokeWidth="1.4" android:strokeLineCap="round" />
+    <path android:pathData="M31.9,63.00 h10.8" android:strokeColor="#FF14C4CC" android:strokeWidth="1.4" android:strokeLineCap="round" />
+    <path android:pathData="M31.9,66.78 h8.8" android:strokeColor="#FFFFB800" android:strokeWidth="1.4" android:strokeLineCap="round" />
+    <path android:pathData="M31.9,70.56 h7.2" android:strokeColor="#FF14C4CC" android:strokeWidth="1.4" android:strokeLineCap="round" />
+    <!-- Trazo de la R con degradado cian → ámbar -->
+    <path android:pathData="M40.3,35.1 C50.2,29.7 70.0,27.0 74.5,40.5 C78.1,53.1 66.4,63.9 40.3,64.8" android:strokeWidth="2.6" android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear"
+                android:startX="40" android:startY="40" android:endX="78" android:endY="40"
+                android:startColor="#FF22C7A9" android:centerColor="#FF9BD15A" android:endColor="#FFFFB800" />
+        </aapt:attr>
+    </path>
+    <path android:pathData="M49.3,63.4 L74.2,77.6" android:strokeColor="#FFFFB800" android:strokeWidth="2.6" android:strokeLineCap="round" />
+    <path android:pathData="M69.56,35.40 a1.0,1.0 0 1,0 2.0,0 a1.0,1.0 0 1,0 -2.0,0" android:fillColor="#FFFFB800" />
+    <path android:pathData="M73.40,49.10 a1.0,1.0 0 1,0 2.0,0 a1.0,1.0 0 1,0 -2.0,0" android:fillColor="#FFFFB800" />
+    <path android:pathData="M72.90,77.60 a1.3,1.3 0 1,0 2.6,0 a1.3,1.3 0 1,0 -2.6,0" android:fillColor="#FF14C4CC" />
+</vector>

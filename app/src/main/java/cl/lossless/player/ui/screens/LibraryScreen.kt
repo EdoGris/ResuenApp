@@ -1,0 +1,365 @@
+package cl.lossless.player.ui.screens
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.FolderOff
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import cl.lossless.player.covers.CoverRef
+import cl.lossless.player.library.AlbumGroup
+import cl.lossless.player.library.Track
+import cl.lossless.player.library.folderDisplayPath
+import cl.lossless.player.library.folderSegments
+import cl.lossless.player.ui.LibraryUiState
+import cl.lossless.player.ui.components.CoverImage
+import cl.lossless.player.ui.components.EmptyState
+import cl.lossless.player.ui.components.ScreenHeader
+import cl.lossless.player.ui.components.SegmentedTabs
+import cl.lossless.player.ui.components.TrackActions
+import cl.lossless.player.ui.components.TrackList
+import cl.lossless.player.ui.components.albumTrackNumber
+import cl.lossless.player.ui.components.formatDuration
+
+private enum class LibraryTab { TRACKS, ALBUMS, FOLDERS }
+
+/** Carpeta plana de la biblioteca (pestaña "Carpetas"). */
+private data class FolderGroup(
+    val key: String,
+    val name: String,
+    val path: String,
+    val segments: List<String>,
+    val tracks: List<Track>,
+)
+
+@Composable
+fun LibraryScreen(
+    state: LibraryUiState,
+    actions: TrackActions,
+    onPickFolder: () -> Unit,
+    onRescan: () -> Unit,
+    onEditCover: (AlbumGroup) -> Unit,
+    onExcludeFolder: (List<String>) -> Unit,
+) {
+    var tab by rememberSaveable { mutableIntStateOf(LibraryTab.TRACKS.ordinal) }
+    var openAlbumKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var openFolderKey by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val folders = remember(state.tracks) {
+        state.tracks.groupBy { it.folderKey }.map { (key, tracks) ->
+            val segments = tracks.first().folderSegments
+            FolderGroup(key, tracks.first().folderName, folderDisplayPath(segments), segments, tracks)
+        }.sortedBy { it.path.lowercase() }
+    }
+
+    // Detalles (álbum o carpeta) sobre la pestaña actual
+    state.albums.firstOrNull { it.key == openAlbumKey }?.let { album ->
+        BackHandler { openAlbumKey = null }
+        CollectionDetail(
+            title = album.title,
+            subtitle = album.artist,
+            tracks = album.tracks,
+            cover = state.covers[album.key],
+            actions = actions,
+            onBack = { openAlbumKey = null },
+            onEditCover = { onEditCover(album) },
+        )
+        return
+    }
+    folders.firstOrNull { it.key == openFolderKey }?.let { folder ->
+        BackHandler { openFolderKey = null }
+        CollectionDetail(
+            title = folder.name,
+            subtitle = folder.path,
+            tracks = folder.tracks,
+            cover = null,
+            actions = actions,
+            onBack = { openFolderKey = null },
+            onEditCover = null,
+        )
+        return
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        ScreenHeader(
+            title = "Música Local",
+            trailingText = state.location?.displayPath ?: "Todo el dispositivo",
+        )
+        SegmentedTabs(
+            options = listOf(
+                if (state.tracks.isEmpty()) "Pistas" else "Pistas (${state.tracks.size})",
+                "Álbumes",
+                "Carpetas",
+            ),
+            selected = tab,
+            onSelect = { tab = it },
+        )
+        when {
+            state.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
+            state.tracks.isEmpty() -> EmptyState(
+                icon = Icons.Rounded.LibraryMusic,
+                title = "No hay música aquí",
+                message = "No se encontraron archivos MP3, FLAC o ALAC en esta ubicación.",
+                actionLabel = "Elegir carpeta",
+                onAction = onPickFolder,
+                secondaryLabel = "Volver a escanear",
+                onSecondary = onRescan,
+            )
+            else -> when (LibraryTab.entries[tab]) {
+                LibraryTab.TRACKS -> TrackList(state.tracks, actions, Modifier.fillMaxSize())
+                LibraryTab.ALBUMS -> AlbumGrid(state.albums, state.covers) { openAlbumKey = it.key }
+                LibraryTab.FOLDERS -> FolderList(folders, onExclude = { onExcludeFolder(it.segments) }) { openFolderKey = it.key }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlbumGrid(albums: List<AlbumGroup>, covers: Map<String, CoverRef>, onOpen: (AlbumGroup) -> Unit) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(150.dp),
+        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        items(albums, key = { it.key }) { album ->
+            Surface(
+                onClick = { onOpen(album) },
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
+                Column(Modifier.padding(10.dp)) {
+                    CoverImage(
+                        Modifier.fillMaxWidth().aspectRatio(1f),
+                        cover = covers[album.key],
+                        shape = RoundedCornerShape(12.dp),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(album.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        album.artist,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        "${album.tracks.size} pistas",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FolderList(
+    folders: List<FolderGroup>,
+    onExclude: (FolderGroup) -> Unit,
+    onOpen: (FolderGroup) -> Unit,
+) {
+    LazyColumn(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        items(folders, key = { it.key }) { folder ->
+            FolderCard(
+                name = folder.name,
+                path = folder.path,
+                detail = "${folder.tracks.size} pistas",
+                onExclude = { onExclude(folder) },
+            ) { onOpen(folder) }
+        }
+    }
+}
+
+/** Fila de carpeta reutilizada por la biblioteca y el explorador. */
+@Composable
+fun FolderCard(
+    name: String,
+    path: String?,
+    detail: String,
+    onExclude: (() -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(46.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Rounded.Folder, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+            }
+            Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                Text(name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (path != null) {
+                    Text(
+                        path,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.StartEllipsis,
+                    )
+                }
+            }
+            Text(detail, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (onExclude != null) {
+                var menu by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { menu = true }) {
+                        Icon(Icons.Rounded.MoreVert, contentDescription = "Más opciones")
+                    }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Omitir carpeta") },
+                            leadingIcon = { Icon(Icons.Rounded.FolderOff, null) },
+                            onClick = { menu = false; onExclude() },
+                        )
+                    }
+                }
+            } else {
+                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+/** Detalle de un álbum o carpeta: cabecera con carátula, botones y lista de pistas. */
+@Composable
+private fun CollectionDetail(
+    title: String,
+    subtitle: String,
+    tracks: List<Track>,
+    cover: CoverRef?,
+    actions: TrackActions,
+    onBack: () -> Unit,
+    onEditCover: (() -> Unit)?,
+) {
+    Column(Modifier.fillMaxSize()) {
+        ScreenHeader(title = "", onBack = onBack)
+        TrackList(
+            tracks = tracks,
+            actions = actions,
+            number = ::albumTrackNumber,
+            modifier = Modifier.fillMaxSize(),
+            header = {
+                item(key = "header") {
+                    CollectionHeader(title, subtitle, tracks, cover, onEditCover,
+                        onPlay = { actions.play(tracks, 0) },
+                        onShuffle = { actions.shuffle(tracks) })
+                }
+            },
+        )
+    }
+}
+
+@Composable
+fun CollectionHeader(
+    title: String,
+    subtitle: String,
+    tracks: List<Track>,
+    cover: CoverRef?,
+    onEditCover: (() -> Unit)?,
+    onPlay: () -> Unit,
+    onShuffle: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CoverImage(Modifier.size(112.dp), cover = cover, shape = RoundedCornerShape(16.dp))
+            Column(Modifier.weight(1f).padding(start = 16.dp)) {
+                Text(title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "${tracks.size} pistas · ${formatDuration(tracks.sumOf { it.durationMs })}",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = onPlay, enabled = tracks.isNotEmpty()) {
+                Icon(Icons.Rounded.PlayArrow, null)
+                Spacer(Modifier.width(6.dp))
+                Text("Reproducir")
+            }
+            FilledTonalButton(onClick = onShuffle, enabled = tracks.isNotEmpty()) {
+                Icon(Icons.Rounded.Shuffle, null)
+                Spacer(Modifier.width(6.dp))
+                Text("Aleatorio")
+            }
+            if (onEditCover != null) {
+                OutlinedIconButton(onClick = onEditCover) {
+                    Icon(Icons.Rounded.Image, contentDescription = "Cambiar carátula")
+                }
+            }
+        }
+    }
+}
