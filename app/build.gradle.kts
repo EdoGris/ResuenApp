@@ -12,8 +12,8 @@ android {
         applicationId = "cl.lossless.player"
         minSdk = 34          // Android 14: necesario para AudioMixerAttributes (bit-perfect USB)
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
 
     buildTypes {

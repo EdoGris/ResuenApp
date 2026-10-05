@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -36,6 +37,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -51,7 +54,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import cl.lossless.player.lyrics.LyricLine
 import cl.lossless.player.lyrics.Lyrics
+import cl.lossless.player.lyrics.LyricsAligner
 import cl.lossless.player.ui.player.PlayerUiState
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -67,14 +72,27 @@ fun LyricsView(
     onAdjustOffset: (Long) -> Unit,
     onResetOffset: () -> Unit,
     onRetry: () -> Unit,
+    onPlayFrom: (Long) -> Unit,
+    onSaveSync: suspend (List<LyricLine>) -> Boolean,
     modifier: Modifier = Modifier,
 ) {
+    var editing by rememberSaveable(state.trackKey) { mutableStateOf(false) }
     Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         val lyrics = state.lyrics
+        val onTapSync = { editing = true }
         when {
             state.loading -> CircularProgressIndicator()
-            lyrics?.isSynced == true -> SyncedLyrics(lyrics, state, player, onSeek, onAdjustOffset, onResetOffset, onRetry)
-            lyrics?.plain != null -> PlainLyrics(lyrics, player, onRetry)
+            editing && lyrics != null -> TapSyncEditor(
+                lines = lyrics.synced?.map { it.text }
+                    ?: LyricsAligner.splitLines(lyrics.plain.orEmpty()).map { it.text },
+                player = player,
+                onPlayFrom = onPlayFrom,
+                onSave = onSaveSync,
+                onClose = { editing = false },
+            )
+            lyrics?.isSynced == true ->
+                SyncedLyrics(lyrics, state, player, onSeek, onAdjustOffset, onResetOffset, onRetry, onTapSync)
+            lyrics?.plain != null -> PlainLyrics(lyrics, state, player, onRetry, onTapSync)
             lyrics?.instrumental == true -> Message("Instrumental", "Esta pista no tiene letra.", null, null)
             state.notFound -> Message(
                 title = if (state.offline) "Sin conexión" else "Letra no encontrada",
@@ -116,6 +134,7 @@ private fun SyncedLyrics(
     onAdjustOffset: (Long) -> Unit,
     onResetOffset: () -> Unit,
     onRetry: () -> Unit,
+    onTapSync: () -> Unit,
 ) {
     val lines = lyrics.synced.orEmpty()
     val position = rememberLivePosition(player)
@@ -162,7 +181,7 @@ private fun SyncedLyrics(
                 }
             }
         }
-        LyricsFooter(state, onAdjustOffset, onResetOffset, onRetry, synced = true)
+        LyricsFooter(state, onAdjustOffset, onResetOffset, onRetry, onTapSync, synced = true)
     }
 }
 
@@ -194,7 +213,7 @@ private fun LyricLineText(text: String, isCurrent: Boolean, isPast: Boolean, onC
 
 /** Letra sin marcas de tiempo: desplazamiento proporcional al avance de la canción. */
 @Composable
-private fun PlainLyrics(lyrics: Lyrics, player: PlayerUiState, onRetry: () -> Unit) {
+private fun PlainLyrics(lyrics: Lyrics, state: LyricsUiState, player: PlayerUiState, onRetry: () -> Unit, onTapSync: () -> Unit) {
     val scroll = rememberScrollState()
     var lastManualScroll by remember { mutableLongStateOf(0L) }
     val manualScroll = remember {
@@ -224,30 +243,46 @@ private fun PlainLyrics(lyrics: Lyrics, player: PlayerUiState, onRetry: () -> Un
                 .verticalScroll(scroll)
                 .padding(vertical = 24.dp, horizontal = 8.dp),
         )
-        LyricsFooter(null, {}, {}, onRetry, synced = false, source = lyrics.source.label)
+        LyricsFooter(state, {}, {}, onRetry, onTapSync, synced = false)
     }
 }
 
 @Composable
 private fun LyricsFooter(
-    state: LyricsUiState?,
+    state: LyricsUiState,
     onAdjustOffset: (Long) -> Unit,
     onResetOffset: () -> Unit,
     onRetry: () -> Unit,
+    onTapSync: () -> Unit,
     synced: Boolean,
-    source: String? = state?.lyrics?.source?.label,
 ) {
+    val lyrics = state.lyrics
     Row(
         Modifier.fillMaxWidth().padding(top = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            if (synced) "Fuente: $source" else "Fuente: $source · sin sincronizar",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f),
-        )
-        if (synced && state != null) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                "Fuente: ${lyrics?.source?.label.orEmpty()}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                when {
+                    state.estimating -> "Estimando los tiempos…"
+                    lyrics?.estimated == true -> "Sincronización estimada"
+                    !synced -> "Sin sincronizar"
+                    else -> ""
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = if (lyrics?.estimated == true || state.estimating) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        IconButton(onClick = onTapSync, modifier = Modifier.size(36.dp)) {
+            Icon(Icons.Rounded.TouchApp, contentDescription = "Sincronizar tocando")
+        }
+        if (synced) {
             IconButton(onClick = { onAdjustOffset(-250) }, modifier = Modifier.size(36.dp)) {
                 Icon(Icons.Rounded.Remove, contentDescription = "Letra antes")
             }

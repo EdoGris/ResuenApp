@@ -7,6 +7,7 @@ enum class LyricsSource(val label: String) {
     SIDECAR("Archivo .lrc"),
     EMBEDDED("Etiquetas del archivo"),
     LRCLIB("LRCLIB"),
+    USER("Sincronizada por ti"),
 }
 
 /**
@@ -18,6 +19,8 @@ data class Lyrics(
     val plain: String?,
     val source: LyricsSource,
     val instrumental: Boolean = false,
+    /** Tiempos calculados por la app (análisis del audio), no venían con la letra. */
+    val estimated: Boolean = false,
 ) {
     val isSynced: Boolean get() = !synced.isNullOrEmpty()
 

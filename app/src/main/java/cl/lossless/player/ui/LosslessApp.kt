@@ -289,6 +289,8 @@ fun LosslessApp(
                         onOpenEqualizer = openEqualizer,
                         onOpenExclusions = { exclusionsOpen = true },
                         lyricsOnline = lyricsState.searchOnline,
+                        lyricsAutoSync = lyricsState.autoSync,
+                        onLyricsAutoSync = lyricsVm::setAutoSync,
                         onLyricsOnline = lyricsVm::setSearchOnline,
                         onClearLyricsCache = {
                             lyricsVm.clearCache()
@@ -320,6 +322,7 @@ fun LosslessApp(
                 onLoadLyrics = { force -> lyricsVm.loadFor(currentTrack, force) },
                 onAdjustLyricsOffset = lyricsVm::adjustOffset,
                 onResetLyricsOffset = lyricsVm::resetOffset,
+                onSaveLyricsSync = lyricsVm::saveUserSync,
             )
         }
 

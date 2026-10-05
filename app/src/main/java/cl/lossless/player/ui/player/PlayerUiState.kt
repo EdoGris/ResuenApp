@@ -137,6 +137,7 @@ class PlayerActions(private val player: Player?) {
     fun next() { player?.seekToNext() }
     fun previous() { player?.seekToPrevious() }
     fun seekTo(positionMs: Long) { player?.seekTo(positionMs) }
+    fun playFrom(positionMs: Long) { player?.run { seekTo(positionMs); play() } }
     fun skipToQueueItem(index: Int) { player?.run { seekTo(index, 0L); play() } }
     fun removeQueueItem(index: Int) { player?.removeMediaItem(index) }
 

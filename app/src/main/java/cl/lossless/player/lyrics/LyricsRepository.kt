@@ -11,6 +11,8 @@ import java.io.IOException
 import java.nio.charset.CharacterCodingException
 import java.nio.charset.CodingErrorAction
 
+private const val USER_PREFIX = "user:"
+
 sealed interface LyricsResult {
     data class Found(val lyrics: Lyrics) : LyricsResult
     /** No hay letra. [offline] = no se pudo consultar internet (conviene reintentar). */
@@ -37,6 +39,8 @@ class LyricsRepository(
         forceRefresh: Boolean = false,
     ): LyricsResult = withContext(Dispatchers.IO) {
         readSidecar(track, location)?.let { return@withContext LyricsResult.Found(it) }
+        // Lo sincronizado por el usuario manda sobre la letra del archivo o de internet.
+        (cache.get(userKey(track)) as? LyricsCache.Entry.Found)?.let { return@withContext LyricsResult.Found(it.lyrics) }
         readEmbedded(track)?.let { return@withContext LyricsResult.Found(it) }
 
         val key = cacheKey(track)
@@ -62,7 +66,79 @@ class LyricsRepository(
         }
     }
 
-    fun clearCache() = cache.clear()
+    /** Borra las letras descargadas y las estimaciones (no las sincronizadas por el usuario). */
+    fun clearCache() = cache.clear(keep = { it.startsWith(USER_PREFIX) })
+
+    private fun userKey(track: Track) = USER_PREFIX + track.uri
+
+    // ---------- Sincronización estimada ----------
+
+    /**
+     * Tiempos estimados para una letra sin marcas, analizando dónde se canta. El resultado se
+     * guarda por pista y por texto (si la letra cambia, se vuelve a estimar).
+     */
+    suspend fun estimate(track: Track, lyrics: Lyrics): Lyrics? {
+        val plain = lyrics.plain ?: return null
+        val lines = LyricsAligner.splitLines(plain)
+        if (lines.isEmpty()) return null
+        val key = "estimate:${track.uri}#${plain.hashCode()}"
+        (withContext(Dispatchers.IO) { cache.get(key) } as? LyricsCache.Entry.Found)?.let { return it.lyrics }
+
+        val segments = withContext(Dispatchers.Default) { VocalActivity.analyze(context, track.uri) }.orEmpty()
+        val synced = LyricsAligner.align(lines, segments, track.durationMs)
+        val result = lyrics.copy(synced = synced, estimated = true)
+        withContext(Dispatchers.IO) { cache.putFound(key, result) }
+        return result
+    }
+
+    // ---------- Sincronización hecha por el usuario ----------
+
+    /** Dónde quedó guardada la sincronización. */
+    enum class SavedTo { FOLDER, APP }
+
+    /**
+     * Guarda los tiempos marcados por el usuario. Si la carpeta de música está elegida y se
+     * puede escribir, crea/actualiza "<canción>.lrc" junto al audio (lo leerán también otros
+     * reproductores); siempre queda además una copia en la app.
+     */
+    suspend fun saveUserSync(track: Track, location: LibraryLocation?, lines: List<LyricLine>): SavedTo =
+        withContext(Dispatchers.IO) {
+            val lyrics = Lyrics(lines, lines.joinToString("\n") { it.text }, LyricsSource.USER)
+            cache.putFound(userKey(track), lyrics)
+            val (title, artist) = TrackMetadataCleaner.clean(track.title, track.artist)
+            val written = writeSidecar(track, location, LrcWriter.write(lines, title, artist))
+            if (written) SavedTo.FOLDER else SavedTo.APP
+        }
+
+    private fun writeSidecar(track: Track, location: LibraryLocation?, lrc: String): Boolean {
+        val loc = location ?: return false
+        val folderId = track.folderDocId?.takeIf(loc::contains) ?: return false
+        val folderUri = loc.documentUri(folderId) ?: return false
+        val base = track.fileName.substringBeforeLast('.').takeIf { it.isNotEmpty() } ?: return false
+        return runCatching {
+            val resolver = context.contentResolver
+            val target = findChild(loc, folderId, "$base.lrc")
+                ?.let { DocumentsContract.buildDocumentUriUsingTree(loc.treeUri, it) }
+                // octet-stream: así el proveedor no agrega ".txt" al nombre
+                ?: DocumentsContract.createDocument(resolver, folderUri, "application/octet-stream", "$base.lrc")
+                ?: return false
+            resolver.openOutputStream(target, "wt")?.use { it.write(lrc.toByteArray(Charsets.UTF_8)) } ?: return false
+            true
+        }.getOrDefault(false)
+    }
+
+    private fun findChild(loc: LibraryLocation, folderId: String, name: String): String? =
+        context.contentResolver.query(
+            loc.childrenUri(folderId),
+            arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+            null, null, null,
+        )?.use { c ->
+            var match: String? = null
+            while (match == null && c.moveToNext()) {
+                if (c.getString(1).equals(name, ignoreCase = true)) match = c.getString(0)
+            }
+            match
+        }
 
     /** La caché se asocia a la pista (archivo), no al texto de búsqueda. */
     fun cacheKey(track: Track) = track.uri.toString()
@@ -107,17 +183,7 @@ class LyricsRepository(
         val folderId = track.folderDocId?.takeIf(loc::contains) ?: return null
         val base = track.fileName.substringBeforeLast('.').takeIf { it.isNotEmpty() } ?: return null
         return runCatching {
-            val docId = context.contentResolver.query(
-                loc.childrenUri(folderId),
-                arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME),
-                null, null, null,
-            )?.use { c ->
-                var match: String? = null
-                while (c.moveToNext()) {
-                    if (c.getString(1).equals("$base.lrc", ignoreCase = true)) { match = c.getString(0); break }
-                }
-                match
-            } ?: return null
+            val docId = findChild(loc, folderId, "$base.lrc") ?: return null
             val uri = DocumentsContract.buildDocumentUriUsingTree(loc.treeUri, docId)
             val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
             LrcParser.toLyrics(decodeText(bytes), LyricsSource.SIDECAR)

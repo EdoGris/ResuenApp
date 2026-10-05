@@ -41,6 +41,36 @@ data class BiquadCoefficients(
             )
         }
 
+        /** Paso alto de 2.º orden (Butterworth con Q = 0.707). */
+        fun highPass(freq: Double, fs: Double, q: Double = 0.7071): BiquadCoefficients {
+            val w0 = 2 * PI * freq / fs
+            val cosW = cos(w0)
+            val alpha = sin(w0) / (2 * q)
+            val a0 = 1 + alpha
+            return BiquadCoefficients(
+                b0 = (1 + cosW) / 2 / a0,
+                b1 = -(1 + cosW) / a0,
+                b2 = (1 + cosW) / 2 / a0,
+                a1 = -2 * cosW / a0,
+                a2 = (1 - alpha) / a0,
+            )
+        }
+
+        /** Paso bajo de 2.º orden (Butterworth con Q = 0.707). */
+        fun lowPass(freq: Double, fs: Double, q: Double = 0.7071): BiquadCoefficients {
+            val w0 = 2 * PI * freq / fs
+            val cosW = cos(w0)
+            val alpha = sin(w0) / (2 * q)
+            val a0 = 1 + alpha
+            return BiquadCoefficients(
+                b0 = (1 - cosW) / 2 / a0,
+                b1 = (1 - cosW) / a0,
+                b2 = (1 - cosW) / 2 / a0,
+                a1 = -2 * cosW / a0,
+                a2 = (1 - alpha) / a0,
+            )
+        }
+
         /** Low-shelf con pendiente S = 1 (para el refuerzo de graves). */
         fun lowShelf(freq: Double, gainDb: Double, fs: Double): BiquadCoefficients {
             val a = 10.0.pow(gainDb / 40)

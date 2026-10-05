@@ -41,6 +41,7 @@ class LyricsCache(context: Context) {
                 plain = json.optString("plain").takeIf { it.isNotEmpty() },
                 source = LyricsSource.valueOf(json.getString("source")),
                 instrumental = json.optBoolean("instrumental"),
+                estimated = json.optBoolean("estimated"),
             )
         )
     }.getOrNull()
@@ -50,6 +51,7 @@ class LyricsCache(context: Context) {
             .put("source", lyrics.source.name)
             .put("plain", lyrics.plain ?: "")
             .put("instrumental", lyrics.instrumental)
+            .put("estimated", lyrics.estimated)
             .put("savedAt", System.currentTimeMillis())
         lyrics.synced?.let { lines ->
             json.put("synced", JSONArray().apply { lines.forEach { put(JSONObject().put("t", it.timeMs).put("x", it.text)) } })
@@ -62,9 +64,16 @@ class LyricsCache(context: Context) {
 
     fun remove(key: String) { fileFor(key).delete() }
 
-    fun clear() { dir.listFiles()?.forEach { it.delete() } }
+    /** Borra las entradas cuya clave no cumpla [keep] (la clave se guarda dentro del archivo). */
+    fun clear(keep: (String) -> Boolean = { false }) {
+        dir.listFiles()?.forEach { file ->
+            val key = runCatching { JSONObject(file.readText()).optString("key") }.getOrDefault("")
+            if (!keep(key)) file.delete()
+        }
+    }
 
     private fun write(key: String, json: JSONObject) = runCatching {
+        json.put("key", key)
         val target = fileFor(key)
         val tmp = File(dir, target.name + ".tmp")
         tmp.writeText(json.toString())
@@ -87,6 +96,11 @@ class LyricsPrefs(context: Context) {
         get() = prefs.getBoolean(KEY_ONLINE, true)
         set(value) = prefs.edit().putBoolean(KEY_ONLINE, value).apply()
 
+    /** Estimar los tiempos de las letras que vienen sin marcas (análisis del audio). */
+    var autoSync: Boolean
+        get() = prefs.getBoolean(KEY_AUTO_SYNC, true)
+        set(value) = prefs.edit().putBoolean(KEY_AUTO_SYNC, value).apply()
+
     /** Retraso de la letra respecto del audio, en ms (positivo = la letra aparece más tarde). */
     fun offsetFor(trackKey: String): Long = prefs.getLong(KEY_OFFSET + trackKey, 0L)
 
@@ -98,6 +112,7 @@ class LyricsPrefs(context: Context) {
 
     private companion object {
         const val KEY_ONLINE = "search_online"
+        const val KEY_AUTO_SYNC = "auto_sync"
         const val KEY_OFFSET = "offset:"
     }
 }

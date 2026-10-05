@@ -53,6 +53,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import cl.lossless.player.lyrics.LyricLine
 import cl.lossless.player.ui.lyrics.LyricsUiState
 import cl.lossless.player.ui.lyrics.LyricsView
 import androidx.compose.runtime.getValue
@@ -93,6 +94,7 @@ fun NowPlayingScreen(
     onLoadLyrics: (force: Boolean) -> Unit,
     onAdjustLyricsOffset: (Long) -> Unit,
     onResetLyricsOffset: () -> Unit,
+    onSaveLyricsSync: suspend (List<LyricLine>) -> Boolean,
 ) {
     val current = state.current
     var showQueue by remember { mutableStateOf(false) }
@@ -143,6 +145,8 @@ fun NowPlayingScreen(
                     onAdjustOffset = onAdjustLyricsOffset,
                     onResetOffset = onResetLyricsOffset,
                     onRetry = { onLoadLyrics(true) },
+                    onPlayFrom = player::playFrom,
+                    onSaveSync = onSaveLyricsSync,
                     modifier = Modifier.weight(1f).padding(vertical = 8.dp),
                 )
             } else {

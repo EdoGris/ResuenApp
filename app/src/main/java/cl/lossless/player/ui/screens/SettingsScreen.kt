@@ -91,6 +91,8 @@ fun SettingsScreen(
     onOpenExclusions: () -> Unit,
     lyricsOnline: Boolean,
     onLyricsOnline: (Boolean) -> Unit,
+    lyricsAutoSync: Boolean,
+    onLyricsAutoSync: (Boolean) -> Unit,
     onClearLyricsCache: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -217,8 +219,14 @@ fun SettingsScreen(
                 trailing = { Switch(checked = lyricsOnline, onCheckedChange = onLyricsOnline) },
             )
             SettingRow(
+                title = "Sincronizar letras sin tiempos",
+                subtitle = "Analiza el audio en el teléfono para estimar cuándo se canta cada línea. " +
+                    "Para un resultado exacto, usa «Sincronizar tocando» en la letra.",
+                trailing = { Switch(checked = lyricsAutoSync, onCheckedChange = onLyricsAutoSync) },
+            )
+            SettingRow(
                 title = "Borrar letras guardadas",
-                subtitle = "Las descargadas se guardan para no volver a pedirlas",
+                subtitle = "Descargas y estimaciones (lo sincronizado por ti se conserva)",
                 trailing = { Icon(Icons.Rounded.DeleteSweep, null) },
                 onClick = onClearLyricsCache,
             )
