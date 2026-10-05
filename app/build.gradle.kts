@@ -13,11 +13,19 @@ android {
         minSdk = 34          // Android 14: necesario para AudioMixerAttributes (bit-perfect USB)
         targetSdk = 36
         versionCode = 2
-        versionName = "1.1-exp"
+        versionName = "1.1"
     }
 
     buildTypes {
         release { isMinifyEnabled = false }
+        // Instalable junto a la app normal: otro paquete, otro nombre e ícono propio
+        // (recursos en src/experimental). Datos y ajustes quedan separados de la app estable.
+        create("experimental") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".exp"
+            versionNameSuffix = "-exp"
+            matchingFallbacks += listOf("debug")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
