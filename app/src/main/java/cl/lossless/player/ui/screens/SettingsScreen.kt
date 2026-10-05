@@ -34,7 +34,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Equalizer
+import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.FolderOff
 import androidx.compose.runtime.remember
 import cl.lossless.player.library.FolderExclusions
@@ -87,6 +89,9 @@ fun SettingsScreen(
     equalizerSummary: String,
     onOpenEqualizer: () -> Unit,
     onOpenExclusions: () -> Unit,
+    lyricsOnline: Boolean,
+    onLyricsOnline: (Boolean) -> Unit,
+    onClearLyricsCache: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         ScreenHeader(title = "Ajustes")
@@ -201,6 +206,21 @@ fun SettingsScreen(
                 title = "Colores dinámicos",
                 subtitle = "Usa la paleta del fondo de pantalla (Material You); reemplaza el color de acento",
                 trailing = { Switch(checked = state.dynamicColor, onCheckedChange = onDynamicColor) },
+            )
+        }
+
+        SettingsSection("Letras", Icons.Rounded.Lyrics) {
+            SettingRow(
+                title = "Buscar letras en internet",
+                subtitle = "Si la canción no trae letra ni archivo .lrc, se busca en LRCLIB (lrclib.net). " +
+                    "Se envían título, artista y duración.",
+                trailing = { Switch(checked = lyricsOnline, onCheckedChange = onLyricsOnline) },
+            )
+            SettingRow(
+                title = "Borrar letras guardadas",
+                subtitle = "Las descargadas se guardan para no volver a pedirlas",
+                trailing = { Icon(Icons.Rounded.DeleteSweep, null) },
+                onClick = onClearLyricsCache,
             )
         }
 

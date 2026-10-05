@@ -1,6 +1,7 @@
 package cl.lossless.player.ui.player
 
 import android.net.Uri
+import android.os.SystemClock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -28,6 +29,8 @@ data class PlayerUiState(
     val current: NowPlaying? = null,
     val isPlaying: Boolean = false,
     val positionMs: Long = 0L,
+    /** Momento (SystemClock.elapsedRealtime) en que se leyó [positionMs]; permite interpolar. */
+    val positionUpdatedAt: Long = 0L,
     val durationMs: Long = 0L,
     val shuffle: Boolean = false,
     val repeatMode: Int = Player.REPEAT_MODE_OFF,
@@ -54,6 +57,7 @@ private fun Player.snapshot(previous: PlayerUiState, rebuildQueue: Boolean): Pla
         },
         isPlaying = isPlaying,
         positionMs = currentPosition,
+        positionUpdatedAt = SystemClock.elapsedRealtime(),
         durationMs = duration.takeIf { it != C.TIME_UNSET } ?: 0L,
         shuffle = shuffleModeEnabled,
         repeatMode = repeatMode,
@@ -91,7 +95,10 @@ fun rememberPlayerUiState(player: Player?): State<PlayerUiState> {
     val playing = state.value.isPlaying
     LaunchedEffect(player, playing) {
         while (player != null && playing) {
-            state.value = state.value.copy(positionMs = player.currentPosition)
+            state.value = state.value.copy(
+                positionMs = player.currentPosition,
+                positionUpdatedAt = SystemClock.elapsedRealtime(),
+            )
             delay(500)
         }
     }

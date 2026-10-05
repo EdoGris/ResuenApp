@@ -32,6 +32,8 @@ data class Track(
     val bitsPerSample: Int = 0,
     /** Frecuencia de muestreo en Hz (0 si se desconoce). */
     val sampleRate: Int = 0,
+    /** Nombre del archivo (ej. "01 Bombtrack.flac"); sirve para encontrar su .lrc. */
+    val fileName: String = "",
 ) {
     /** Un .m4a puede ser ALAC (sin pérdida) o AAC (con pérdida); el códec real se ve al reproducir. */
     val containerLabel: String
@@ -123,6 +125,7 @@ class MusicRepository(private val context: Context) {
             MediaStore.Audio.Media.BITRATE,
             MediaStore.Audio.Media.BITS_PER_SAMPLE,
             MediaStore.Audio.Media.SAMPLERATE,
+            MediaStore.Audio.Media.DISPLAY_NAME,
         )
         val conditions = mutableListOf(
             "${MediaStore.Audio.Media.IS_MUSIC} != 0",
@@ -156,6 +159,7 @@ class MusicRepository(private val context: Context) {
             val bitrateCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.BITRATE)
             val bitsCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.BITS_PER_SAMPLE)
             val rateCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.SAMPLERATE)
+            val nameCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
             while (c.moveToNext()) {
                 val id = c.getLong(idCol)
                 val vol = c.getString(volCol) ?: MediaStore.VOLUME_EXTERNAL_PRIMARY
@@ -176,6 +180,7 @@ class MusicRepository(private val context: Context) {
                     bitrate = c.getInt(bitrateCol),
                     bitsPerSample = c.getInt(bitsCol),
                     sampleRate = c.getInt(rateCol),
+                    fileName = c.getString(nameCol) ?: "",
                 )
             }
         }
@@ -252,6 +257,7 @@ class MusicRepository(private val context: Context) {
             bitrate = tag(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull() ?: 0,
             bitsPerSample = tag(MediaMetadataRetriever.METADATA_KEY_BITS_PER_SAMPLE)?.toIntOrNull() ?: 0,
             sampleRate = tag(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)?.toIntOrNull() ?: 0,
+            fileName = name,
         )
     }
 

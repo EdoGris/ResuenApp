@@ -69,6 +69,7 @@ import cl.lossless.player.ui.components.PlaylistNameDialog
 import cl.lossless.player.ui.components.TrackActions
 import cl.lossless.player.ui.equalizer.EqualizerScreen
 import cl.lossless.player.ui.equalizer.EqualizerViewModel
+import cl.lossless.player.ui.lyrics.LyricsViewModel
 import cl.lossless.player.ui.player.PlayerActions
 import cl.lossless.player.ui.player.rememberPlayerUiState
 import cl.lossless.player.ui.screens.FoldersScreen
@@ -92,6 +93,7 @@ fun LosslessApp(
     vm: LibraryViewModel = viewModel(),
     playlistsVm: PlaylistsViewModel = viewModel(),
     equalizerVm: EqualizerViewModel = viewModel(),
+    lyricsVm: LyricsViewModel = viewModel(),
     /** Cambia cada vez que se pide abrir "Reproduciendo" desde fuera (notificación). */
     openNowPlayingSignal: Int = 0,
 ) {
@@ -177,6 +179,7 @@ fun LosslessApp(
     var destination by rememberSaveable { mutableStateOf(Destination.LIBRARY) }
     var nowPlayingOpen by rememberSaveable { mutableStateOf(false) }
     val currentTrack = playerState.current?.let { state.tracksById[it.mediaId] }
+    val lyricsState by lyricsVm.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(openNowPlayingSignal) {
         if (openNowPlayingSignal > 0) {
@@ -285,6 +288,12 @@ fun LosslessApp(
                         },
                         onOpenEqualizer = openEqualizer,
                         onOpenExclusions = { exclusionsOpen = true },
+                        lyricsOnline = lyricsState.searchOnline,
+                        onLyricsOnline = lyricsVm::setSearchOnline,
+                        onClearLyricsCache = {
+                            lyricsVm.clearCache()
+                            Toast.makeText(context, "Letras guardadas borradas", Toast.LENGTH_SHORT).show()
+                        },
                     )
                 }
             }
@@ -307,6 +316,10 @@ fun LosslessApp(
                 onCollapse = { nowPlayingOpen = false },
                 onToggleFavorite = { playerState.current?.let { playlistsVm.toggleFavorite(it.mediaId) } },
                 onOpenEqualizer = openEqualizer,
+                lyrics = lyricsState,
+                onLoadLyrics = { force -> lyricsVm.loadFor(currentTrack, force) },
+                onAdjustLyricsOffset = lyricsVm::adjustOffset,
+                onResetLyricsOffset = lyricsVm::resetOffset,
             )
         }
 

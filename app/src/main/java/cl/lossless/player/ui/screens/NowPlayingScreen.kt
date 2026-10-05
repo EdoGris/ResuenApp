@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Equalizer
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Repeat
@@ -48,6 +49,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import cl.lossless.player.ui.lyrics.LyricsUiState
+import cl.lossless.player.ui.lyrics.LyricsView
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -82,9 +89,19 @@ fun NowPlayingScreen(
     onCollapse: () -> Unit,
     onToggleFavorite: () -> Unit,
     onOpenEqualizer: () -> Unit,
+    lyrics: LyricsUiState,
+    onLoadLyrics: (force: Boolean) -> Unit,
+    onAdjustLyricsOffset: (Long) -> Unit,
+    onResetLyricsOffset: () -> Unit,
 ) {
     val current = state.current
     var showQueue by remember { mutableStateOf(false) }
+    var showLyrics by rememberSaveable { mutableStateOf(false) }
+
+    // La letra se busca solo cuando se muestra (y al cambiar de pista mientras está visible).
+    LaunchedEffect(showLyrics, track?.uri) {
+        if (showLyrics) onLoadLyrics(false)
+    }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
@@ -118,15 +135,27 @@ fun NowPlayingScreen(
                 }
             }
 
-            Spacer(Modifier.weight(0.6f))
+            if (showLyrics) {
+                LyricsView(
+                    state = lyrics,
+                    player = state,
+                    onSeek = player::seekTo,
+                    onAdjustOffset = onAdjustLyricsOffset,
+                    onResetOffset = onResetLyricsOffset,
+                    onRetry = { onLoadLyrics(true) },
+                    modifier = Modifier.weight(1f).padding(vertical = 8.dp),
+                )
+            } else {
+                Spacer(Modifier.weight(0.6f))
 
-            LargeCover(
-                cover = cover,
-                model = current?.artworkUri,
-                modifier = Modifier.widthIn(max = 420.dp).aspectRatio(1f),
-            )
+                LargeCover(
+                    cover = cover,
+                    model = current?.artworkUri,
+                    modifier = Modifier.widthIn(max = 420.dp).aspectRatio(1f),
+                )
 
-            Spacer(Modifier.weight(0.6f))
+                Spacer(Modifier.weight(0.6f))
+            }
 
             // Título, artista y calidad
             Text(
@@ -192,20 +221,17 @@ fun NowPlayingScreen(
                 )
             }
 
-            Spacer(Modifier.weight(0.4f))
+            if (!showLyrics) Spacer(Modifier.weight(0.4f)) else Spacer(Modifier.height(8.dp))
 
             // Accesos rápidos
             Row(
-                Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                TextButton(onClick = onOpenEqualizer) {
-                    Icon(Icons.Rounded.Equalizer, null)
-                    Text("  Ecualizador")
-                }
-                TextButton(onClick = { showQueue = true }) {
-                    Icon(Icons.AutoMirrored.Rounded.QueueMusic, null)
-                    Text("  Cola (${state.queue.size})")
+                QuickAction(Icons.Rounded.Equalizer, "Ecualizador", active = equalizerActive, onClick = onOpenEqualizer)
+                QuickAction(Icons.Rounded.Lyrics, "Letra", active = showLyrics, onClick = { showLyrics = !showLyrics })
+                QuickAction(Icons.AutoMirrored.Rounded.QueueMusic, "Cola (${state.queue.size})", active = false) {
+                    showQueue = true
                 }
             }
         }
@@ -213,6 +239,22 @@ fun NowPlayingScreen(
 
     if (showQueue) {
         QueueSheet(state, player, onDismiss = { showQueue = false })
+    }
+}
+
+/** Acceso compacto: ícono sobre etiqueta, resaltado si está activo. */
+@Composable
+private fun QuickAction(icon: ImageVector, label: String, active: Boolean, onClick: () -> Unit) {
+    val color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    Column(
+        Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(icon, contentDescription = null, tint = color)
+        Text(label, style = MaterialTheme.typography.labelMedium, color = color, maxLines = 1)
     }
 }
 
