@@ -40,3 +40,12 @@ SOFTWARE.
 
 Las letras en línea provienen de [LRCLIB](https://lrclib.net), una base de datos
 comunitaria y gratuita de letras.
+
+## Servidor de alineación (`aligner/`)
+
+El servidor opcional usa, sin incluir su código en este repositorio:
+[WhisperX](https://github.com/m-bain/whisperX) (BSD-2-Clause),
+[Whisper](https://github.com/openai/whisper) (MIT),
+[Demucs](https://github.com/facebookresearch/demucs) (MIT) y
+[FastAPI](https://github.com/fastapi/fastapi) (MIT). Los modelos wav2vec2 que WhisperX
+descarga por idioma tienen sus propias licencias, indicadas en Hugging Face.

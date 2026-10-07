@@ -95,6 +95,7 @@ fun NowPlayingScreen(
     onAdjustLyricsOffset: (Long) -> Unit,
     onResetLyricsOffset: () -> Unit,
     onSaveLyricsSync: suspend (List<LyricLine>) -> Boolean,
+    onAlignLyricsNow: () -> Unit,
 ) {
     val current = state.current
     var showQueue by remember { mutableStateOf(false) }
@@ -147,6 +148,7 @@ fun NowPlayingScreen(
                     onRetry = { onLoadLyrics(true) },
                     onPlayFrom = player::playFrom,
                     onSaveSync = onSaveLyricsSync,
+                    onAlignNow = onAlignLyricsNow,
                     modifier = Modifier.weight(1f).padding(vertical = 8.dp),
                 )
             } else {

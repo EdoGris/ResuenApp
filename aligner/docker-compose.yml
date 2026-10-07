@@ -1,0 +1,17 @@
+services:
+  aligner:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    # Con GPU NVIDIA (requiere nvidia-container-toolkit). Sin GPU, borra este bloque.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

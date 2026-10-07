@@ -69,6 +69,7 @@ import cl.lossless.player.ui.components.PlaylistNameDialog
 import cl.lossless.player.ui.components.TrackActions
 import cl.lossless.player.ui.equalizer.EqualizerScreen
 import cl.lossless.player.ui.equalizer.EqualizerViewModel
+import cl.lossless.player.ui.lyrics.AlignServerDialog
 import cl.lossless.player.ui.lyrics.LyricsViewModel
 import cl.lossless.player.ui.player.PlayerActions
 import cl.lossless.player.ui.player.rememberPlayerUiState
@@ -144,6 +145,7 @@ fun LosslessApp(
 
     // ---------- Carpetas omitidas ----------
     var exclusionsOpen by rememberSaveable { mutableStateOf(false) }
+    var alignServerOpen by rememberSaveable { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val excludeFolder: (List<String>) -> Unit = { segments ->
@@ -291,6 +293,10 @@ fun LosslessApp(
                         lyricsOnline = lyricsState.searchOnline,
                         lyricsAutoSync = lyricsState.autoSync,
                         onLyricsAutoSync = lyricsVm::setAutoSync,
+                        alignServerUrl = lyricsState.alignServerUrl,
+                        alignWifiOnly = lyricsState.alignWifiOnly,
+                        onOpenAlignServer = { alignServerOpen = true },
+                        onAlignWifiOnly = lyricsVm::setAlignWifiOnly,
                         onLyricsOnline = lyricsVm::setSearchOnline,
                         onClearLyricsCache = {
                             lyricsVm.clearCache()
@@ -323,6 +329,7 @@ fun LosslessApp(
                 onAdjustLyricsOffset = lyricsVm::adjustOffset,
                 onResetLyricsOffset = lyricsVm::resetOffset,
                 onSaveLyricsSync = lyricsVm::saveUserSync,
+                onAlignLyricsNow = lyricsVm::alignNow,
             )
         }
 
@@ -364,6 +371,15 @@ fun LosslessApp(
     }
 
     // ---------- Diálogos ----------
+    if (alignServerOpen) {
+        AlignServerDialog(
+            url = lyricsState.alignServerUrl,
+            token = lyricsState.alignToken,
+            onTest = lyricsVm::testAlignServer,
+            onSave = lyricsVm::setAlignServer,
+            onDismiss = { alignServerOpen = false },
+        )
+    }
     state.dialog?.let { dialog ->
         CoverDialog(
             dialog = dialog,

@@ -9,8 +9,11 @@ object LrcParser {
 
     private val timeTag = Regex("""\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?]""")
     private val offsetTag = Regex("""^\s*\[offset:\s*([+-]?\d+)\s*]\s*$""", RegexOption.IGNORE_CASE)
-    /** Marcas por palabra del formato LRC "mejorado" (<00:12.34>), que aquí no se usan. */
-    private val wordTag = Regex("""<\d{1,3}:\d{2}(?:[.:]\d{1,3})?>""")
+    /** Marcas por palabra del formato LRC "mejorado" (<00:12.34>). */
+    private val wordTag = Regex("""<(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?>""")
+    private val spaces = Regex("""\s+""")
+    /** Duración máxima supuesta para la última palabra de una línea (el LRC no trae su fin). */
+    private const val LAST_WORD_MS = 1_500L
 
     /**
      * Algunas letras traen una segunda copia completa de la canción en el mismo archivo
@@ -29,18 +32,49 @@ object LrcParser {
             offsetTag.find(line)?.let { offsetMs = it.groupValues[1].toLong(); return@let }
             val tags = timeTag.findAll(line).toList()
             if (tags.isEmpty()) continue
-            val text = line.replace(timeTag, "").replace(wordTag, "").trim()
+            val body = line.replace(timeTag, "")
+            val text = body.replace(wordTag, "").replace(spaces, " ").trim()
             if (text.isEmpty()) continue
+            // Las marcas por palabra son absolutas: solo valen si la línea suena una sola vez.
+            val words = if (tags.size == 1) parseWords(body, offsetMs) else null
             for (m in tags) {
-                val min = m.groupValues[1].toLong()
-                val sec = m.groupValues[2].toLong()
-                val frac = m.groupValues[3].takeIf { it.isNotEmpty() }?.padEnd(3, '0')?.toLong() ?: 0L
                 // [offset:+N] adelanta la letra N ms (convención del formato LRC).
-                raw += LyricLine((min * 60_000 + sec * 1_000 + frac - offsetMs).coerceAtLeast(0), text)
+                raw += LyricLine((toMs(m) - offsetMs).coerceAtLeast(0), text, words)
             }
         }
         if (raw.isEmpty()) return null
-        return dropDuplicatedSecondPass(raw).sortedBy { it.timeMs }
+        return closeLastWords(dropDuplicatedSecondPass(raw).sortedBy { it.timeMs })
+    }
+
+    private fun toMs(m: MatchResult): Long {
+        val min = m.groupValues[1].toLong()
+        val sec = m.groupValues[2].toLong()
+        val frac = m.groupValues[3].takeIf { it.isNotEmpty() }?.padEnd(3, '0')?.toLong() ?: 0L
+        return min * 60_000 + sec * 1_000 + frac
+    }
+
+    /** "<00:12.34>Hola <00:12.90>mundo" → palabras; el fin de cada una es el inicio de la siguiente. */
+    private fun parseWords(body: String, offsetMs: Long): List<LyricWord>? {
+        val marks = wordTag.findAll(body).toList()
+        if (marks.isEmpty()) return null
+        val starts = marks.map { (toMs(it) - offsetMs).coerceAtLeast(0) }
+        val words = marks.mapIndexedNotNull { i, m ->
+            val end = if (i + 1 < marks.size) marks[i + 1].range.first else body.length
+            val text = body.substring(m.range.last + 1, end).trim()
+            if (text.isEmpty()) null
+            else LyricWord(starts[i], if (i + 1 < starts.size) starts[i + 1] else starts[i], text)
+        }
+        return words.takeIf { it.isNotEmpty() }
+    }
+
+    /** La última palabra de cada línea termina, a lo más, cuando empieza la línea siguiente. */
+    private fun closeLastWords(lines: List<LyricLine>): List<LyricLine> = lines.mapIndexed { i, line ->
+        val words = line.words ?: return@mapIndexed line
+        val last = words.last()
+        if (last.endMs > last.startMs) return@mapIndexed line
+        val next = lines.getOrNull(i + 1)?.timeMs ?: (last.startMs + LAST_WORD_MS)
+        val end = minOf(next, last.startMs + LAST_WORD_MS).coerceAtLeast(last.startMs)
+        line.copy(words = words.dropLast(1) + last.copy(endMs = end))
     }
 
     /** Recibe las líneas en el orden del archivo (antes de ordenar). */
