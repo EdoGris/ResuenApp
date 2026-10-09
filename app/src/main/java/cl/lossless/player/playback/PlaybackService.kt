@@ -10,6 +10,7 @@ import androidx.media3.session.DefaultMediaNotificationProvider
 import cl.lossless.player.MainActivity
 import cl.lossless.player.R
 import android.net.Uri
+import android.view.KeyEvent
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -29,12 +30,14 @@ class PlaybackService : MediaSessionService() {
 
     private var session: MediaSession? = null
     private lateinit var bitPerfect: BitPerfectController
+    private lateinit var playbackPrefs: PlaybackPrefs
     private val io: ListeningExecutorService =
         MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor())
 
     override fun onCreate() {
         super.onCreate()
         bitPerfect = BitPerfectController(this)
+        playbackPrefs = PlaybackPrefs(this)
 
         val player = ExoPlayer.Builder(this, LosslessRenderersFactory(this))
             .setAudioAttributes(
@@ -99,6 +102,35 @@ class PlaybackService : MediaSessionService() {
     }
 
     private inner class SessionCallback : MediaSession.Callback {
+        /**
+         * Botones de audífonos y controles Bluetooth. Los gestos táctiles de los audífonos
+         * (Sony, Sennheiser, Jabra…) los traduce el propio audífono a estas teclas estándar:
+         * play/pausa, siguiente y anterior ya los atiende Media3 (también el doble toque de
+         * play/pausa, que avanza). Aquí solo se cambia el avance y retroceso rápido.
+         */
+        override fun onMediaButtonEvent(
+            session: MediaSession,
+            controllerInfo: MediaSession.ControllerInfo,
+            intent: Intent,
+        ): Boolean {
+            val event = intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT, KeyEvent::class.java) ?: return false
+            val skipNext = when (event.keyCode) {
+                KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD -> true
+                KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD -> false
+                else -> return false
+            }
+            if (!playbackPrefs.mediaKeysSkip) return false
+            // Una sola vez por pulsación, aunque se mantenga presionado.
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                val player = session.player
+                if (skipNext) player.seekToNextMediaItem()
+                else if (player.hasPreviousMediaItem()) player.seekToPreviousMediaItem()
+                else player.seekTo(0)
+            }
+            return true
+        }
+
+
         // El MediaController no envía la URI al servicio: se reconstruye desde mediaId.
         private fun resolve(items: List<MediaItem>) =
             items.map { it.buildUpon().setUri(it.mediaId).build() }

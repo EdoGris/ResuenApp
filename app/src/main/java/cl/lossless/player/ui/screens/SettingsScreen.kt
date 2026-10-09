@@ -20,6 +20,12 @@ import cl.lossless.player.ui.components.FormatBadge
 import cl.lossless.player.ui.components.ResuenLogo
 import androidx.compose.ui.platform.LocalContext
 import cl.lossless.player.ui.theme.AccentColor
+import cl.lossless.player.ui.theme.AppFont
+import cl.lossless.player.ui.theme.TextSize
+import cl.lossless.player.sync.NetworkMode
+import androidx.compose.material.icons.rounded.CloudSync
+import androidx.compose.material.icons.rounded.Swipe
+import androidx.compose.material3.FilterChip
 import cl.lossless.player.ui.theme.isDark
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -95,10 +101,14 @@ fun SettingsScreen(
     lyricsAutoSync: Boolean,
     onLyricsAutoSync: (Boolean) -> Unit,
     alignServerUrl: String,
-    alignWifiOnly: Boolean,
     onOpenAlignServer: () -> Unit,
-    onAlignWifiOnly: (Boolean) -> Unit,
     onClearLyricsCache: () -> Unit,
+    onFont: (AppFont) -> Unit,
+    onTextSize: (TextSize) -> Unit,
+    onNetworkMode: (NetworkMode) -> Unit,
+    onClearSyncQueue: () -> Unit,
+    onSwipeToSkip: (Boolean) -> Unit,
+    onMediaKeysSkip: (Boolean) -> Unit,
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         ScreenHeader(title = "Ajustes")
@@ -180,6 +190,27 @@ fun SettingsScreen(
                 }
             }
             Text(
+                "Tamaño del texto",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+            )
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                TextSize.entries.forEachIndexed { i, size ->
+                    SegmentedButton(
+                        selected = state.textSize == size,
+                        onClick = { onTextSize(size) },
+                        shape = SegmentedButtonDefaults.itemShape(i, TextSize.entries.size),
+                        icon = {},
+                    ) { Text(size.label, maxLines = 1, softWrap = false) }
+                }
+            }
+            Text(
+                "Tipo de letra · ${state.font.label}",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+            )
+            FontPicker(selected = state.font, onSelect = onFont)
+            Text(
                 "Color de acento · " + if (state.dynamicColor) "Material You" else state.accent.label,
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
@@ -224,9 +255,9 @@ fun SettingsScreen(
                 trailing = { Switch(checked = lyricsOnline, onCheckedChange = onLyricsOnline) },
             )
             SettingRow(
-                title = "Sincronizar letras sin tiempos",
-                subtitle = "Analiza el audio en el teléfono para estimar cuándo se canta cada línea. " +
-                    "Para un resultado exacto, usa «Sincronizar tocando» en la letra.",
+                title = "Sincronizar letras sin tiempos al abrirlas",
+                subtitle = "Estima en el teléfono cuándo se canta cada línea y, si configuraste el servidor, " +
+                    "pide los tiempos exactos. Desactivado, usa el botón «Sincronizar» de la letra.",
                 trailing = { Switch(checked = lyricsAutoSync, onCheckedChange = onLyricsAutoSync) },
             )
             SettingRow(
@@ -236,18 +267,71 @@ fun SettingsScreen(
                 trailing = { Icon(Icons.Rounded.Dns, null) },
                 onClick = onOpenAlignServer,
             )
-            if (alignServerUrl.isNotBlank()) {
-                SettingRow(
-                    title = "Subir audio solo con Wi-Fi",
-                    subtitle = "Para alinear se envía el archivo de audio completo al servidor",
-                    trailing = { Switch(checked = alignWifiOnly, onCheckedChange = onAlignWifiOnly) },
-                )
-            }
             SettingRow(
                 title = "Borrar letras guardadas",
                 subtitle = "Descargas y estimaciones (lo sincronizado por ti se conserva)",
                 trailing = { Icon(Icons.Rounded.DeleteSweep, null) },
                 onClick = onClearLyricsCache,
+            )
+        }
+
+        SettingsSection("Sincronización", Icons.Rounded.CloudSync) {
+            Text(
+                "Buscar carátulas y sincronizar letras con",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+            )
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                NetworkMode.entries.forEachIndexed { i, mode ->
+                    SegmentedButton(
+                        selected = state.networkMode == mode,
+                        onClick = { onNetworkMode(mode) },
+                        shape = SegmentedButtonDefaults.itemShape(i, NetworkMode.entries.size),
+                        icon = {},
+                    ) { Text(mode.label, maxLines = 1, softWrap = false) }
+                }
+            }
+            Text(
+                when (state.networkMode) {
+                    NetworkMode.WIFI -> "Solo en redes sin límite de datos. Para alinear una letra se sube el audio completo " +
+                        "(un FLAC pesa decenas de MB)."
+                    NetworkMode.MOBILE -> "Solo con datos móviles (redes con límite de datos)."
+                    NetworkMode.ANY -> "Con cualquier conexión. Ojo: al alinear letras se suben archivos grandes."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+            )
+            val queue = state.syncQueue
+            SettingRow(
+                title = "Cola de sincronización",
+                subtitle = if (queue.isEmpty) "Vacía" else buildString {
+                    val parts = listOfNotNull(
+                        queue.covers.takeIf { it > 0 }?.let { "$it carátula" + if (it == 1) "" else "s" },
+                        queue.lyrics.takeIf { it > 0 }?.let { "$it letra" + if (it == 1) "" else "s" },
+                    )
+                    append(parts.joinToString(" y ")).append(" pendiente")
+                    if (queue.covers + queue.lyrics != 1) append("s")
+                    queue.current?.let { append(" · ").append(it) }
+                    if (queue.waitingNetwork) append(" · esperando la red elegida")
+                },
+                trailing = if (queue.isEmpty) null else {
+                    { TextButton(onClick = onClearSyncQueue) { Text("Vaciar") } }
+                },
+            )
+        }
+
+        SettingsSection("Gestos y audífonos", Icons.Rounded.Swipe) {
+            SettingRow(
+                title = "Deslizar para cambiar de canción",
+                subtitle = "En la carátula o el mini reproductor: hacia la izquierda avanza, hacia la derecha retrocede",
+                trailing = { Switch(checked = state.swipeToSkip, onCheckedChange = onSwipeToSkip) },
+            )
+            SettingRow(
+                title = "⏩ / ⏪ de los audífonos cambian de canción",
+                subtitle = "En vez de adelantar o retroceder unos segundos. Play/pausa, siguiente, anterior y el " +
+                    "doble toque ya funcionan con cualquier audífono (Sony, Sennheiser, etc.)",
+                trailing = { Switch(checked = state.mediaKeysSkip, onCheckedChange = onMediaKeysSkip) },
             )
         }
 
@@ -330,6 +414,24 @@ private fun SettingRow(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier,
     )
+}
+
+/** Tipos de letra, cada uno escrito con su propia fuente. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FontPicker(selected: AppFont, onSelect: (AppFont) -> Unit) {
+    FlowRow(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        AppFont.entries.forEach { font ->
+            FilterChip(
+                selected = font == selected,
+                onClick = { onSelect(font) },
+                label = { Text(font.label, fontFamily = font.family ?: FontFamily.Default) },
+            )
+        }
+    }
 }
 
 /** Muestras circulares de los colores de acento. */

@@ -43,6 +43,12 @@ Con música sonando por el DAC, ejecuta:
 Busca el hilo de salida USB y revisa que su frecuencia y formato coincidan con el
 archivo, y que tenga la marca de bit-perfect.
 
+## Cola de sincronización
+Las búsquedas de carátulas y la sincronización de letras pasan por una cola persistente
+(`sync/`, con WorkManager): sigue aunque se cierre la app y solo trabaja con la red elegida
+en Ajustes → Sincronización (solo Wi-Fi, solo datos o ambas). "Solo Wi-Fi" usa las redes
+sin límite de datos; un punto de acceso Wi-Fi marcado como medido cuenta como datos.
+
 ## Limitaciones conocidas y próximos pasos
 - **Cambio de frecuencia entre pistas.** Cuando la siguiente pista tiene otra frecuencia
   (por ejemplo, de 44,1 a 96 kHz), la reconfiguración se hace al cambiar de pista y

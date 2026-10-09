@@ -136,6 +136,11 @@ class PlayerActions(private val player: Player?) {
 
     fun next() { player?.seekToNext() }
     fun previous() { player?.seekToPrevious() }
+    /** Siempre a la canción anterior (sin el "volver al inicio" de [previous]); deslizar usa esto. */
+    fun previousTrack() {
+        val p = player ?: return
+        if (p.hasPreviousMediaItem()) p.seekToPreviousMediaItem() else p.seekTo(0)
+    }
     fun seekTo(positionMs: Long) { player?.seekTo(positionMs) }
     fun playFrom(positionMs: Long) { player?.run { seekTo(positionMs); play() } }
     fun skipToQueueItem(index: Int) { player?.run { seekTo(index, 0L); play() } }

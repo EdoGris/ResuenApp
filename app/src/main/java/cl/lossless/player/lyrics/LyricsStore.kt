@@ -126,11 +126,6 @@ class LyricsPrefs(context: Context) {
         get() = prefs.getString(KEY_ALIGN_TOKEN, "").orEmpty()
         set(value) = prefs.edit().putString(KEY_ALIGN_TOKEN, value.trim()).apply()
 
-    /** Subir audio al servidor solo con Wi-Fi (los archivos lossless pesan decenas de MB). */
-    var alignWifiOnly: Boolean
-        get() = prefs.getBoolean(KEY_ALIGN_WIFI, true)
-        set(value) = prefs.edit().putBoolean(KEY_ALIGN_WIFI, value).apply()
-
     /** Retraso de la letra respecto del audio, en ms (positivo = la letra aparece más tarde). */
     fun offsetFor(trackKey: String): Long = prefs.getLong(KEY_OFFSET + trackKey, 0L)
 
@@ -145,7 +140,6 @@ class LyricsPrefs(context: Context) {
         const val KEY_AUTO_SYNC = "auto_sync"
         const val KEY_ALIGN_URL = "align_url"
         const val KEY_ALIGN_TOKEN = "align_token"
-        const val KEY_ALIGN_WIFI = "align_wifi_only"
         const val KEY_OFFSET = "offset:"
     }
 }

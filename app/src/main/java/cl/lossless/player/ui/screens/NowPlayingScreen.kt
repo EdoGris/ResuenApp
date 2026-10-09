@@ -74,6 +74,7 @@ import cl.lossless.player.library.Track
 import cl.lossless.player.ui.components.FormatBadge
 import cl.lossless.player.ui.components.LargeCover
 import cl.lossless.player.ui.components.formatDuration
+import cl.lossless.player.ui.components.swipeToSkip
 import cl.lossless.player.ui.player.PlayerActions
 import cl.lossless.player.ui.player.PlayerUiState
 
@@ -96,6 +97,8 @@ fun NowPlayingScreen(
     onResetLyricsOffset: () -> Unit,
     onSaveLyricsSync: suspend (List<LyricLine>) -> Boolean,
     onAlignLyricsNow: () -> Unit,
+    onSyncLyricsNow: () -> Unit,
+    swipeToSkip: Boolean,
 ) {
     val current = state.current
     var showQueue by remember { mutableStateOf(false) }
@@ -149,6 +152,7 @@ fun NowPlayingScreen(
                     onPlayFrom = player::playFrom,
                     onSaveSync = onSaveLyricsSync,
                     onAlignNow = onAlignLyricsNow,
+                    onSyncNow = onSyncLyricsNow,
                     modifier = Modifier.weight(1f).padding(vertical = 8.dp),
                 )
             } else {
@@ -157,7 +161,10 @@ fun NowPlayingScreen(
                 LargeCover(
                     cover = cover,
                     model = current?.artworkUri,
-                    modifier = Modifier.widthIn(max = 420.dp).aspectRatio(1f),
+                    modifier = Modifier
+                        .widthIn(max = 420.dp)
+                        .aspectRatio(1f)
+                        .swipeToSkip(swipeToSkip, onNext = player::next, onPrevious = player::previousTrack),
                 )
 
                 Spacer(Modifier.weight(0.6f))

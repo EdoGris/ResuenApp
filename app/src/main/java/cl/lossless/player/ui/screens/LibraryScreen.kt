@@ -30,6 +30,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Shuffle
@@ -87,6 +88,7 @@ fun LibraryScreen(
     onRescan: () -> Unit,
     onEditCover: (AlbumGroup) -> Unit,
     onExcludeFolder: (List<String>) -> Unit,
+    onSyncLyrics: (List<Track>) -> Unit,
 ) {
     var tab by rememberSaveable { mutableIntStateOf(LibraryTab.TRACKS.ordinal) }
     var openAlbumKey by rememberSaveable { mutableStateOf<String?>(null) }
@@ -110,6 +112,7 @@ fun LibraryScreen(
             actions = actions,
             onBack = { openAlbumKey = null },
             onEditCover = { onEditCover(album) },
+            onSyncLyrics = { onSyncLyrics(album.tracks) },
         )
         return
     }
@@ -123,6 +126,7 @@ fun LibraryScreen(
             actions = actions,
             onBack = { openFolderKey = null },
             onEditCover = null,
+            onSyncLyrics = { onSyncLyrics(folder.tracks) },
         )
         return
     }
@@ -293,6 +297,7 @@ private fun CollectionDetail(
     actions: TrackActions,
     onBack: () -> Unit,
     onEditCover: (() -> Unit)?,
+    onSyncLyrics: (() -> Unit)? = null,
 ) {
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(title = "", onBack = onBack)
@@ -305,7 +310,8 @@ private fun CollectionDetail(
                 item(key = "header") {
                     CollectionHeader(title, subtitle, tracks, cover, onEditCover,
                         onPlay = { actions.play(tracks, 0) },
-                        onShuffle = { actions.shuffle(tracks) })
+                        onShuffle = { actions.shuffle(tracks) },
+                        onSyncLyrics = onSyncLyrics)
                 }
             },
         )
@@ -321,6 +327,7 @@ fun CollectionHeader(
     onEditCover: (() -> Unit)?,
     onPlay: () -> Unit,
     onShuffle: () -> Unit,
+    onSyncLyrics: (() -> Unit)? = null,
 ) {
     Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -358,6 +365,11 @@ fun CollectionHeader(
             if (onEditCover != null) {
                 OutlinedIconButton(onClick = onEditCover) {
                     Icon(Icons.Rounded.Image, contentDescription = "Cambiar carátula")
+                }
+            }
+            if (onSyncLyrics != null) {
+                OutlinedIconButton(onClick = onSyncLyrics, enabled = tracks.isNotEmpty()) {
+                    Icon(Icons.Rounded.Lyrics, contentDescription = "Sincronizar letras")
                 }
             }
         }

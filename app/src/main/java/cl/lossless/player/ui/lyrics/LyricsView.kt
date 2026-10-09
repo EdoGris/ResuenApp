@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CloudUpload
+import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
@@ -62,6 +64,7 @@ import cl.lossless.player.lyrics.LyricLine
 import cl.lossless.player.lyrics.Lyrics
 import cl.lossless.player.lyrics.LyricsAligner
 import cl.lossless.player.lyrics.LyricsRepository.AlignStage
+import cl.lossless.player.sync.NetworkMode
 import cl.lossless.player.ui.player.PlayerUiState
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -80,6 +83,7 @@ fun LyricsView(
     onPlayFrom: (Long) -> Unit,
     onSaveSync: suspend (List<LyricLine>) -> Boolean,
     onAlignNow: () -> Unit,
+    onSyncNow: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var editing by rememberSaveable(state.trackKey) { mutableStateOf(false) }
@@ -97,8 +101,8 @@ fun LyricsView(
                 onClose = { editing = false },
             )
             lyrics?.isSynced == true ->
-                SyncedLyrics(lyrics, state, player, onSeek, onAdjustOffset, onResetOffset, onRetry, onTapSync, onAlignNow)
-            lyrics?.plain != null -> PlainLyrics(lyrics, state, player, onRetry, onTapSync, onAlignNow)
+                SyncedLyrics(lyrics, state, player, onSeek, onAdjustOffset, onResetOffset, onRetry, onTapSync, onAlignNow, onSyncNow)
+            lyrics?.plain != null -> PlainLyrics(lyrics, state, player, onRetry, onTapSync, onAlignNow, onSyncNow)
             lyrics?.instrumental == true -> Message("Instrumental", "Esta pista no tiene letra.", null, null)
             state.notFound -> Message(
                 title = if (state.offline) "Sin conexión" else "Letra no encontrada",
@@ -142,6 +146,7 @@ private fun SyncedLyrics(
     onRetry: () -> Unit,
     onTapSync: () -> Unit,
     onAlignNow: () -> Unit,
+    onSyncNow: () -> Unit,
 ) {
     val lines = lyrics.synced.orEmpty()
     val position = rememberLivePosition(player)
@@ -191,6 +196,7 @@ private fun SyncedLyrics(
                 }
             }
         }
+        SyncButton(state, onSyncNow)
         LyricsFooter(state, onAdjustOffset, onResetOffset, onRetry, onTapSync, onAlignNow, synced = true)
     }
 }
@@ -243,6 +249,7 @@ private fun PlainLyrics(
     onRetry: () -> Unit,
     onTapSync: () -> Unit,
     onAlignNow: () -> Unit,
+    onSyncNow: () -> Unit,
 ) {
     val scroll = rememberScrollState()
     var lastManualScroll by remember { mutableLongStateOf(0L) }
@@ -273,7 +280,27 @@ private fun PlainLyrics(
                 .verticalScroll(scroll)
                 .padding(vertical = 24.dp, horizontal = 8.dp),
         )
+        SyncButton(state, onSyncNow)
         LyricsFooter(state, {}, {}, onRetry, onTapSync, onAlignNow, synced = false)
+    }
+}
+
+/** "Sincronizar": letra sin tiempos (o solo estimados) → tiempos exactos del servidor o estimados. */
+@Composable
+private fun SyncButton(state: LyricsUiState, onSyncNow: () -> Unit) {
+    if (!state.canSync) return
+    Box(Modifier.fillMaxWidth().padding(top = 4.dp), contentAlignment = Alignment.Center) {
+        FilledTonalButton(onClick = onSyncNow, shape = RoundedCornerShape(50)) {
+            Icon(Icons.Rounded.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(
+                when {
+                    state.alignServerUrl.isBlank() -> "Sincronizar (estimado)"
+                    state.alignment is AlignmentUi.Failed -> "Reintentar sincronización"
+                    else -> "Sincronizar con la música"
+                }
+            )
+        }
     }
 }
 
@@ -307,8 +334,13 @@ private fun LyricsFooter(
                         AlignStage.QUEUED -> "En cola en el servidor…"
                         AlignStage.PROCESSING -> "Alineando en el servidor…"
                     } + if (lyrics?.estimated == true) " · por ahora, estimada" else ""
-                    alignment is AlignmentUi.WaitingWifi ->
-                        "Sincronización exacta: esperando Wi-Fi" + if (lyrics?.estimated == true) " · por ahora, estimada" else ""
+                    alignment is AlignmentUi.Queued ->
+                        "En la cola de sincronización" + if (lyrics?.estimated == true) " · por ahora, estimada" else ""
+                    alignment is AlignmentUi.WaitingNetwork -> "Sincronización exacta: esperando " + when (alignment.mode) {
+                        NetworkMode.WIFI -> "Wi-Fi"
+                        NetworkMode.MOBILE -> "datos móviles"
+                        NetworkMode.ANY -> "conexión"
+                    } + if (lyrics?.estimated == true) " · por ahora, estimada" else ""
                     alignment is AlignmentUi.Failed -> alignment.message
                     state.estimating -> "Estimando los tiempos…"
                     lyrics?.estimated == true -> "Sincronización estimada"
@@ -323,9 +355,9 @@ private fun LyricsFooter(
                 },
             )
         }
-        if (alignment is AlignmentUi.WaitingWifi || alignment is AlignmentUi.Failed) {
+        if (alignment is AlignmentUi.WaitingNetwork || alignment is AlignmentUi.Failed) {
             IconButton(onClick = onAlignNow, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Rounded.CloudUpload, contentDescription = "Sincronizar ahora en el servidor")
+                Icon(Icons.Rounded.CloudUpload, contentDescription = "Sincronizar ahora con la red actual")
             }
         }
         IconButton(onClick = onTapSync, modifier = Modifier.size(36.dp)) {

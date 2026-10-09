@@ -39,6 +39,8 @@ class MainActivity : ComponentActivity() {
                 accent = ui.accent,
                 tintedText = ui.tintedText,
                 dynamicColor = ui.dynamicColor,
+                font = ui.font,
+                textSize = ui.textSize,
             ) {
                 LosslessApp(
                     player = controller.value,

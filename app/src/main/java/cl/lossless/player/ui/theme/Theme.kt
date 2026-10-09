@@ -9,6 +9,10 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
@@ -150,6 +154,8 @@ fun LosslessTheme(
     accent: AccentColor = AccentColor.BLUE,
     tintedText: Boolean = false,
     dynamicColor: Boolean = false,
+    font: AppFont = AppFont.SYSTEM,
+    textSize: TextSize = TextSize.NORMAL,
     content: @Composable () -> Unit,
 ) {
     val dark = mode.isDark()
@@ -163,5 +169,15 @@ fun LosslessTheme(
         dark -> darkScheme(accent, tintedText)
         else -> lightScheme(accent, tintedText)
     }
-    MaterialTheme(colorScheme = colors, content = content)
+    val typography = remember(font) { appTypography(font) }
+    // El tamaño escala todo el texto en "sp", también el que no usa la tipografía del tema
+    // (letras, insignias), y se suma al tamaño de fuente del sistema. En "Normal" se deja la
+    // densidad del sistema tal cual (Android 14 escala las fuentes grandes de forma no lineal).
+    val density = LocalDensity.current
+    val scaled = remember(density, textSize) {
+        if (textSize == TextSize.NORMAL) density else Density(density.density, density.fontScale * textSize.scale)
+    }
+    CompositionLocalProvider(LocalDensity provides scaled) {
+        MaterialTheme(colorScheme = colors, typography = typography, content = content)
+    }
 }
