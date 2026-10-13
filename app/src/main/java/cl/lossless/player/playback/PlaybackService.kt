@@ -10,12 +10,15 @@ import androidx.media3.session.DefaultMediaNotificationProvider
 import cl.lossless.player.MainActivity
 import cl.lossless.player.R
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.view.KeyEvent
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
@@ -31,6 +34,16 @@ class PlaybackService : MediaSessionService() {
     private var session: MediaSession? = null
     private lateinit var bitPerfect: BitPerfectController
     private lateinit var playbackPrefs: PlaybackPrefs
+    private lateinit var lastPlayback: LastPlaybackStore
+    private val main = Handler(Looper.getMainLooper())
+
+    /** Mientras suena, guarda la posición cada pocos segundos (por si el sistema cierra la app). */
+    private val savePositionTick = object : Runnable {
+        override fun run() {
+            savePosition()
+            main.postDelayed(this, POSITION_SAVE_INTERVAL_MS)
+        }
+    }
     private val io: ListeningExecutorService =
         MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor())
 
@@ -38,6 +51,7 @@ class PlaybackService : MediaSessionService() {
         super.onCreate()
         bitPerfect = BitPerfectController(this)
         playbackPrefs = PlaybackPrefs(this)
+        lastPlayback = LastPlaybackStore(this)
 
         val player = ExoPlayer.Builder(this, LosslessRenderersFactory(this))
             .setAudioAttributes(
@@ -57,7 +71,29 @@ class PlaybackService : MediaSessionService() {
                 if (item != null && reason != Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
                     io.execute { prepareOutputFor(item) }
                 }
+                savePosition()
             }
+
+            override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+                if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) saveQueue()
+            }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                main.removeCallbacks(savePositionTick)
+                if (isPlaying) main.postDelayed(savePositionTick, POSITION_SAVE_INTERVAL_MS)
+                else savePosition()
+            }
+
+            override fun onPositionDiscontinuity(
+                oldPosition: Player.PositionInfo,
+                newPosition: Player.PositionInfo,
+                reason: Int,
+            ) {
+                if (reason == Player.DISCONTINUITY_REASON_SEEK) savePosition()
+            }
+
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) = savePosition()
+            override fun onRepeatModeChanged(repeatMode: Int) = savePosition()
         })
 
         // Notificación multimedia con el isotipo de la app en la barra de estado.
@@ -86,6 +122,48 @@ class PlaybackService : MediaSessionService() {
                 LogoFallbackBitmapLoader(CacheBitmapLoader(DataSourceBitmapLoader(this))) { logoBitmap }
             )
             .build()
+
+        restoreLastPlayback(player)
+    }
+
+    /**
+     * Deja cargada (en pausa) la cola de la última vez, en la misma pista y posición, para
+     * no tener que buscar de nuevo el disco al volver a abrir la app.
+     */
+    private fun restoreLastPlayback(player: Player) {
+        io.execute {
+            val saved = lastPlayback.load() ?: return@execute
+            val items = saved.entries.map { it.toMediaItem() }
+            // Configurar la salida ANTES de que ExoPlayer cree el AudioTrack.
+            prepareOutputFor(items[saved.index])
+            main.post {
+                // Si mientras tanto ya se eligió otra cosa, no se toca.
+                if (session == null || player.mediaItemCount > 0) return@post
+                player.shuffleModeEnabled = saved.shuffle
+                player.repeatMode = saved.repeatMode
+                player.setMediaItems(items, saved.index, saved.positionMs)
+                player.prepare() // en pausa: playWhenReady sigue en false
+            }
+        }
+    }
+
+    private fun saveQueue() {
+        val player = session?.player ?: return
+        val entries = (0 until player.mediaItemCount).map { player.getMediaItemAt(it).toSavedEntry() }
+        io.execute { runCatching { lastPlayback.saveQueue(entries) } }
+        savePosition()
+    }
+
+    private fun savePosition(now: Boolean = false) {
+        val player = session?.player ?: return
+        if (player.mediaItemCount == 0) return
+        lastPlayback.savePosition(
+            index = player.currentMediaItemIndex,
+            positionMs = player.currentPosition,
+            shuffle = player.shuffleModeEnabled,
+            repeatMode = player.repeatMode,
+            now = now,
+        )
     }
 
     /** Logo de la app como carátula de respaldo (se genera una sola vez). */
@@ -161,18 +239,26 @@ class PlaybackService : MediaSessionService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = session
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        savePosition(now = true)
         val player = session?.player
         if (player == null || !player.playWhenReady || player.mediaItemCount == 0) stopSelf()
     }
 
     override fun onDestroy() {
+        main.removeCallbacks(savePositionTick)
+        savePosition(now = true)
         session?.run {
             player.release()
             release()
         }
         session = null
         bitPerfect.release()
+        // Deja terminar la escritura de la cola que esté pendiente.
         io.shutdown()
         super.onDestroy()
+    }
+
+    private companion object {
+        const val POSITION_SAVE_INTERVAL_MS = 5_000L
     }
 }
