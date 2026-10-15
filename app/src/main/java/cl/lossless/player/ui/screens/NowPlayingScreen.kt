@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Equalizer
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -245,7 +246,13 @@ fun NowPlayingScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 QuickAction(Icons.Rounded.Equalizer, "Ecualizador", active = equalizerActive, onClick = onOpenEqualizer)
-                QuickAction(Icons.Rounded.Lyrics, "Letra", active = showLyrics, onClick = { showLyrics = !showLyrics })
+                // Alterna entre carátula y letra: muestra a cuál se pasa al tocarlo.
+                QuickAction(
+                    icon = if (showLyrics) Icons.Rounded.Image else Icons.Rounded.Lyrics,
+                    label = if (showLyrics) "Carátula" else "Letra",
+                    active = false,
+                    onClick = { showLyrics = !showLyrics },
+                )
                 QuickAction(Icons.AutoMirrored.Rounded.QueueMusic, "Cola (${state.queue.size})", active = false) {
                     showQueue = true
                 }
