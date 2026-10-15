@@ -18,6 +18,7 @@ import cl.lossless.player.sync.SyncQueue
 import cl.lossless.player.sync.SyncRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
@@ -26,6 +27,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONException
 import java.io.IOException
+
+private const val TRACK_CHANGE_DEBOUNCE_MS = 600L
 
 /** Estado de la alineación en el servidor (WhisperX) para la letra en pantalla. */
 sealed interface AlignmentUi {
@@ -156,11 +159,15 @@ class LyricsViewModel(app: Application) : AndroidViewModel(app) {
         val current = _state.value
         if (!force && current.trackKey == key && (current.loading || current.lyrics != null || current.notFound)) return
 
+        // Al pasar de una canción a otra se espera un instante: si se salta varias seguidas no
+        // se consulta LRCLIB por cada una (muchas peticiones seguidas pueden hacer que rechace).
+        val debounce = !force && current.trackKey != null && current.trackKey != key
         loadJob?.cancel()
         alignJob?.cancel()
         unsynced = null
         _state.update { it.settingsOnly().copy(trackKey = key, loading = true, offsetMs = prefs.offsetFor(key)) }
         loadJob = viewModelScope.launch {
+            if (debounce) delay(TRACK_CHANGE_DEBOUNCE_MS)
             val location = withContext(Dispatchers.IO) { libraryPrefs.location }
             val result = repository.load(track, location, prefs.searchOnline, forceRefresh = force)
             _state.update { s ->

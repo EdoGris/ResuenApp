@@ -2,6 +2,7 @@ package cl.lossless.player.lyrics
 
 import android.content.Context
 import android.provider.DocumentsContract
+import android.util.Log
 import cl.lossless.player.library.LibraryLocation
 import cl.lossless.player.library.Track
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +15,7 @@ import java.nio.charset.CodingErrorAction
 
 private const val USER_PREFIX = "user:"
 private const val ALIGN_POLL_MS = 3_000L
+private const val TAG = "Lyrics"
 
 sealed interface LyricsResult {
     data class Found(val lyrics: Lyrics) : LyricsResult
@@ -76,9 +78,11 @@ class LyricsRepository(
                 LyricsResult.NotFound(searchedOnline = true, offline = false)
             }
         } catch (e: LrcLibClient.ServerError) {
+            Log.w(TAG, "LRCLIB falló para ${track.uri}", e)
             // No se guarda: se reintentará.
             LyricsResult.NotFound(searchedOnline = true, offline = true, serverError = true, detail = "HTTP ${e.code}")
         } catch (e: IOException) {
+            Log.w(TAG, "Sin respuesta de LRCLIB para ${track.uri}", e)
             LyricsResult.NotFound(searchedOnline = true, offline = true, detail = describe(e))
         }
     }
