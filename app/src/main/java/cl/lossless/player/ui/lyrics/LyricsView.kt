@@ -65,6 +65,7 @@ import cl.lossless.player.lyrics.Lyrics
 import cl.lossless.player.lyrics.LyricsAligner
 import cl.lossless.player.lyrics.LyricsRepository.AlignStage
 import cl.lossless.player.sync.NetworkMode
+import cl.lossless.player.ui.components.swipeToSkip
 import cl.lossless.player.ui.player.PlayerUiState
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -85,9 +86,18 @@ fun LyricsView(
     onAlignNow: () -> Unit,
     onSyncNow: () -> Unit,
     modifier: Modifier = Modifier,
+    swipeToSkip: Boolean = false,
+    onNext: () -> Unit = {},
+    onPrevious: () -> Unit = {},
 ) {
     var editing by rememberSaveable(state.trackKey) { mutableStateOf(false) }
-    Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+    Box(
+        modifier
+            .fillMaxWidth()
+            // Al marcar tiempos tocando no se cambia de canción por un roce.
+            .swipeToSkip(swipeToSkip && !editing, onNext = onNext, onPrevious = onPrevious),
+        contentAlignment = Alignment.Center,
+    ) {
         val lyrics = state.lyrics
         val onTapSync = { editing = true }
         when {

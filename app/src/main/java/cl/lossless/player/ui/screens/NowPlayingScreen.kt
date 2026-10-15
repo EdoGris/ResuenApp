@@ -153,6 +153,9 @@ fun NowPlayingScreen(
                     onSaveSync = onSaveLyricsSync,
                     onAlignNow = onAlignLyricsNow,
                     onSyncNow = onSyncLyricsNow,
+                    swipeToSkip = swipeToSkip,
+                    onNext = player::next,
+                    onPrevious = player::previousTrack,
                     modifier = Modifier.weight(1f).padding(vertical = 8.dp),
                 )
             } else {

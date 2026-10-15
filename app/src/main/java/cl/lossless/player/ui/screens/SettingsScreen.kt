@@ -324,7 +324,7 @@ fun SettingsScreen(
         SettingsSection("Gestos y audífonos", Icons.Rounded.Swipe) {
             SettingRow(
                 title = "Deslizar para cambiar de canción",
-                subtitle = "En la carátula o el mini reproductor: hacia la izquierda avanza, hacia la derecha retrocede",
+                subtitle = "En la carátula, la letra o el mini reproductor: hacia la izquierda avanza, hacia la derecha retrocede",
                 trailing = { Switch(checked = state.swipeToSkip, onCheckedChange = onSwipeToSkip) },
             )
             SettingRow(
