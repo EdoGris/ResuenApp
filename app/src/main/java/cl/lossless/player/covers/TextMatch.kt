@@ -14,7 +14,8 @@ object TextMatch {
     private val diacritics = Regex("\\p{Mn}+")
     private val nonAlnum = Regex("[^\\p{L}\\p{N}]+")
     private val various = setOf(
-        "various artists", "various", "varios artistas", "va", "desconocido", "unknown", ""
+        "various artists", "various", "varios artistas", "va", "desconocido", "unknown", "",
+        "artistes varies", "varios artistas", "inconnu", "desconhecido"
     )
 
     fun normalize(s: String): String {

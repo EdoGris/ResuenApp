@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Origen de la letra -->
+    <string name="lyrics_source">Fuente: %1$s</string>
+    <string name="lyrics_source_sidecar">Archivo .lrc</string>
+    <string name="lyrics_source_embedded">Etiquetas del archivo</string>
+    <string name="lyrics_source_lrclib">LRCLIB</string>
+    <string name="lyrics_source_user">Sincronizada por ti</string>
+    <string name="lyrics_source_aligned">Alineación automática (WhisperX)</string>
+
+    <!-- Mensajes sin letra -->
+    <string name="lyrics_instrumental_title">Instrumental</string>
+    <string name="lyrics_instrumental_body">Esta pista no tiene letra.</string>
+    <string name="lyrics_not_found_title_server_error">LRCLIB no responde</string>
+    <string name="lyrics_not_found_title_offline">Sin conexión</string>
+    <string name="lyrics_not_found_title">Letra no encontrada</string>
+    <string name="lyrics_not_found_body_server_error">El servidor de letras está saturado o con problemas. Prueba de nuevo en un rato.</string>
+    <string name="lyrics_not_found_body_offline">No se pudo consultar LRCLIB. Revisa tu conexión.</string>
+    <string name="lyrics_not_found_body_online_disabled">No hay letra en el archivo. Activa la búsqueda en internet en Ajustes → Letras, o agrega un .lrc junto a la canción.</string>
+    <string name="lyrics_not_found_body">No hay letra en el archivo ni en LRCLIB. Puedes agregar un archivo .lrc con el mismo nombre que la canción, en su carpeta.</string>
+    <string name="lyrics_search_again">Buscar de nuevo</string>
+    <string name="lyrics_no_track_title">Sin letra</string>
+    <string name="lyrics_no_track_body">No hay ninguna pista en reproducción.</string>
+
+    <!-- Sincronización -->
+    <string name="lyrics_sync_estimated">Sincronizar (estimado)</string>
+    <string name="lyrics_sync_retry">Reintentar sincronización</string>
+    <string name="lyrics_sync_with_music">Sincronizar con la música</string>
+    <string name="lyrics_stage_hashing">Preparando el audio…</string>
+    <string name="lyrics_stage_uploading">Subiendo el audio al servidor…</string>
+    <string name="lyrics_stage_queued">En cola en el servidor…</string>
+    <string name="lyrics_stage_processing">Alineando en el servidor…</string>
+    <string name="lyrics_status_estimated_for_now">por ahora, estimada</string>
+    <string name="lyrics_status_in_queue">En la cola de sincronización</string>
+    <string name="lyrics_status_waiting_network">Sincronización exacta: esperando %1$s</string>
+    <string name="lyrics_network_wifi">Wi-Fi</string>
+    <string name="lyrics_network_mobile">datos móviles</string>
+    <string name="lyrics_network_any">conexión</string>
+    <string name="lyrics_status_estimating">Estimando los tiempos…</string>
+    <string name="lyrics_status_estimated">Sincronización estimada</string>
+    <string name="lyrics_status_unsynced">Sin sincronizar</string>
+    <string name="lyrics_cd_align_now">Sincronizar ahora con la red actual</string>
+    <string name="lyrics_cd_offset_earlier">Letra antes</string>
+    <string name="lyrics_cd_offset_later">Letra después</string>
+
+    <!-- Errores de alineación -->
+    <string name="lyrics_align_error_empty">La letra está vacía</string>
+    <string name="lyrics_align_error_read_audio">No se pudo leer el archivo de audio</string>
+    <string name="lyrics_align_error_server_failed">El servidor no pudo alinear la letra</string>
+    <string name="lyrics_align_error_job_deleted">El servidor borró el trabajo</string>
+    <string name="lyrics_align_error_generic">No se pudo sincronizar</string>
+    <string name="lyrics_align_error_unauthorized">El servidor rechazó el token. Revísalo en Ajustes → Letras.</string>
+    <string name="lyrics_align_error_connect">No se pudo conectar con el servidor de sincronización.</string>
+    <string name="lyrics_align_error_unexpected">El servidor respondió algo inesperado.</string>
+
+    <!-- Prueba de conexión con el servidor -->
+    <string name="lyrics_align_test_connected">Conectado: %1$s · %2$s · %3$s</string>
+    <plurals name="lyrics_align_test_queued">
+        <item quantity="one">%d en cola</item>
+        <item quantity="other">%d en cola</item>
+    </plurals>
+    <string name="lyrics_align_test_unauthorized">El servidor rechazó el token</string>
+    <string name="lyrics_align_test_http_error">El servidor respondió %1$s</string>
+    <string name="lyrics_align_test_connect_failed">No se pudo conectar: %1$s</string>
+    <string name="lyrics_align_test_not_server">La dirección no parece ser el servidor de sincronización</string>
+    <string name="lyrics_align_test_invalid_url">Dirección inválida</string>
+
+    <!-- Sincronizar tocando -->
+    <string name="lyrics_tap_sync">Sincronizar tocando</string>
+    <string name="lyrics_tap_sync_hint">Reproduce desde el inicio y toca «Marcar» justo cuando empiece a cantarse cada línea.</string>
+    <string name="lyrics_tap_sync_saved_folder">Guardado como .lrc junto a la canción</string>
+    <string name="lyrics_tap_sync_saved_app">Sincronización guardada en la app</string>
+    <string name="lyrics_tap_sync_save">Guardar</string>
+    <string name="lyrics_tap_sync_play_to_mark">Reproduce para marcar</string>
+    <string name="lyrics_tap_sync_mark_line">Marcar línea %1$d de %2$d</string>
+    <string name="lyrics_tap_sync_restart">Desde el inicio</string>
+    <string name="lyrics_tap_sync_undo">Deshacer</string>
+    <string name="lyrics_tap_sync_cancel">Cancelar</string>
+</resources>

@@ -37,8 +37,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cl.lossless.player.R
 import cl.lossless.player.library.Playlist
 import cl.lossless.player.library.Track
 import cl.lossless.player.ui.components.EmptyState
@@ -47,6 +50,7 @@ import cl.lossless.player.ui.components.PlaylistNameDialog
 import cl.lossless.player.ui.components.ScreenHeader
 import cl.lossless.player.ui.components.TrackActions
 import cl.lossless.player.ui.components.TrackList
+import cl.lossless.player.ui.components.displayName
 
 @Composable
 fun PlaylistsScreen(
@@ -72,21 +76,24 @@ fun PlaylistsScreen(
             if (tracks.isEmpty()) {
                 EmptyState(
                     icon = if (open.isFavorites) Icons.Rounded.Favorite else Icons.AutoMirrored.Rounded.QueueMusic,
-                    title = open.name,
-                    message = if (open.isFavorites) "Marca canciones con ♥ desde el menú ⋮ o el reproductor."
-                    else "Añade canciones desde el menú ⋮ de cualquier pista.",
+                    title = open.displayName(),
+                    message = if (open.isFavorites) stringResource(R.string.library_favorites_empty)
+                    else stringResource(R.string.library_playlist_empty),
                 )
             } else {
                 TrackList(
                     tracks = tracks,
                     actions = actions,
                     modifier = Modifier.fillMaxSize(),
-                    extraActions = listOf(ExtraTrackAction("Quitar de la playlist") { onRemoveTrack(open, it) }),
+                    extraActions = listOf(
+                        ExtraTrackAction(stringResource(R.string.library_remove_from_playlist)) { onRemoveTrack(open, it) }
+                    ),
                     header = {
                         item(key = "header") {
                             CollectionHeader(
-                                title = open.name,
-                                subtitle = if (open.isFavorites) "Tus canciones favoritas" else "Playlist local",
+                                title = open.displayName(),
+                                subtitle = if (open.isFavorites) stringResource(R.string.library_favorites_subtitle)
+                                else stringResource(R.string.library_playlist_local),
                                 tracks = tracks,
                                 cover = tracks.firstNotNullOfOrNull(actions.coverFor),
                                 onEditCover = null,
@@ -100,8 +107,10 @@ fun PlaylistsScreen(
         }
     } else {
         Column(Modifier.fillMaxSize()) {
-            ScreenHeader(title = "Playlists", actions = {
-                IconButton(onClick = { creating = true }) { Icon(Icons.Rounded.Add, contentDescription = "Nueva playlist") }
+            ScreenHeader(title = stringResource(R.string.library_playlists), actions = {
+                IconButton(onClick = { creating = true }) {
+                    Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.library_new_playlist))
+                }
             })
             LazyColumn(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
@@ -123,16 +132,16 @@ fun PlaylistsScreen(
 
     if (creating) {
         PlaylistNameDialog(
-            title = "Nueva playlist",
+            title = stringResource(R.string.library_new_playlist),
             onConfirm = { onCreate(it); creating = false },
             onDismiss = { creating = false },
         )
     }
     renaming?.let { p ->
         PlaylistNameDialog(
-            title = "Renombrar playlist",
+            title = stringResource(R.string.library_rename_playlist),
             initial = p.name,
-            confirmLabel = "Guardar",
+            confirmLabel = stringResource(R.string.library_save),
             onConfirm = { onRename(p, it); renaming = null },
             onDismiss = { renaming = null },
         )
@@ -167,9 +176,9 @@ private fun PlaylistCard(
                 )
             }
             Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-                Text(playlist.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(playlist.displayName(), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    "$availableCount pistas",
+                    pluralStringResource(R.plurals.library_track_count, availableCount, availableCount),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -182,10 +191,10 @@ private fun PlaylistCard(
                 )
             } else {
                 Box {
-                    IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, contentDescription = "Más opciones") }
+                    IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.library_more_options)) }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        DropdownMenuItem(text = { Text("Renombrar") }, onClick = { menu = false; onRename() })
-                        DropdownMenuItem(text = { Text("Eliminar") }, onClick = { menu = false; onDelete() })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.library_rename)) }, onClick = { menu = false; onRename() })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.library_delete)) }, onClick = { menu = false; onDelete() })
                     }
                 }
             }

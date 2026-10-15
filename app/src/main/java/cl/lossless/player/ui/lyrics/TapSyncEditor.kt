@@ -42,10 +42,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cl.lossless.player.R
 import cl.lossless.player.lyrics.LyricLine
 import cl.lossless.player.ui.player.PlayerUiState
 import kotlinx.coroutines.launch
@@ -84,9 +86,9 @@ fun TapSyncEditor(
     LaunchedEffect(next) { if (lines.isNotEmpty()) listState.animateScrollToItem((next - 2).coerceAtLeast(0)) }
 
     Column(Modifier.fillMaxSize()) {
-        Text("Sincronizar tocando", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.lyrics_tap_sync), style = MaterialTheme.typography.titleMedium)
         Text(
-            "Reproduce desde el inicio y toca «Marcar» justo cuando empiece a cantarse cada línea.",
+            stringResource(R.string.lyrics_tap_sync_hint),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -140,7 +142,7 @@ fun TapSyncEditor(
                         val toFolder = onSave(lines.mapIndexed { i, t -> LyricLine(marks[i], t) })
                         Toast.makeText(
                             context,
-                            if (toFolder) "Guardado como .lrc junto a la canción" else "Sincronización guardada en la app",
+                            context.getString(if (toFolder) R.string.lyrics_tap_sync_saved_folder else R.string.lyrics_tap_sync_saved_app),
                             Toast.LENGTH_SHORT,
                         ).show()
                         saving = false
@@ -159,9 +161,9 @@ fun TapSyncEditor(
             Spacer(Modifier.width(8.dp))
             Text(
                 when {
-                    done -> "Guardar"
-                    !player.isPlaying -> "Reproduce para marcar"
-                    else -> "Marcar línea ${next + 1} de ${lines.size}"
+                    done -> stringResource(R.string.lyrics_tap_sync_save)
+                    !player.isPlaying -> stringResource(R.string.lyrics_tap_sync_play_to_mark)
+                    else -> stringResource(R.string.lyrics_tap_sync_mark_line, next + 1, lines.size)
                 },
                 maxLines = 1,
             )
@@ -170,15 +172,15 @@ fun TapSyncEditor(
             OutlinedButton(onClick = { marks.clear(); onPlayFrom(0) }) {
                 Icon(Icons.Rounded.Replay, null)
                 Spacer(Modifier.width(6.dp))
-                Text("Desde el inicio")
+                Text(stringResource(R.string.lyrics_tap_sync_restart))
             }
             TextButton(onClick = { if (marks.isNotEmpty()) marks.removeAt(marks.lastIndex) }, enabled = marks.isNotEmpty()) {
                 Icon(Icons.AutoMirrored.Rounded.Undo, null)
                 Spacer(Modifier.width(4.dp))
-                Text("Deshacer")
+                Text(stringResource(R.string.lyrics_tap_sync_undo))
             }
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = onClose) { Text("Cancelar") }
+            TextButton(onClick = onClose) { Text(stringResource(R.string.lyrics_tap_sync_cancel)) }
         }
     }
 }

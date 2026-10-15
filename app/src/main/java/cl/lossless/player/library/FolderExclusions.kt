@@ -1,5 +1,8 @@
 package cl.lossless.player.library
 
+import androidx.annotation.StringRes
+import cl.lossless.player.R
+
 /**
  * Carpetas omitidas de la biblioteca. Cada carpeta se identifica por su ruta en segmentos
  * unida con "/" (ej. "primary/Android/media/com.whatsapp"); omitir una carpeta omite también
@@ -48,6 +51,18 @@ object FolderExclusions {
         "com.miui.soundrecorder" to "Grabadora",
         "com.sec.android.app.voicenote" to "Grabadora",
     )
+
+    /** Nombres genéricos (no marcas) de [knownApps] y [knownRootFolders] que se traducen. */
+    private val localizedAppNames = mapOf(
+        "Mensajes" to R.string.settings_app_messages,
+        "Grabadora" to R.string.settings_app_recorder,
+        "Grabaciones" to R.string.settings_app_recordings,
+        "Grabaciones de llamadas" to R.string.settings_app_call_recordings,
+    )
+
+    /** Recurso con el nombre traducido de [appName], o null si es una marca o un paquete. */
+    @StringRes
+    fun appNameRes(appName: String): Int? = localizedAppNames[appName]
 
     /** Carpetas de apps fuera de Android/ (versiones antiguas de WhatsApp, Telegram…). */
     private val knownRootFolders = mapOf(
@@ -98,6 +113,9 @@ object FolderExclusions {
 }
 
 data class FolderSuggestion(val key: String, val appName: String, val trackCount: Int) {
+    /** Nombre traducible (ver [FolderExclusions.appNameRes]); si es null se muestra [appName]. */
+    @get:StringRes
+    val appNameRes: Int? get() = FolderExclusions.appNameRes(appName)
     val displayPath: String get() = folderDisplayPath(FolderExclusions.segments(key))
 }
 

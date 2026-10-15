@@ -17,22 +17,28 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.annotation.StringRes
+import cl.lossless.player.R
 
-enum class ThemeMode(val label: String) { SYSTEM("Sistema"), DARK("Oscuro"), LIGHT("Claro") }
+enum class ThemeMode(@StringRes val labelRes: Int) {
+    SYSTEM(R.string.settings_theme_system),
+    DARK(R.string.settings_theme_dark),
+    LIGHT(R.string.settings_theme_light),
+}
 
 /**
  * Color de acento de la app. Todo el diseño (pestañas, elemento seleccionado, carpetas,
  * íconos, controles y, opcionalmente, los textos) se deriva de su tono.
  */
-enum class AccentColor(val label: String, val hue: Float, val saturation: Float) {
-    BLUE("Azul", 220f, 0.95f),
-    TEAL("Turquesa", 178f, 0.85f),
-    GREEN("Esmeralda", 145f, 0.75f),
-    AMBER("Ámbar", 38f, 1.00f),
-    ORANGE("Naranja", 18f, 0.95f),
-    RED("Rojo", 355f, 0.85f),
-    PINK("Rosa", 330f, 0.85f),
-    PURPLE("Violeta", 268f, 0.80f),
+enum class AccentColor(@StringRes val labelRes: Int, val hue: Float, val saturation: Float) {
+    BLUE(R.string.settings_accent_blue, 220f, 0.95f),
+    TEAL(R.string.settings_accent_teal, 178f, 0.85f),
+    GREEN(R.string.settings_accent_green, 145f, 0.75f),
+    AMBER(R.string.settings_accent_amber, 38f, 1.00f),
+    ORANGE(R.string.settings_accent_orange, 18f, 0.95f),
+    RED(R.string.settings_accent_red, 355f, 0.85f),
+    PINK(R.string.settings_accent_pink, 330f, 0.85f),
+    PURPLE(R.string.settings_accent_purple, 268f, 0.80f),
     ;
 
     /** Color de muestra para el selector. */

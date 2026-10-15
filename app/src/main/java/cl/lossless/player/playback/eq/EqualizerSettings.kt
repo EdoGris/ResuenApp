@@ -1,5 +1,8 @@
 package cl.lossless.player.playback.eq
 
+import androidx.annotation.StringRes
+import cl.lossless.player.R
+
 /** Constantes del ecualizador gráfico de 10 bandas (frecuencias ISO por octava). */
 object EqSpec {
     val FREQUENCIES = floatArrayOf(31f, 62f, 125f, 250f, 500f, 1_000f, 2_000f, 4_000f, 8_000f, 16_000f)
@@ -26,26 +29,29 @@ object EqSpec {
         else freq.toInt().toString()
 }
 
-/** Presintonía: [gains] null significa "Personalizado" (usa las bandas guardadas por el usuario). */
-data class EqPreset(val id: String, val name: String, val gains: List<Float>?) {
+/**
+ * Presintonía: [gains] null significa "Personalizado" (usa las bandas guardadas por el usuario).
+ * [nameRes] es el nombre visible (traducido); [name] queda como nombre interno en español.
+ */
+data class EqPreset(val id: String, val name: String, @StringRes val nameRes: Int, val gains: List<Float>?) {
     val isCustom: Boolean get() = gains == null
 }
 
 object EqPresets {
-    val FLAT = EqPreset("flat", "Plano", EqSpec.FLAT)
-    val CUSTOM = EqPreset("custom", "Personalizado", null)
+    val FLAT = EqPreset("flat", "Plano", R.string.player_eq_preset_flat, EqSpec.FLAT)
+    val CUSTOM = EqPreset("custom", "Personalizado", R.string.player_eq_preset_custom, null)
 
     val ALL: List<EqPreset> = listOf(
         FLAT,
-        EqPreset("rock", "Rock", gains(4, 3, 2, 0, -1, -1, 0, 2, 3, 4)),
-        EqPreset("pop", "Pop", gains(-1, 1, 3, 4, 3, 0, -1, -1, 1, 2)),
-        EqPreset("jazz", "Jazz", gains(3, 2, 1, 2, -1, -1, 0, 1, 2, 3)),
-        EqPreset("classical", "Clásica", gains(4, 3, 2, 2, -1, -2, -1, 0, 2, 3)),
-        EqPreset("dance", "Electrónica", gains(4, 4, 2, 0, -2, 2, 3, 3, 2, 0)),
-        EqPreset("hiphop", "Hip-Hop", gains(5, 4, 2, 3, -1, -1, 1, -1, 2, 3)),
-        EqPreset("acoustic", "Acústico", gains(3, 2, 1, 1, 2, 1, 2, 3, 3, 2)),
-        EqPreset("bass", "Realce de graves", gains(6, 5, 4, 2, 0, 0, 0, 0, 0, 0)),
-        EqPreset("vocal", "Voz / Podcast", gains(-2, -1, 0, 2, 4, 4, 3, 1, 0, -1)),
+        EqPreset("rock", "Rock", R.string.player_eq_preset_rock, gains(4, 3, 2, 0, -1, -1, 0, 2, 3, 4)),
+        EqPreset("pop", "Pop", R.string.player_eq_preset_pop, gains(-1, 1, 3, 4, 3, 0, -1, -1, 1, 2)),
+        EqPreset("jazz", "Jazz", R.string.player_eq_preset_jazz, gains(3, 2, 1, 2, -1, -1, 0, 1, 2, 3)),
+        EqPreset("classical", "Clásica", R.string.player_eq_preset_classical, gains(4, 3, 2, 2, -1, -2, -1, 0, 2, 3)),
+        EqPreset("dance", "Electrónica", R.string.player_eq_preset_dance, gains(4, 4, 2, 0, -2, 2, 3, 3, 2, 0)),
+        EqPreset("hiphop", "Hip-Hop", R.string.player_eq_preset_hiphop, gains(5, 4, 2, 3, -1, -1, 1, -1, 2, 3)),
+        EqPreset("acoustic", "Acústico", R.string.player_eq_preset_acoustic, gains(3, 2, 1, 1, 2, 1, 2, 3, 3, 2)),
+        EqPreset("bass", "Realce de graves", R.string.player_eq_preset_bass, gains(6, 5, 4, 2, 0, 0, 0, 0, 0, 0)),
+        EqPreset("vocal", "Voz / Podcast", R.string.player_eq_preset_vocal, gains(-2, -1, 0, 2, 4, 4, 3, 1, 0, -1)),
         CUSTOM,
     )
 

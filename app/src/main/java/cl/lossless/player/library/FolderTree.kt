@@ -1,5 +1,9 @@
 package cl.lossless.player.library
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import cl.lossless.player.R
+
 /** Una carpeta del explorador: subcarpetas y pistas que contiene directamente. */
 data class FolderNode(
     val segments: List<String>,
@@ -42,5 +46,7 @@ fun folderDisplayPath(segments: List<String>): String {
     return (listOf(base) + segments.drop(1)).joinToString("/")
 }
 
+@Composable
 fun volumeLabel(volume: String): String =
-    if (volume == "primary") "Almacenamiento interno" else "Tarjeta SD / USB ($volume)"
+    if (volume == "primary") stringResource(R.string.settings_volume_internal)
+    else stringResource(R.string.settings_volume_external, volume)

@@ -1,15 +1,17 @@
 package cl.lossless.player.sync
 
+import androidx.annotation.StringRes
+import cl.lossless.player.R
 import cl.lossless.player.library.AlbumGroup
 import cl.lossless.player.library.Track
 import org.json.JSONArray
 import org.json.JSONObject
 
 /** Por qué redes puede trabajar la cola de sincronización. */
-enum class NetworkMode(val label: String) {
-    WIFI("Solo Wi-Fi"),
-    MOBILE("Solo datos"),
-    ANY("Wi-Fi y datos"),
+enum class NetworkMode(@StringRes val labelRes: Int) {
+    WIFI(R.string.settings_network_wifi),
+    MOBILE(R.string.settings_network_mobile),
+    ANY(R.string.settings_network_any),
 }
 
 /** Algo que hay que buscar o sincronizar en internet. */

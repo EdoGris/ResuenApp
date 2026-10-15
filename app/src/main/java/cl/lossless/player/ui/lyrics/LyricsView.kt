@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -60,6 +61,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import cl.lossless.player.R
 import cl.lossless.player.lyrics.LyricLine
 import cl.lossless.player.lyrics.Lyrics
 import cl.lossless.player.lyrics.LyricsAligner
@@ -113,26 +115,34 @@ fun LyricsView(
             lyrics?.isSynced == true ->
                 SyncedLyrics(lyrics, state, player, onSeek, onAdjustOffset, onResetOffset, onRetry, onTapSync, onAlignNow, onSyncNow)
             lyrics?.plain != null -> PlainLyrics(lyrics, state, player, onRetry, onTapSync, onAlignNow, onSyncNow)
-            lyrics?.instrumental == true -> Message("Instrumental", "Esta pista no tiene letra.", null, null)
+            lyrics?.instrumental == true -> Message(
+                stringResource(R.string.lyrics_instrumental_title),
+                stringResource(R.string.lyrics_instrumental_body),
+                null,
+                null,
+            )
             state.notFound -> Message(
                 title = when {
-                    state.serverError -> "LRCLIB no responde"
-                    state.offline -> "Sin conexión"
-                    else -> "Letra no encontrada"
+                    state.serverError -> stringResource(R.string.lyrics_not_found_title_server_error)
+                    state.offline -> stringResource(R.string.lyrics_not_found_title_offline)
+                    else -> stringResource(R.string.lyrics_not_found_title)
                 },
                 body = when {
-                    state.serverError -> "El servidor de letras está saturado o con problemas. " +
-                        "Prueba de nuevo en un rato." + state.errorDetail.asDetail()
-                    state.offline -> "No se pudo consultar LRCLIB. Revisa tu conexión." + state.errorDetail.asDetail()
-                    state.onlineDisabled -> "No hay letra en el archivo. Activa la búsqueda en internet en " +
-                        "Ajustes → Letras, o agrega un .lrc junto a la canción."
-                    else -> "No hay letra en el archivo ni en LRCLIB. Puedes agregar un archivo .lrc " +
-                        "con el mismo nombre que la canción, en su carpeta."
+                    state.serverError ->
+                        stringResource(R.string.lyrics_not_found_body_server_error) + state.errorDetail.asDetail()
+                    state.offline -> stringResource(R.string.lyrics_not_found_body_offline) + state.errorDetail.asDetail()
+                    state.onlineDisabled -> stringResource(R.string.lyrics_not_found_body_online_disabled)
+                    else -> stringResource(R.string.lyrics_not_found_body)
                 },
-                actionLabel = "Buscar de nuevo",
+                actionLabel = stringResource(R.string.lyrics_search_again),
                 onAction = onRetry,
             )
-            else -> Message("Sin letra", "No hay ninguna pista en reproducción.", null, null)
+            else -> Message(
+                stringResource(R.string.lyrics_no_track_title),
+                stringResource(R.string.lyrics_no_track_body),
+                null,
+                null,
+            )
         }
     }
 }
@@ -313,9 +323,9 @@ private fun SyncButton(state: LyricsUiState, onSyncNow: () -> Unit) {
             Spacer(Modifier.width(6.dp))
             Text(
                 when {
-                    state.alignServerUrl.isBlank() -> "Sincronizar (estimado)"
-                    state.alignment is AlignmentUi.Failed -> "Reintentar sincronización"
-                    else -> "Sincronizar con la música"
+                    state.alignServerUrl.isBlank() -> stringResource(R.string.lyrics_sync_estimated)
+                    state.alignment is AlignmentUi.Failed -> stringResource(R.string.lyrics_sync_retry)
+                    else -> stringResource(R.string.lyrics_sync_with_music)
                 }
             )
         }
@@ -334,56 +344,65 @@ private fun LyricsFooter(
 ) {
     val lyrics = state.lyrics
     val alignment = state.alignment
+    val estimated = lyrics?.estimated == true
+    val estimatedSuffix = stringResource(R.string.lyrics_status_estimated_for_now)
+    fun withEstimate(text: String) = if (estimated) "$text · $estimatedSuffix" else text
     Row(
         Modifier.fillMaxWidth().padding(top = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                "Fuente: ${lyrics?.source?.label.orEmpty()}",
+                stringResource(R.string.lyrics_source, lyrics?.source?.let { stringResource(it.labelRes) }.orEmpty()),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 when {
-                    alignment is AlignmentUi.Working -> when (alignment.stage) {
-                        AlignStage.HASHING -> "Preparando el audio…"
-                        AlignStage.UPLOADING -> "Subiendo el audio al servidor…"
-                        AlignStage.QUEUED -> "En cola en el servidor…"
-                        AlignStage.PROCESSING -> "Alineando en el servidor…"
-                    } + if (lyrics?.estimated == true) " · por ahora, estimada" else ""
-                    alignment is AlignmentUi.Queued ->
-                        "En la cola de sincronización" + if (lyrics?.estimated == true) " · por ahora, estimada" else ""
-                    alignment is AlignmentUi.WaitingNetwork -> "Sincronización exacta: esperando " + when (alignment.mode) {
-                        NetworkMode.WIFI -> "Wi-Fi"
-                        NetworkMode.MOBILE -> "datos móviles"
-                        NetworkMode.ANY -> "conexión"
-                    } + if (lyrics?.estimated == true) " · por ahora, estimada" else ""
+                    alignment is AlignmentUi.Working -> withEstimate(
+                        when (alignment.stage) {
+                            AlignStage.HASHING -> stringResource(R.string.lyrics_stage_hashing)
+                            AlignStage.UPLOADING -> stringResource(R.string.lyrics_stage_uploading)
+                            AlignStage.QUEUED -> stringResource(R.string.lyrics_stage_queued)
+                            AlignStage.PROCESSING -> stringResource(R.string.lyrics_stage_processing)
+                        }
+                    )
+                    alignment is AlignmentUi.Queued -> withEstimate(stringResource(R.string.lyrics_status_in_queue))
+                    alignment is AlignmentUi.WaitingNetwork -> withEstimate(
+                        stringResource(
+                            R.string.lyrics_status_waiting_network,
+                            when (alignment.mode) {
+                                NetworkMode.WIFI -> stringResource(R.string.lyrics_network_wifi)
+                                NetworkMode.MOBILE -> stringResource(R.string.lyrics_network_mobile)
+                                NetworkMode.ANY -> stringResource(R.string.lyrics_network_any)
+                            },
+                        )
+                    )
                     alignment is AlignmentUi.Failed -> alignment.message
-                    state.estimating -> "Estimando los tiempos…"
-                    lyrics?.estimated == true -> "Sincronización estimada"
-                    !synced -> "Sin sincronizar"
+                    state.estimating -> stringResource(R.string.lyrics_status_estimating)
+                    estimated -> stringResource(R.string.lyrics_status_estimated)
+                    !synced -> stringResource(R.string.lyrics_status_unsynced)
                     else -> ""
                 },
                 style = MaterialTheme.typography.labelSmall,
                 color = when {
                     alignment is AlignmentUi.Failed -> MaterialTheme.colorScheme.error
-                    alignment != null || lyrics?.estimated == true || state.estimating -> MaterialTheme.colorScheme.primary
+                    alignment != null || estimated || state.estimating -> MaterialTheme.colorScheme.primary
                     else -> MaterialTheme.colorScheme.onSurfaceVariant
                 },
             )
         }
         if (alignment is AlignmentUi.WaitingNetwork || alignment is AlignmentUi.Failed) {
             IconButton(onClick = onAlignNow, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Rounded.CloudUpload, contentDescription = "Sincronizar ahora con la red actual")
+                Icon(Icons.Rounded.CloudUpload, contentDescription = stringResource(R.string.lyrics_cd_align_now))
             }
         }
         IconButton(onClick = onTapSync, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.Rounded.TouchApp, contentDescription = "Sincronizar tocando")
+            Icon(Icons.Rounded.TouchApp, contentDescription = stringResource(R.string.lyrics_tap_sync))
         }
         if (synced) {
             IconButton(onClick = { onAdjustOffset(-250) }, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Rounded.Remove, contentDescription = "Letra antes")
+                Icon(Icons.Rounded.Remove, contentDescription = stringResource(R.string.lyrics_cd_offset_earlier))
             }
             Text(
                 "%+.2f s".format(state.offsetMs / 1000f),
@@ -393,11 +412,11 @@ private fun LyricsFooter(
                 modifier = Modifier.clickable(onClick = onResetOffset).padding(horizontal = 2.dp),
             )
             IconButton(onClick = { onAdjustOffset(250) }, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Rounded.Add, contentDescription = "Letra después")
+                Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.lyrics_cd_offset_later))
             }
         }
         IconButton(onClick = onRetry, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.Rounded.Refresh, contentDescription = "Buscar de nuevo")
+            Icon(Icons.Rounded.Refresh, contentDescription = stringResource(R.string.lyrics_search_again))
         }
     }
 }

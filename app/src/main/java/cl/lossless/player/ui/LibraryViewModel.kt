@@ -3,7 +3,9 @@ package cl.lossless.player.ui
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
+import androidx.annotation.StringRes
 import androidx.lifecycle.viewModelScope
+import cl.lossless.player.R
 import cl.lossless.player.covers.CoverCandidate
 import cl.lossless.player.covers.CoverManager
 import cl.lossless.player.covers.CoverRef
@@ -96,15 +98,19 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
     private val playbackPrefs = PlaybackPrefs(app)
     private val queue = SyncQueue.get(app)
 
+    private fun str(@StringRes id: Int, vararg args: Any): String =
+        getApplication<Application>().getString(id, *args)
+
     /** Resultado de la búsqueda de carátulas faltantes en curso. */
     private var coverCounts = CoverCounts()
 
-    private data class CoverCounts(val assigned: Int = 0, val doubtful: Int = 0, val failed: Int = 0) {
-        override fun toString() = buildString {
-            append("Asignadas: $assigned")
-            if (doubtful > 0) append(" · Sin coincidencia segura: $doubtful (toca el álbum para elegir)")
-            if (failed > 0) append(" · Con error: $failed")
-        }
+    private data class CoverCounts(val assigned: Int = 0, val doubtful: Int = 0, val failed: Int = 0)
+
+    /** Texto visible del resultado: "Asignadas: 3 · Con error: 1". */
+    private fun describe(counts: CoverCounts) = buildString {
+        append(str(R.string.library_cover_counts_assigned, counts.assigned))
+        if (counts.doubtful > 0) append(" · ").append(str(R.string.library_cover_counts_doubtful, counts.doubtful))
+        if (counts.failed > 0) append(" · ").append(str(R.string.library_cover_counts_failed, counts.failed))
     }
 
     private val _ui = MutableStateFlow(
@@ -163,8 +169,8 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
             lyrics = items.count { it.request is SyncRequest.Lyrics },
             current = items.firstOrNull { it.running }?.let { item ->
                 when (item.request) {
-                    is SyncRequest.Cover -> "Carátula: ${item.request.label}"
-                    is SyncRequest.Lyrics -> "Letra: ${item.request.label}"
+                    is SyncRequest.Cover -> str(R.string.library_sync_current_cover, item.request.label)
+                    is SyncRequest.Lyrics -> str(R.string.library_sync_current_lyrics, item.request.label)
                 }
             },
             waitingNetwork = items.isNotEmpty() && items.none { it.running } && !queue.networkAllowedNow(),
@@ -175,9 +181,10 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
                 coverTaskRunning = covers > 0,
                 coverTaskStatus = when {
                     covers > 0 && summary.waitingNetwork ->
-                        "$covers en cola · esperando " + networkName(s.networkMode) + " · $coverCounts"
-                    covers > 0 -> "$covers en cola · $coverCounts"
-                    s.coverTaskRunning -> coverCounts.toString() // recién terminó
+                        str(R.string.library_cover_queue_waiting, covers, networkName(s.networkMode)) +
+                            " · " + describe(coverCounts)
+                    covers > 0 -> str(R.string.library_cover_queue, covers) + " · " + describe(coverCounts)
+                    s.coverTaskRunning -> describe(coverCounts) // recién terminó
                     else -> s.coverTaskStatus
                 },
             )
@@ -185,9 +192,9 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun networkName(mode: NetworkMode) = when (mode) {
-        NetworkMode.WIFI -> "Wi-Fi"
-        NetworkMode.MOBILE -> "datos móviles"
-        NetworkMode.ANY -> "conexión"
+        NetworkMode.WIFI -> str(R.string.library_network_wifi)
+        NetworkMode.MOBILE -> str(R.string.library_network_mobile)
+        NetworkMode.ANY -> str(R.string.library_network_any)
     }
 
     fun setNetworkMode(mode: NetworkMode) = queue.setNetworkMode(mode)
@@ -223,7 +230,7 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
             val albums = withContext(Dispatchers.Default) {
                 state.allTracks
                     .filterNot { FolderExclusions.isExcluded(it.folderSegments, state.excludedFolders) }
-                    .toAlbumGroups()
+                    .toAlbumGroups(variousArtists = str(R.string.library_various_artists))
             }
             val tracks = albums.flatMap { it.tracks }
             _ui.update {
@@ -337,7 +344,7 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
         val state = _ui.value
         val missing = state.albums.filter { it.key !in state.covers }
         if (missing.isEmpty()) {
-            _ui.update { it.copy(coverTaskStatus = "Todos los álbumes ya tienen carátula") }
+            _ui.update { it.copy(coverTaskStatus = str(R.string.library_covers_all_present)) }
             return
         }
         if (state.syncQueue.covers == 0) coverCounts = CoverCounts()
@@ -346,7 +353,7 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
 
     fun cancelFetch() {
         queue.clear { it is SyncRequest.Cover }
-        _ui.update { it.copy(coverTaskRunning = false, coverTaskStatus = "Búsqueda detenida · $coverCounts") }
+        _ui.update { it.copy(coverTaskRunning = false, coverTaskStatus = str(R.string.library_cover_search_stopped, describe(coverCounts))) }
     }
 
     // ---------- Elección manual ----------
@@ -362,8 +369,8 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
                         searching = false,
                         candidates = result.getOrDefault(emptyList()),
                         message = when {
-                            result.isFailure -> "No se pudo buscar. Revisa tu conexión a internet."
-                            result.getOrNull().isNullOrEmpty() -> "No se encontraron carátulas para este álbum."
+                            result.isFailure -> str(R.string.library_cover_search_failed)
+                            result.getOrNull().isNullOrEmpty() -> str(R.string.library_cover_none_found)
                             else -> null
                         }
                     )
@@ -385,7 +392,7 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
                 _ui.update { it.copy(covers = it.covers + (dialog.album.key to ref), dialog = null) }
             }.onFailure {
                 _ui.update {
-                    it.copy(dialog = dialog.copy(saving = false, message = "No se pudo descargar la imagen."))
+                    it.copy(dialog = dialog.copy(saving = false, message = str(R.string.library_cover_download_failed)))
                 }
             }
         }
@@ -406,13 +413,13 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
                     it.copy(
                         covers = it.covers + (dialog.album.key to ref),
                         dialog = null,
-                        userMessage = if (written) "Carátula guardada también como cover.jpg en la carpeta"
-                        else "Carátula asignada a «${dialog.album.title}»",
+                        userMessage = if (written) str(R.string.library_cover_saved_to_folder)
+                        else str(R.string.library_cover_assigned, dialog.album.title),
                     )
                 }
             }.onFailure {
                 _ui.update {
-                    it.copy(dialog = dialog.copy(saving = false, message = "No se pudo leer esa imagen."))
+                    it.copy(dialog = dialog.copy(saving = false, message = str(R.string.library_cover_read_failed)))
                 }
             }
         }

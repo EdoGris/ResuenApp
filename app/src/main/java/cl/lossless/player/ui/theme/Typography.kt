@@ -5,6 +5,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.annotation.StringRes
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import cl.lossless.player.R
 
 /**
@@ -12,8 +15,8 @@ import cl.lossless.player.R
  * (res/font, licencia OFL, solo caracteres latinos); lo que no traen, como letras en
  * japonés o coreano, lo dibuja la fuente del sistema.
  */
-enum class AppFont(val label: String) {
-    SYSTEM("Sistema"),
+enum class AppFont(private val brandName: String?, @StringRes private val labelRes: Int = 0) {
+    SYSTEM(null, R.string.settings_font_system),
     ROBOTO("Roboto"),
     INTER("Inter"),
     OPEN_SANS("Open Sans"),
@@ -22,6 +25,10 @@ enum class AppFont(val label: String) {
     POPPINS("Poppins"),
     SERIF("Serif"),
     ;
+
+    /** Nombre para mostrar: el de la familia o, si es genérico, traducido. */
+    val label: String
+        @Composable get() = brandName ?: stringResource(labelRes)
 
     /** null = la fuente predeterminada del sistema. */
     val family: FontFamily?
@@ -38,11 +45,11 @@ enum class AppFont(val label: String) {
 }
 
 /** Tamaño del texto, sobre el tamaño de fuente elegido en el sistema. */
-enum class TextSize(val label: String, val scale: Float) {
-    SMALL("Pequeño", 0.9f),
-    NORMAL("Normal", 1f),
-    LARGE("Grande", 1.15f),
-    XLARGE("Muy grande", 1.3f),
+enum class TextSize(@StringRes val labelRes: Int, val scale: Float) {
+    SMALL(R.string.settings_text_size_small, 0.9f),
+    NORMAL(R.string.settings_text_size_normal, 1f),
+    LARGE(R.string.settings_text_size_large, 1.15f),
+    XLARGE(R.string.settings_text_size_xlarge, 1.3f),
 }
 
 private fun family(regular: Int, medium: Int, semibold: Int, bold: Int) = FontFamily(

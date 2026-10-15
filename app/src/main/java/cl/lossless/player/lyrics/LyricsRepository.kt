@@ -3,6 +3,7 @@ package cl.lossless.player.lyrics
 import android.content.Context
 import android.provider.DocumentsContract
 import android.util.Log
+import cl.lossless.player.R
 import cl.lossless.player.library.LibraryLocation
 import cl.lossless.player.library.Track
 import kotlinx.coroutines.Dispatchers
@@ -147,15 +148,15 @@ class LyricsRepository(
         retryFailed: Boolean,
         onStage: (AlignStage) -> Unit,
     ): AlignOutcome = withContext(Dispatchers.IO) {
-        val plain = lyrics.plain?.takeIf { it.isNotBlank() } ?: return@withContext AlignOutcome.Failed("La letra está vacía")
+        val plain = lyrics.plain?.takeIf { it.isNotBlank() } ?: return@withContext AlignOutcome.Failed(context.getString(R.string.lyrics_align_error_empty))
         onStage(AlignStage.HASHING)
         val audioSha = context.contentResolver.openInputStream(track.uri)?.let(AlignmentClient::sha256)
-            ?: return@withContext AlignOutcome.Failed("No se pudo leer el archivo de audio")
+            ?: return@withContext AlignOutcome.Failed(context.getString(R.string.lyrics_align_error_read_audio))
         val id = AlignmentClient.jobId(audioSha, plain)
 
         val existing = client.get(id)
         if (existing?.status == AlignmentJob.Status.FAILED && !retryFailed) {
-            return@withContext AlignOutcome.Failed(existing.error ?: "El servidor no pudo alinear la letra")
+            return@withContext AlignOutcome.Failed(existing.error ?: context.getString(R.string.lyrics_align_error_server_failed))
         }
         var job: AlignmentJob = if (existing != null && existing.status != AlignmentJob.Status.FAILED) {
             existing
@@ -176,10 +177,10 @@ class LyricsRepository(
         while (job.pending) {
             onStage(if (job.status == AlignmentJob.Status.QUEUED) AlignStage.QUEUED else AlignStage.PROCESSING)
             delay(ALIGN_POLL_MS)
-            job = client.get(id) ?: return@withContext AlignOutcome.Failed("El servidor borró el trabajo")
+            job = client.get(id) ?: return@withContext AlignOutcome.Failed(context.getString(R.string.lyrics_align_error_job_deleted))
         }
         val aligned = AlignmentJson.toLyrics(job, plain)
-            ?: return@withContext AlignOutcome.Failed(job.error ?: "El servidor no pudo alinear la letra")
+            ?: return@withContext AlignOutcome.Failed(job.error ?: context.getString(R.string.lyrics_align_error_server_failed))
         cache.putFound(alignedKey(track, plain), aligned)
         AlignOutcome.Done(aligned)
     }

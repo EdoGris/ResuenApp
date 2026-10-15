@@ -4,19 +4,25 @@ import android.content.Context
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
+import cl.lossless.player.R
 
 /** Características del audio de origen, leídas del archivo antes de reproducirlo. */
 data class AudioSpec(val mime: String, val sampleRate: Int, val channelCount: Int) {
-    val codecLabel: String
-        get() = when (mime) {
-            MediaFormat.MIMETYPE_AUDIO_MPEG -> "MP3 (con pérdida)"
-            MediaFormat.MIMETYPE_AUDIO_FLAC -> "FLAC (sin pérdida)"
-            "audio/alac" -> "ALAC (sin pérdida)"
-            MediaFormat.MIMETYPE_AUDIO_AAC -> "AAC (con pérdida)"
-            else -> mime
-        }
+    fun codecLabel(context: Context): String = when (mime) {
+        MediaFormat.MIMETYPE_AUDIO_MPEG -> context.getString(R.string.player_codec_lossy, "MP3")
+        MediaFormat.MIMETYPE_AUDIO_FLAC -> context.getString(R.string.player_codec_lossless, "FLAC")
+        "audio/alac" -> context.getString(R.string.player_codec_lossless, "ALAC")
+        MediaFormat.MIMETYPE_AUDIO_AAC -> context.getString(R.string.player_codec_lossy, "AAC")
+        else -> mime
+    }
 
-    fun describe() = "$codecLabel · ${sampleRate / 1000.0} kHz · $channelCount canales"
+    fun describe(context: Context): String = context.resources.getQuantityString(
+        R.plurals.player_source_description,
+        channelCount,
+        codecLabel(context),
+        (sampleRate / 1000.0).toString(),
+        channelCount,
+    )
 }
 
 object AudioProbe {

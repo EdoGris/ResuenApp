@@ -175,7 +175,7 @@ class PlaybackService : MediaSessionService() {
     private fun prepareOutputFor(item: MediaItem) {
         val uri = item.localConfiguration?.uri ?: Uri.parse(item.mediaId)
         val spec = AudioProbe.probe(this, uri) ?: return
-        PlaybackStatus.source.value = spec.describe()
+        PlaybackStatus.source.value = spec.describe(this)
         bitPerfect.apply(spec)
     }
 

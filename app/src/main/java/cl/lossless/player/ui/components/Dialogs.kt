@@ -47,8 +47,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cl.lossless.player.R
 import cl.lossless.player.covers.CoverCandidate
 import cl.lossless.player.covers.CoverRef
 import cl.lossless.player.library.Playlist
@@ -75,7 +78,7 @@ fun CoverDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.library_close)) } },
         title = { Text(dialog.album.title, maxLines = 2) },
         text = {
             Column {
@@ -84,16 +87,15 @@ fun CoverDialog(
                     Column(Modifier.padding(start = 12.dp)) {
                         Text(dialog.album.artist, style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            if (writesToFolder) "Se guardará también como cover.jpg en la carpeta del disco"
-                            else "Se guardará en la app. Para crear cover.jpg, elige la carpeta " +
-                                "de tu música en Ajustes y activa «Guardar cover.jpg».",
+                            if (writesToFolder) stringResource(R.string.library_cover_writes_folder)
+                            else stringResource(R.string.library_cover_writes_app),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                Text("Desde el teléfono", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.library_cover_from_phone), style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilledTonalButton(
@@ -106,7 +108,7 @@ fun CoverDialog(
                     ) {
                         Icon(Icons.Rounded.PhotoLibrary, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Galería")
+                        Text(stringResource(R.string.library_gallery))
                     }
                     FilledTonalButton(
                         onClick = { filePicker.launch(arrayOf("image/*")) },
@@ -114,11 +116,11 @@ fun CoverDialog(
                     ) {
                         Icon(Icons.Rounded.FolderOpen, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Archivos")
+                        Text(stringResource(R.string.library_files))
                     }
                 }
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
-                Text("Buscar en internet", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.library_search_online), style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(6.dp))
                 when {
                     dialog.searching || dialog.saving -> Box(
@@ -162,7 +164,7 @@ fun CoverDialog(
 fun PlaylistNameDialog(
     title: String,
     initial: String = "",
-    confirmLabel: String = "Crear",
+    confirmLabel: String = stringResource(R.string.library_create),
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -175,13 +177,13 @@ fun PlaylistNameDialog(
                 value = name,
                 onValueChange = { name = it },
                 singleLine = true,
-                label = { Text("Nombre") },
+                label = { Text(stringResource(R.string.library_name)) },
             )
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(name) }, enabled = name.isNotBlank()) { Text(confirmLabel) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.library_cancel)) } },
     )
 }
 
@@ -195,12 +197,12 @@ fun AddToPlaylistDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Añadir a playlist") },
+        title = { Text(stringResource(R.string.library_add_to_playlist)) },
         text = {
             LazyColumn(Modifier.heightIn(max = 400.dp)) {
                 item {
                     ListItem(
-                        headlineContent = { Text("Nueva playlist…") },
+                        headlineContent = { Text(stringResource(R.string.library_new_playlist_ellipsis)) },
                         leadingContent = { Icon(Icons.Rounded.Add, null) },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         modifier = Modifier.clickable(onClick = onCreateNew),
@@ -208,8 +210,10 @@ fun AddToPlaylistDialog(
                 }
                 items(playlists, key = { it.id }) { p ->
                     ListItem(
-                        headlineContent = { Text(p.name) },
-                        supportingContent = { Text("${p.trackUris.size} pistas") },
+                        headlineContent = { Text(p.displayName()) },
+                        supportingContent = {
+                            Text(pluralStringResource(R.plurals.library_track_count, p.trackUris.size, p.trackUris.size))
+                        },
                         leadingContent = {
                             Icon(if (p.isFavorites) Icons.Rounded.Favorite else Icons.AutoMirrored.Rounded.QueueMusic, null)
                         },
@@ -219,6 +223,6 @@ fun AddToPlaylistDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.library_cancel)) } },
     )
 }
