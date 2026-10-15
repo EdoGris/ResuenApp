@@ -14,6 +14,7 @@
     <string name="player_repeat">Répéter</string>
     <string name="player_equalizer">Égaliseur</string>
     <string name="player_lyrics">Paroles</string>
+    <string name="player_cover">Pochette</string>
     <string name="player_queue_count">File (%1$d)</string>
     <string name="player_queue_title">File d\'attente</string>
     <string name="player_queue_remove">Retirer de la file</string>

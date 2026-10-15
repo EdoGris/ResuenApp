@@ -14,6 +14,7 @@
     <string name="player_repeat">Repetir</string>
     <string name="player_equalizer">Ecualizador</string>
     <string name="player_lyrics">Letra</string>
+    <string name="player_cover">Carátula</string>
     <string name="player_queue_count">Cola (%1$d)</string>
     <string name="player_queue_title">Cola de reproducción</string>
     <string name="player_queue_remove">Quitar de la cola</string>
