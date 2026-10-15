@@ -20,6 +20,13 @@ class AlignmentClient(baseUrl: String, private val token: String) {
     /** El servidor rechazó el token. */
     class Unauthorized : IOException("El servidor rechazó el token")
 
+    /** El servidor respondió con un error HTTP; [detail] es el texto que envió (si vino). */
+    class HttpError(val code: Int, val detail: String?) :
+        IOException("El servidor respondió HTTP $code" + (detail?.let { ": $it" } ?: ""))
+
+    /** Datos del servidor según /v1/health. */
+    data class Health(val model: String, val device: String, val queued: Int)
+
     /** Estado del trabajo, o null si el servidor no lo conoce. */
     fun get(jobId: String): AlignmentJob? {
         val connection = open("/v1/alignments/$jobId", "GET")
@@ -79,15 +86,14 @@ class AlignmentClient(baseUrl: String, private val token: String) {
         }
     }
 
-    /** Comprueba la conexión; devuelve una descripción corta del servidor. */
-    fun health(): String {
+    /** Comprueba la conexión; devuelve los datos del servidor. */
+    fun health(): Health {
         val connection = open("/v1/health", "GET")
         return try {
             when (val code = connection.responseCode) {
                 HttpURLConnection.HTTP_OK -> {
                     val json = org.json.JSONObject(connection.readBody())
-                    "${json.optString("whisperModel")} · ${json.optString("device").uppercase()} · " +
-                        "${json.optInt("queued")} en cola"
+                    Health(json.optString("whisperModel"), json.optString("device").uppercase(), json.optInt("queued"))
                 }
                 else -> throw failure(code, connection)
             }
@@ -114,7 +120,7 @@ class AlignmentClient(baseUrl: String, private val token: String) {
             connection.errorStream?.bufferedReader()?.use { it.readText() }
                 ?.let { org.json.JSONObject(it).optString("detail") }
         }.getOrNull()
-        return IOException("El servidor respondió HTTP $code" + (detail?.takeIf { it.isNotBlank() }?.let { ": $it" } ?: ""))
+        return HttpError(code, detail?.takeIf { it.isNotBlank() })
     }
 
     companion object {

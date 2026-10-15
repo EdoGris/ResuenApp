@@ -37,6 +37,8 @@ object TrackMetadataCleaner {
     private val placeholderArtists = setOf(
         "desconocido", "unknown", "<unknown>", "unknown artist", "artista desconocido",
         "various artists", "varios artistas", "va",
+        // Los mismos marcadores en los otros idiomas de la app (fr, pt)
+        "inconnu", "desconhecido", "artistes variés", "vários artistas",
     )
 
     fun stripJunkAnnotations(title: String): String {

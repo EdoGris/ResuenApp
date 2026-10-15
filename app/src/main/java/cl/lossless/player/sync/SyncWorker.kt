@@ -6,6 +6,7 @@ import android.os.SystemClock
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkerParameters
+import cl.lossless.player.R
 import cl.lossless.player.covers.CoverManager
 import cl.lossless.player.covers.CoverStore
 import cl.lossless.player.library.AlbumGroup
@@ -64,7 +65,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
 }
 
 /** Ejecuta una petición de la cola. */
-internal class SyncRunner(context: Context) {
+internal class SyncRunner(private val context: Context) {
 
     sealed interface Result {
         data class Finished(val outcome: SyncOutcome, val message: String? = null) : Result
@@ -97,7 +98,7 @@ internal class SyncRunner(context: Context) {
         )
         try {
             val best = coverManager.bestAutomatic(coverManager.searchOnline(album))
-                ?: return@withContext Result.Finished(SyncOutcome.NO_MATCH, "Sin coincidencia segura")
+                ?: return@withContext Result.Finished(SyncOutcome.NO_MATCH, context.getString(R.string.settings_sync_error_no_cover_match))
             coverManager.apply(album, best, libraryPrefs.location, libraryPrefs.saveCoversInFolder)
             Result.Finished(SyncOutcome.DONE)
         } catch (e: IOException) {
@@ -127,7 +128,7 @@ internal class SyncRunner(context: Context) {
         val lyrics = when (val result = lyricsRepository.load(track, location, lyricsPrefs.searchOnline)) {
             is LyricsResult.Found -> result.lyrics
             is LyricsResult.NotFound ->
-                return if (result.offline) Result.NetworkError else Result.Finished(SyncOutcome.NO_MATCH, "Sin letra")
+                return if (result.offline) Result.NetworkError else Result.Finished(SyncOutcome.NO_MATCH, context.getString(R.string.settings_sync_error_no_lyrics))
         }
         if (lyrics.isSynced || lyrics.plain.isNullOrBlank()) return Result.Finished(SyncOutcome.NOT_NEEDED)
 
@@ -136,7 +137,7 @@ internal class SyncRunner(context: Context) {
             // Sin servidor: tiempos estimados en el teléfono (quedan guardados para cuando se abra).
             onStage(STAGE_ESTIMATING)
             return if (lyricsRepository.estimate(track, lyrics) != null) Result.Finished(SyncOutcome.DONE)
-            else Result.Finished(SyncOutcome.FAILED, "No se pudieron estimar los tiempos")
+            else Result.Finished(SyncOutcome.FAILED, context.getString(R.string.settings_sync_error_estimate_failed))
         }
         if (lyricsRepository.cachedAlignment(track, lyrics) != null) return Result.Finished(SyncOutcome.NOT_NEEDED)
         return try {
@@ -150,13 +151,13 @@ internal class SyncRunner(context: Context) {
                 LyricsRepository.AlignOutcome.NeedsUpload -> Result.NetworkError
             }
         } catch (e: AlignmentClient.Unauthorized) {
-            Result.Finished(SyncOutcome.FAILED, "El servidor rechazó el token. Revísalo en Ajustes → Letras.")
+            Result.Finished(SyncOutcome.FAILED, context.getString(R.string.settings_sync_error_token_rejected))
         } catch (e: IOException) {
             Result.NetworkError
         } catch (e: JSONException) {
-            Result.Finished(SyncOutcome.FAILED, "El servidor respondió algo inesperado.")
+            Result.Finished(SyncOutcome.FAILED, context.getString(R.string.settings_sync_error_unexpected_response))
         } catch (e: IllegalArgumentException) {
-            Result.Finished(SyncOutcome.FAILED, "La dirección del servidor no es válida.")
+            Result.Finished(SyncOutcome.FAILED, context.getString(R.string.settings_sync_error_invalid_address))
         }
     }
 

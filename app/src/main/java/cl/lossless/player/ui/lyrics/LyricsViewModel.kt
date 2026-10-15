@@ -1,8 +1,10 @@
 package cl.lossless.player.ui.lyrics
 
 import android.app.Application
+import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import cl.lossless.player.R
 import cl.lossless.player.library.LibraryPrefs
 import cl.lossless.player.library.Track
 import cl.lossless.player.lyrics.AlignmentClient
@@ -91,6 +93,8 @@ class LyricsViewModel(app: Application) : AndroidViewModel(app) {
     )
     val state = _state.asStateFlow()
 
+    private fun str(@StringRes id: Int, vararg args: Any): String = getApplication<Application>().getString(id, *args)
+
     private var loadJob: Job? = null
     /** "Sincronizar ahora" pedido a mano; se cancela al cambiar de pista. */
     private var alignJob: Job? = null
@@ -136,7 +140,7 @@ class LyricsViewModel(app: Application) : AndroidViewModel(app) {
                         s.lyrics?.source == LyricsSource.USER -> s.copy(alignment = null)
                         aligned != null -> s.copy(lyrics = aligned, estimating = false, alignment = null)
                         event.outcome == SyncOutcome.FAILED ->
-                            s.copy(alignment = AlignmentUi.Failed(event.message ?: "No se pudo sincronizar"))
+                            s.copy(alignment = AlignmentUi.Failed(event.message ?: str(R.string.lyrics_align_error_generic)))
                         else -> s.copy(alignment = null)
                     }
                 }
@@ -253,11 +257,11 @@ class LyricsViewModel(app: Application) : AndroidViewModel(app) {
                 _state.update { s -> if (s.trackKey != key) s else s.copy(alignment = AlignmentUi.Working(stage)) }
             }
         } catch (e: AlignmentClient.Unauthorized) {
-            LyricsRepository.AlignOutcome.Failed("El servidor rechazó el token. Revísalo en Ajustes → Letras.")
+            LyricsRepository.AlignOutcome.Failed(str(R.string.lyrics_align_error_unauthorized))
         } catch (e: IOException) {
-            LyricsRepository.AlignOutcome.Failed("No se pudo conectar con el servidor de sincronización.")
+            LyricsRepository.AlignOutcome.Failed(str(R.string.lyrics_align_error_connect))
         } catch (e: JSONException) {
-            LyricsRepository.AlignOutcome.Failed("El servidor respondió algo inesperado.")
+            LyricsRepository.AlignOutcome.Failed(str(R.string.lyrics_align_error_unexpected))
         }
         _state.update { s ->
             if (s.trackKey != key) return@update s
@@ -301,15 +305,24 @@ class LyricsViewModel(app: Application) : AndroidViewModel(app) {
     /** Prueba la conexión con el servidor; devuelve un mensaje para mostrar. */
     suspend fun testAlignServer(url: String, token: String): String = withContext(Dispatchers.IO) {
         try {
-            "Conectado: " + AlignmentClient(url, token).health()
+            val health = AlignmentClient(url, token).health()
+            str(
+                R.string.lyrics_align_test_connected,
+                health.model,
+                health.device,
+                getApplication<Application>().resources.getQuantityString(R.plurals.lyrics_align_test_queued, health.queued, health.queued),
+            )
         } catch (e: AlignmentClient.Unauthorized) {
-            "El servidor rechazó el token"
+            str(R.string.lyrics_align_test_unauthorized)
+        } catch (e: AlignmentClient.HttpError) {
+            val http = "HTTP ${e.code}" + (e.detail?.let { ": $it" } ?: "")
+            str(R.string.lyrics_align_test_connect_failed, str(R.string.lyrics_align_test_http_error, http))
         } catch (e: IOException) {
-            "No se pudo conectar: ${e.message ?: e.javaClass.simpleName}"
+            str(R.string.lyrics_align_test_connect_failed, e.message ?: e.javaClass.simpleName)
         } catch (e: JSONException) {
-            "La dirección no parece ser el servidor de sincronización"
+            str(R.string.lyrics_align_test_not_server)
         } catch (e: IllegalArgumentException) {
-            "Dirección inválida"
+            str(R.string.lyrics_align_test_invalid_url)
         }
     }
 

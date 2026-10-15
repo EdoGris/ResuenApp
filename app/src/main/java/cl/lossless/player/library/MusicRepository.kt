@@ -8,6 +8,7 @@ import android.provider.DocumentsContract
 import android.provider.MediaStore
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import cl.lossless.player.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -82,6 +83,10 @@ data class Track(
 }
 
 class MusicRepository(private val context: Context) {
+
+    /** Textos visibles para etiquetas que faltan (traducidos). */
+    private val untitled get() = context.getString(R.string.library_untitled)
+    private val unknownArtist get() = context.getString(R.string.library_unknown_artist)
 
     private val supportedMimes = arrayOf(
         "audio/mpeg",                              // MP3
@@ -167,7 +172,7 @@ class MusicRepository(private val context: Context) {
                 result += Track(
                     id = id,
                     uri = ContentUris.withAppendedId(collection, id),
-                    title = c.getString(titleCol) ?: "Sin título",
+                    title = c.getString(titleCol) ?: untitled,
                     artist = cleanTag(c.getString(artistCol)),
                     album = c.getString(albumCol) ?: "",
                     albumArtist = cleanTag(c.getString(albumArtistCol), fallback = ""),
@@ -261,7 +266,7 @@ class MusicRepository(private val context: Context) {
         )
     }
 
-    private fun cleanTag(value: String?, fallback: String = "Desconocido"): String =
+    private fun cleanTag(value: String?, fallback: String = unknownArtist): String =
         value?.takeIf { it.isNotBlank() && it != "<unknown>" } ?: fallback
 
     private fun escapeLike(s: String) =

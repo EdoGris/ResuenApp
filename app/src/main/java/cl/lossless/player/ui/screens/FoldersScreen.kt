@@ -31,7 +31,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import cl.lossless.player.R
 import cl.lossless.player.library.Track
 import cl.lossless.player.library.folderDisplayPath
 import cl.lossless.player.library.folderNode
@@ -66,12 +69,12 @@ fun FoldersScreen(
 
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(
-            title = if (segments.isEmpty()) "Carpetas" else segments.last().let { if (segments.size == 1) volumeLabel(it) else it },
+            title = if (segments.isEmpty()) stringResource(R.string.settings_folders_title) else segments.last().let { if (segments.size == 1) volumeLabel(it) else it },
             trailingText = folderDisplayPath(segments),
             onBack = if (segments.isEmpty()) null else ({ open(segments.dropLast(1)) }),
             actions = {
                 IconButton(onClick = onPickFolder) {
-                    Icon(Icons.Rounded.CreateNewFolder, contentDescription = "Elegir carpeta (SD / USB)")
+                    Icon(Icons.Rounded.CreateNewFolder, contentDescription = stringResource(R.string.settings_folders_pick_cd))
                 }
             },
         )
@@ -79,9 +82,9 @@ fun FoldersScreen(
         if (node.subfolders.isEmpty() && node.tracks.isEmpty()) {
             EmptyState(
                 icon = Icons.Rounded.FolderOff,
-                title = "Carpeta vacía",
-                message = "No hay archivos de audio compatibles en esta ubicación.",
-                actionLabel = "Elegir otra carpeta",
+                title = stringResource(R.string.settings_folders_empty_title),
+                message = stringResource(R.string.settings_folders_empty_message),
+                actionLabel = stringResource(R.string.settings_folders_pick_other),
                 onAction = onPickFolder,
             )
             return@Column
@@ -96,7 +99,7 @@ fun FoldersScreen(
                 FolderCard(
                     name = if (segments.isEmpty()) volumeLabel(entry.name) else entry.name,
                     path = null,
-                    detail = "${entry.trackCount} pistas",
+                    detail = pluralStringResource(R.plurals.settings_tracks_count, entry.trackCount, entry.trackCount),
                     onExclude = { onExcludeFolder(entry.segments) },
                 ) { open(entry.segments) }
             }
@@ -110,12 +113,12 @@ fun FoldersScreen(
                         FilledTonalButton(onClick = { actions.play(node.tracks, 0) }) {
                             Icon(Icons.Rounded.PlayArrow, null)
                             Spacer(Modifier.width(6.dp))
-                            Text("Reproducir carpeta")
+                            Text(stringResource(R.string.settings_folders_play))
                         }
                         OutlinedButton(onClick = { actions.shuffle(node.tracks) }) {
                             Icon(Icons.Rounded.Shuffle, null)
                             Spacer(Modifier.width(6.dp))
-                            Text("Aleatorio")
+                            Text(stringResource(R.string.settings_folders_shuffle))
                         }
                     }
                 }

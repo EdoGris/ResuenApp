@@ -9,6 +9,7 @@ import android.media.AudioManager
 import android.media.AudioMixerAttributes
 import android.os.Handler
 import android.os.Looper
+import cl.lossless.player.R
 
 /**
  * Activa el modo bit-perfect de Android 14+ en DAC USB.
@@ -19,6 +20,7 @@ import android.os.Looper
  */
 class BitPerfectController(context: Context) {
 
+    private val appContext = context.applicationContext
     private val audioManager = context.getSystemService(AudioManager::class.java)
 
     // Debe coincidir con los atributos que usa ExoPlayer (USAGE_MEDIA).
@@ -42,6 +44,11 @@ class BitPerfectController(context: Context) {
 
     init {
         audioManager.registerAudioDeviceCallback(deviceCallback, Handler(Looper.getMainLooper()))
+        // Texto inicial de la salida, ya en el idioma de la app.
+        PlaybackStatus.output.compareAndSet(
+            PlaybackStatus.UNKNOWN,
+            appContext.getString(R.string.player_output_standard),
+        )
     }
 
     /** Configura la salida para la frecuencia y canales del archivo que va a sonar. */
@@ -64,19 +71,21 @@ class BitPerfectController(context: Context) {
 
         if (candidate == null) {
             clear()
-            PlaybackStatus.output.value =
-                "DAC USB conectado, pero no ofrece bit-perfect a ${spec.sampleRate} Hz " +
-                    "/ ${spec.channelCount} ch: se usa el mezclador (remuestreo)"
+            PlaybackStatus.output.value = appContext.getString(
+                R.string.player_output_usb_no_bit_perfect,
+                spec.sampleRate,
+                spec.channelCount,
+            )
             return
         }
 
         val ok = audioManager.setPreferredMixerAttributes(musicAttributes, usb, candidate)
         activeDevice = if (ok) usb else null
         PlaybackStatus.output.value = if (ok) {
-            "BIT-PERFECT · ${usb.productName} · ${candidate.format.sampleRate} Hz · " +
+            "${PlaybackStatus.BIT_PERFECT_PREFIX} · ${usb.productName} · ${candidate.format.sampleRate} Hz · " +
                 encodingName(candidate.format.encoding)
         } else {
-            "El sistema rechazó el modo bit-perfect en ${usb.productName}"
+            appContext.getString(R.string.player_output_bit_perfect_rejected, usb.productName)
         }
     }
 
@@ -100,11 +109,11 @@ class BitPerfectController(context: Context) {
         return when {
             outputs.any { it == AudioDeviceInfo.TYPE_BLE_HEADSET ||
                 it == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP } ->
-                "Bluetooth: decodificación sin pérdida, pero el enlace recomprime (códec BT)"
+                appContext.getString(R.string.player_output_bluetooth)
             outputs.any { it == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
                 it == AudioDeviceInfo.TYPE_WIRED_HEADSET } ->
-                "Audífonos con cable: sin pérdida hasta el mezclador del sistema"
-            else -> "Salida estándar del sistema"
+                appContext.getString(R.string.player_output_wired)
+            else -> appContext.getString(R.string.player_output_standard)
         }
     }
 
@@ -121,9 +130,9 @@ class BitPerfectController(context: Context) {
 
     private fun encodingName(encoding: Int) = when (encoding) {
         AudioFormat.ENCODING_PCM_FLOAT -> "float32"
-        AudioFormat.ENCODING_PCM_32BIT -> "32 bits"
-        AudioFormat.ENCODING_PCM_24BIT_PACKED -> "24 bits"
-        AudioFormat.ENCODING_PCM_16BIT -> "16 bits"
-        else -> "encoding $encoding"
+        AudioFormat.ENCODING_PCM_32BIT -> appContext.getString(R.string.player_encoding_bits, 32)
+        AudioFormat.ENCODING_PCM_24BIT_PACKED -> appContext.getString(R.string.player_encoding_bits, 24)
+        AudioFormat.ENCODING_PCM_16BIT -> appContext.getString(R.string.player_encoding_bits, 16)
+        else -> appContext.getString(R.string.player_encoding_other, encoding)
     }
 }

@@ -18,9 +18,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import cl.lossless.player.R
 import kotlinx.coroutines.launch
 
 /** Dirección y token del servidor de alineación de letras (carpeta aligner/ del repositorio). */
@@ -40,12 +42,11 @@ fun AlignServerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Servidor de sincronización") },
+        title = { Text(stringResource(R.string.settings_align_dialog_title)) },
         text = {
             Column {
                 Text(
-                    "Calcula los tiempos exactos de cada palabra con WhisperX. Instálalo en tu PC o " +
-                        "servidor (ver aligner/README.md en el repositorio). Deja la dirección vacía para no usarlo.",
+                    stringResource(R.string.settings_align_dialog_desc),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -53,7 +54,7 @@ fun AlignServerDialog(
                 OutlinedTextField(
                     value = newUrl,
                     onValueChange = { newUrl = it; testResult = null },
-                    label = { Text("Dirección") },
+                    label = { Text(stringResource(R.string.settings_align_dialog_address)) },
                     placeholder = { Text("http://192.168.1.20:8000") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
@@ -63,7 +64,7 @@ fun AlignServerDialog(
                 OutlinedTextField(
                     value = newToken,
                     onValueChange = { newToken = it; testResult = null },
-                    label = { Text("Token") },
+                    label = { Text(stringResource(R.string.settings_align_dialog_token)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -79,7 +80,7 @@ fun AlignServerDialog(
                             testing = false
                         }
                     },
-                ) { Text(if (testing) "Probando…" else "Probar conexión") }
+                ) { Text(stringResource(if (testing) R.string.settings_align_dialog_testing else R.string.settings_align_dialog_test)) }
                 testResult?.let {
                     Spacer(Modifier.height(8.dp))
                     Text(it, style = MaterialTheme.typography.bodySmall)
@@ -87,8 +88,8 @@ fun AlignServerDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(newUrl, newToken); onDismiss() }) { Text("Guardar") }
+            TextButton(onClick = { onSave(newUrl, newToken); onDismiss() }) { Text(stringResource(R.string.settings_save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_cancel)) } },
     )
 }

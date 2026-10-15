@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import androidx.work.BackoffPolicy
+import cl.lossless.player.R
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
@@ -100,7 +101,7 @@ class SyncQueue private constructor(private val context: Context) {
     internal fun requeue(item: SyncItem) {
         var kept = true
         update { items -> SyncQueueOps.requeue(items, item.id).also { kept = it.second }.first }
-        if (!kept) _events.tryEmit(SyncEvent(item.request, SyncOutcome.FAILED, "Sin conexión tras varios intentos"))
+        if (!kept) _events.tryEmit(SyncEvent(item.request, SyncOutcome.FAILED, context.getString(R.string.settings_sync_error_offline_retries)))
     }
 
     /** Al empezar el trabajo, nada puede estar "en curso" (quedó así si se interrumpió). */

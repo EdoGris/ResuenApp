@@ -32,6 +32,9 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures { compose = true }
+    // Idiomas: español (por defecto, res/values), inglés, francés y portugués. Genera el
+    // locale_config para que Android 13+ ofrezca elegir el idioma de la app en Ajustes del sistema.
+    androidResources { generateLocaleConfig = true }
 }
 
 kotlin { jvmToolchain(17) }

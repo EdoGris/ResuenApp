@@ -37,12 +37,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import cl.lossless.player.R
 import cl.lossless.player.playback.eq.EqPreset
 import cl.lossless.player.playback.eq.EqSpec
 import cl.lossless.player.playback.eq.EqualizerSettings
@@ -94,11 +96,11 @@ fun EqualizerContent(
                 Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Volver") }
+                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.player_eq_back)) }
                 Column(Modifier.weight(1f)) {
-                    Text("Ecualizador", style = MaterialTheme.typography.headlineSmall)
+                    Text(stringResource(R.string.player_equalizer), style = MaterialTheme.typography.headlineSmall)
                     Text(
-                        if (enabled) "Activado" else "Desactivado (bypass)",
+                        stringResource(if (enabled) R.string.player_eq_enabled else R.string.player_eq_disabled_bypass),
                         style = MaterialTheme.typography.labelMedium,
                         color = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -126,25 +128,25 @@ fun EqualizerContent(
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         LabeledSlider(
-                            title = "Preamp",
+                            title = stringResource(R.string.player_eq_preamp),
                             valueText = formatDb(settings.preampDb),
-                            supporting = "Bájalo si subes varias bandas, para evitar saturación",
+                            supporting = stringResource(R.string.player_eq_preamp_hint),
                             value = settings.preampDb,
                             onValueChange = onPreamp,
                             range = EqSpec.PREAMP_MIN_DB..EqSpec.PREAMP_MAX_DB,
                             enabled = enabled,
                         )
                         LabeledSlider(
-                            title = "Refuerzo de graves",
-                            valueText = "${(settings.bassBoost * 100).toInt()} %",
+                            title = stringResource(R.string.player_eq_bass_boost),
+                            valueText = stringResource(R.string.player_eq_percent, (settings.bassBoost * 100).toInt()),
                             value = settings.bassBoost,
                             onValueChange = onBassBoost,
                             range = 0f..1f,
                             enabled = enabled,
                         )
                         LabeledSlider(
-                            title = "Virtualizador (amplitud estéreo)",
-                            valueText = "${(settings.virtualizer * 100).toInt()} %",
+                            title = stringResource(R.string.player_eq_virtualizer),
+                            valueText = stringResource(R.string.player_eq_percent, (settings.virtualizer * 100).toInt()),
                             value = settings.virtualizer,
                             onValueChange = onVirtualizer,
                             range = 0f..1f,
@@ -160,7 +162,7 @@ fun EqualizerContent(
                 ) {
                     Icon(Icons.Rounded.RestartAlt, null)
                     Spacer(Modifier.width(6.dp))
-                    Text("Restablecer")
+                    Text(stringResource(R.string.player_eq_reset))
                 }
 
                 BitPerfectNote(settings, bitPerfectOutput)
@@ -194,7 +196,7 @@ private fun PresetCarousel(
                 selected = preset.id == selectedId,
                 onClick = { onSelect(preset) },
                 enabled = enabled,
-                label = { Text(preset.name) },
+                label = { Text(stringResource(preset.nameRes)) },
             )
         }
     }
@@ -222,7 +224,7 @@ private fun BandSliders(
                 VerticalBandSlider(
                     value = value,
                     onValueChange = { onBand(i, it) },
-                    label = "Banda ${EqSpec.label(freq)}Hz",
+                    label = stringResource(R.string.player_eq_band_description, EqSpec.label(freq)),
                     enabled = enabled,
                     modifier = Modifier.fillMaxWidth().height(230.dp).padding(vertical = 6.dp),
                 )
@@ -238,7 +240,7 @@ private fun BandSliders(
         }
     }
     Text(
-        "dB por banda · toca dos veces una banda para volverla a 0",
+        stringResource(R.string.player_eq_bands_hint),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
@@ -248,15 +250,13 @@ private fun BandSliders(
 
 @Composable
 private fun BitPerfectNote(settings: EqualizerSettings, bitPerfectOutput: Boolean) {
-    val text = when {
-        settings.isProcessing && bitPerfectOutput ->
-            "El DAC sigue en modo bit-perfect, pero con el ecualizador activo la señal se modifica. " +
-                "Desactívalo para escuchar el archivo sin alterar."
-        settings.isProcessing ->
-            "El ecualizador procesa el audio dentro de la app, antes de la salida."
-        else ->
-            "Con el ecualizador apagado o en plano, el audio pasa sin ninguna modificación."
-    }
+    val text = stringResource(
+        when {
+            settings.isProcessing && bitPerfectOutput -> R.string.player_eq_note_bit_perfect
+            settings.isProcessing -> R.string.player_eq_note_processing
+            else -> R.string.player_eq_note_bypass
+        }
+    )
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.Top,
