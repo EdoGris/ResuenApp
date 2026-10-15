@@ -1,5 +1,7 @@
 package cl.lossless.player.ui.screens
 
+import android.app.LocaleManager
+import android.os.LocaleList
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,11 +46,15 @@ import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.FolderOff
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import cl.lossless.player.library.FolderExclusions
 import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Usb
@@ -192,6 +198,8 @@ fun SettingsScreen(
                 },
             )
         }
+
+        LanguageSection()
 
         SettingsSection(stringResource(R.string.settings_section_appearance), Icons.Rounded.Palette) {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
@@ -435,6 +443,49 @@ private fun SettingRow(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier,
     )
+}
+
+/** Idiomas de la app: etiqueta BCP 47 ("" = el del sistema) y su nombre en ese idioma. */
+private val appLanguages = listOf("es" to "Español", "en" to "English", "fr" to "Français", "pt" to "Português")
+
+/**
+ * Idioma de la app, independiente del sistema (LocaleManager, Android 13+). Al cambiarlo,
+ * Android recrea la actividad con los textos nuevos; queda en Ajustes → Apps → Idioma también.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun LanguageSection() {
+    val context = LocalContext.current
+    val localeManager = remember(context) { context.getSystemService(LocaleManager::class.java) }
+    var selected by remember {
+        mutableStateOf(localeManager?.applicationLocales?.takeIf { !it.isEmpty }?.get(0)?.language.orEmpty())
+    }
+    SettingsSection(stringResource(R.string.settings_section_language), Icons.Rounded.Language) {
+        Text(
+            stringResource(R.string.settings_language_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp),
+        )
+        FlowRow(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            (listOf("" to stringResource(R.string.settings_language_system)) + appLanguages).forEach { (tag, name) ->
+                FilterChip(
+                    selected = selected == tag,
+                    onClick = {
+                        if (selected != tag) {
+                            selected = tag
+                            localeManager?.applicationLocales =
+                                if (tag.isEmpty()) LocaleList.getEmptyLocaleList() else LocaleList.forLanguageTags(tag)
+                        }
+                    },
+                    label = { Text(name) },
+                )
+            }
+        }
+    }
 }
 
 /** Tipos de letra, cada uno escrito con su propia fuente. */

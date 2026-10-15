@@ -153,4 +153,7 @@
         <item quantity="one">%1$s pending</item>
         <item quantity="other">%1$s pending</item>
     </plurals>
+    <string name="settings_section_language">Language</string>
+    <string name="settings_language_hint">Choose the app language or use the system one.</string>
+    <string name="settings_language_system">System</string>
 </resources>

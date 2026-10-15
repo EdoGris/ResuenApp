@@ -162,4 +162,7 @@
         <item quantity="many">%1$s en attente</item>
         <item quantity="other">%1$s en attente</item>
     </plurals>
+    <string name="settings_section_language">Langue</string>
+    <string name="settings_language_hint">Choisissez la langue de l\'application ou utilisez celle du système.</string>
+    <string name="settings_language_system">Système</string>
 </resources>
