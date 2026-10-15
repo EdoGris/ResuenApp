@@ -48,6 +48,10 @@ data class LyricsUiState(
     val onlineDisabled: Boolean = false,
     /** No se pudo consultar internet. */
     val offline: Boolean = false,
+    /** LRCLIB respondió, pero con un error suyo (saturado o caído): no es la conexión. */
+    val serverError: Boolean = false,
+    /** Qué falló al consultar LRCLIB (p. ej. "HTTP 503"), para mostrarlo. */
+    val errorDetail: String? = null,
     /** Retraso de la letra en ms (positivo = aparece más tarde). */
     val offsetMs: Long = 0L,
     val searchOnline: Boolean = true,
@@ -168,6 +172,8 @@ class LyricsViewModel(app: Application) : AndroidViewModel(app) {
                         notFound = true,
                         onlineDisabled = !result.searchedOnline,
                         offline = result.offline,
+                        serverError = result.serverError,
+                        errorDetail = result.detail,
                     )
                 }
             }

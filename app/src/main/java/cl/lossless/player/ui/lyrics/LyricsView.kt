@@ -115,9 +115,15 @@ fun LyricsView(
             lyrics?.plain != null -> PlainLyrics(lyrics, state, player, onRetry, onTapSync, onAlignNow, onSyncNow)
             lyrics?.instrumental == true -> Message("Instrumental", "Esta pista no tiene letra.", null, null)
             state.notFound -> Message(
-                title = if (state.offline) "Sin conexión" else "Letra no encontrada",
+                title = when {
+                    state.serverError -> "LRCLIB no responde"
+                    state.offline -> "Sin conexión"
+                    else -> "Letra no encontrada"
+                },
                 body = when {
-                    state.offline -> "No se pudo consultar LRCLIB. Revisa tu conexión."
+                    state.serverError -> "El servidor de letras está saturado o con problemas. " +
+                        "Prueba de nuevo en un rato." + state.errorDetail.asDetail()
+                    state.offline -> "No se pudo consultar LRCLIB. Revisa tu conexión." + state.errorDetail.asDetail()
                     state.onlineDisabled -> "No hay letra en el archivo. Activa la búsqueda en internet en " +
                         "Ajustes → Letras, o agrega un .lrc junto a la canción."
                     else -> "No hay letra en el archivo ni en LRCLIB. Puedes agregar un archivo .lrc " +
@@ -130,6 +136,8 @@ fun LyricsView(
         }
     }
 }
+
+private fun String?.asDetail() = if (isNullOrBlank()) "" else "\n($this)"
 
 /** Posición actual interpolada en cada fotograma a partir de la última lectura del reproductor. */
 @Composable

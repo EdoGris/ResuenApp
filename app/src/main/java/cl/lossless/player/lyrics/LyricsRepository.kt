@@ -17,8 +17,17 @@ private const val ALIGN_POLL_MS = 3_000L
 
 sealed interface LyricsResult {
     data class Found(val lyrics: Lyrics) : LyricsResult
-    /** No hay letra. [offline] = no se pudo consultar internet (conviene reintentar). */
-    data class NotFound(val searchedOnline: Boolean, val offline: Boolean) : LyricsResult
+    /**
+     * No hay letra. [offline] = no se pudo consultar internet (conviene reintentar); en ese caso
+     * [serverError] distingue "LRCLIB respondió con error" de "no hubo respuesta", y [detail]
+     * dice qué pasó (p. ej. "HTTP 503" o "UnknownHostException").
+     */
+    data class NotFound(
+        val searchedOnline: Boolean,
+        val offline: Boolean,
+        val serverError: Boolean = false,
+        val detail: String? = null,
+    ) : LyricsResult
 }
 
 /**
@@ -66,8 +75,11 @@ class LyricsRepository(
                 cache.putNotFound(key)
                 LyricsResult.NotFound(searchedOnline = true, offline = false)
             }
+        } catch (e: LrcLibClient.ServerError) {
+            // No se guarda: se reintentará.
+            LyricsResult.NotFound(searchedOnline = true, offline = true, serverError = true, detail = "HTTP ${e.code}")
         } catch (e: IOException) {
-            LyricsResult.NotFound(searchedOnline = true, offline = true) // no se guarda: se reintentará
+            LyricsResult.NotFound(searchedOnline = true, offline = true, detail = describe(e))
         }
     }
 
@@ -228,13 +240,22 @@ class LyricsRepository(
         val durationSec = track.durationMs / 1000
 
         // 1) Exacta: LRCLIB exige la duración con ±2 s de tolerancia.
+        // Si falla por un error de LRCLIB se sigue con la búsqueda aproximada, que puede responder.
         if (artist.isNotBlank() && durationSec > 0) {
-            client.get(title, artist, durationSec)?.toLyrics()?.let { return it }
+            try {
+                client.get(title, artist, durationSec)?.toLyrics()?.let { return it }
+            } catch (e: LrcLibClient.ServerError) {
+                // sigue con la búsqueda aproximada
+            }
         }
         // 2) Aproximada, eligiendo la mejor coincidencia.
         val results = client.search(title, artist)
         return LrcLibClient.pickBest(results, title, artist, durationSec)?.toLyrics()
     }
+
+    /** "UnknownHostException: lrclib.net" → para mostrar qué falló sin abrir el registro. */
+    private fun describe(e: IOException): String =
+        e.javaClass.simpleName + (e.message?.takeIf { it.isNotBlank() }?.let { ": ${it.take(80)}" } ?: "")
 
     private fun LrcLibClient.Record.toLyrics(): Lyrics? {
         LrcParser.parse(syncedLyrics)?.let { lines ->
