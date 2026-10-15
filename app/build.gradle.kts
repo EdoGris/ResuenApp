@@ -62,6 +62,10 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
+    // Cola de sincronización (carátulas y letras): sigue aunque se cierre la app y respeta
+    // la red elegida (solo Wi-Fi, solo datos o ambas).
+    implementation("androidx.work:work-runtime-ktx:2.10.1")
+
     testImplementation("junit:junit:4.13.2")
     // org.json real: el de android.jar en los tests de JVM son solo firmas vacías.
     testImplementation("org.json:json:20240303")

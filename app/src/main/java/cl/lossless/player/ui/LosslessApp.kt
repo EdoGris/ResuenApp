@@ -161,6 +161,16 @@ fun LosslessApp(
         }
     }
 
+    // ---------- Sincronizar letras de un álbum o carpeta ----------
+    val syncLyrics: (List<Track>) -> Unit = { tracks ->
+        lyricsVm.syncAll(tracks)
+        Toast.makeText(
+            context,
+            "${tracks.size} canciones en la cola de sincronización de letras",
+            Toast.LENGTH_SHORT,
+        ).show()
+    }
+
     // ---------- Acciones de pista ----------
     var addToPlaylistFor by remember { mutableStateOf<Track?>(null) }
     var createPlaylistWith by remember { mutableStateOf<Track?>(null) }
@@ -210,6 +220,8 @@ fun LosslessApp(
                         onPlayPause = playerActions::togglePlayPause,
                         onNext = playerActions::next,
                         onExpand = { nowPlayingOpen = true },
+                        onPrevious = playerActions::previousTrack,
+                        swipeToSkip = state.swipeToSkip,
                     )
                     NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
                         Destination.entries.forEach { d ->
@@ -254,6 +266,7 @@ fun LosslessApp(
                         onRescan = vm::reload,
                         onEditCover = vm::openCoverDialog,
                         onExcludeFolder = excludeFolder,
+                        onSyncLyrics = syncLyrics,
                     )
                     Destination.FOLDERS -> FoldersScreen(
                         tracks = state.tracks,
@@ -294,14 +307,18 @@ fun LosslessApp(
                         lyricsAutoSync = lyricsState.autoSync,
                         onLyricsAutoSync = lyricsVm::setAutoSync,
                         alignServerUrl = lyricsState.alignServerUrl,
-                        alignWifiOnly = lyricsState.alignWifiOnly,
                         onOpenAlignServer = { alignServerOpen = true },
-                        onAlignWifiOnly = lyricsVm::setAlignWifiOnly,
                         onLyricsOnline = lyricsVm::setSearchOnline,
                         onClearLyricsCache = {
                             lyricsVm.clearCache()
                             Toast.makeText(context, "Letras guardadas borradas", Toast.LENGTH_SHORT).show()
                         },
+                        onFont = vm::setFont,
+                        onTextSize = vm::setTextSize,
+                        onNetworkMode = vm::setNetworkMode,
+                        onClearSyncQueue = vm::clearSyncQueue,
+                        onSwipeToSkip = vm::setSwipeToSkip,
+                        onMediaKeysSkip = vm::setMediaKeysSkip,
                     )
                 }
             }
@@ -330,6 +347,8 @@ fun LosslessApp(
                 onResetLyricsOffset = lyricsVm::resetOffset,
                 onSaveLyricsSync = lyricsVm::saveUserSync,
                 onAlignLyricsNow = lyricsVm::alignNow,
+                onSyncLyricsNow = lyricsVm::syncNow,
+                swipeToSkip = state.swipeToSkip,
             )
         }
 

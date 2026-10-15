@@ -38,6 +38,8 @@ fun MiniPlayer(
     onNext: () -> Unit,
     onExpand: () -> Unit,
     modifier: Modifier = Modifier,
+    onPrevious: () -> Unit = {},
+    swipeToSkip: Boolean = false,
 ) {
     val current = state.current ?: return
     Surface(modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainer) {
@@ -54,6 +56,7 @@ fun MiniPlayer(
             Row(
                 Modifier
                     .fillMaxWidth()
+                    .swipeToSkip(swipeToSkip, onNext = onNext, onPrevious = onPrevious)
                     .clickable(onClick = onExpand)
                     .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
