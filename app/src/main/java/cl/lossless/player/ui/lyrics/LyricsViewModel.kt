@@ -1,10 +1,13 @@
 package cl.lossless.player.ui.lyrics
 
 import android.app.Application
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import cl.lossless.player.library.LibraryPrefs
 import cl.lossless.player.library.Track
+import cl.lossless.player.lyrics.AlignmentClient
 import cl.lossless.player.lyrics.LyricLine
 import cl.lossless.player.lyrics.Lyrics
 import cl.lossless.player.lyrics.LyricsSource
@@ -18,6 +21,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONException
+import java.io.IOException
+
+/** Estado de la alineación en el servidor (WhisperX) para la letra en pantalla. */
+sealed interface AlignmentUi {
+    data class Working(val stage: LyricsRepository.AlignStage) : AlignmentUi
+    /** Hay que subir el audio y se está con datos móviles ("solo con Wi-Fi"). */
+    data object WaitingWifi : AlignmentUi
+    data class Failed(val message: String) : AlignmentUi
+}
 
 data class LyricsUiState(
     /** Pista cuya letra se muestra (URI). */
@@ -36,6 +49,11 @@ data class LyricsUiState(
     /** Se están estimando los tiempos de una letra sin marcas. */
     val estimating: Boolean = false,
     val autoSync: Boolean = true,
+    /** null = no se usa el servidor (o ya terminó). */
+    val alignment: AlignmentUi? = null,
+    val alignServerUrl: String = "",
+    val alignToken: String = "",
+    val alignWifiOnly: Boolean = true,
 )
 
 class LyricsViewModel(app: Application) : AndroidViewModel(app) {
@@ -44,10 +62,20 @@ class LyricsViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs = LyricsPrefs(app)
     private val libraryPrefs = LibraryPrefs(app)
 
-    private val _state = MutableStateFlow(LyricsUiState(searchOnline = prefs.searchOnline, autoSync = prefs.autoSync))
+    private val _state = MutableStateFlow(
+        LyricsUiState(
+            searchOnline = prefs.searchOnline,
+            autoSync = prefs.autoSync,
+            alignServerUrl = prefs.alignServerUrl,
+            alignToken = prefs.alignToken,
+            alignWifiOnly = prefs.alignWifiOnly,
+        )
+    )
     val state = _state.asStateFlow()
 
     private var loadJob: Job? = null
+    /** "Sincronizar ahora" pedido a mano; se cancela al cambiar de pista. */
+    private var alignJob: Job? = null
     private var currentTrack: Track? = null
 
     /** Carga la letra de [track] si aún no está cargada (o siempre, con [force]). */
@@ -55,7 +83,8 @@ class LyricsViewModel(app: Application) : AndroidViewModel(app) {
         currentTrack = track
         if (track == null) {
             loadJob?.cancel()
-            _state.update { LyricsUiState(searchOnline = it.searchOnline, autoSync = it.autoSync) }
+            alignJob?.cancel()
+            _state.update { it.settingsOnly() }
             return
         }
         val key = repository.cacheKey(track)
@@ -63,23 +92,15 @@ class LyricsViewModel(app: Application) : AndroidViewModel(app) {
         if (!force && current.trackKey == key && (current.loading || current.lyrics != null || current.notFound)) return
 
         loadJob?.cancel()
-        _state.update {
-            LyricsUiState(
-                trackKey = key, loading = true, offsetMs = prefs.offsetFor(key),
-                searchOnline = it.searchOnline, autoSync = it.autoSync,
-            )
-        }
+        alignJob?.cancel()
+        _state.update { it.settingsOnly().copy(trackKey = key, loading = true, offsetMs = prefs.offsetFor(key)) }
         loadJob = viewModelScope.launch {
             val location = withContext(Dispatchers.IO) { libraryPrefs.location }
             val result = repository.load(track, location, prefs.searchOnline, forceRefresh = force)
             _state.update { s ->
                 if (s.trackKey != key) return@update s // cambió la pista mientras tanto
                 when (result) {
-                    is LyricsResult.Found -> s.copy(
-                        loading = false,
-                        lyrics = result.lyrics,
-                        estimating = needsEstimate(result.lyrics),
-                    )
+                    is LyricsResult.Found -> s.copy(loading = false, lyrics = result.lyrics)
                     is LyricsResult.NotFound -> s.copy(
                         loading = false,
                         notFound = true,
@@ -88,20 +109,108 @@ class LyricsViewModel(app: Application) : AndroidViewModel(app) {
                     )
                 }
             }
-            // Letra sin tiempos: se muestra ya y, en paralelo, se estiman los tiempos.
             val found = (result as? LyricsResult.Found)?.lyrics
-            if (found != null && needsEstimate(found)) {
+            if (found == null || found.isSynced || found.plain.isNullOrBlank()) return@launch
+
+            // Letra sin tiempos: se muestra ya; si el servidor la alineó antes, se usa eso.
+            repository.cachedAlignment(track, found)?.let { aligned ->
+                _state.update { s -> if (s.trackKey != key) s else s.copy(lyrics = aligned) }
+                return@launch
+            }
+            // Si no, en paralelo: el servidor (exacto, por palabra) y la estimación en el teléfono
+            // (inmediata, aproximada), que se muestra hasta que llegue lo del servidor.
+            if (prefs.alignServerUrl.isNotBlank()) launch { alignOnServer(track, key, found, retry = force) }
+            if (prefs.autoSync) {
+                _state.update { s -> if (s.trackKey != key) s else s.copy(estimating = true) }
                 val estimated = runCatching { repository.estimate(track, found) }.getOrNull()
                 _state.update { s ->
-                    if (s.trackKey != key) s
-                    else s.copy(estimating = false, lyrics = estimated ?: s.lyrics)
+                    when {
+                        s.trackKey != key -> s
+                        // Lo del servidor ya llegó: no se reemplaza por la estimación.
+                        s.lyrics?.source == LyricsSource.ALIGNED -> s.copy(estimating = false)
+                        else -> s.copy(estimating = false, lyrics = estimated ?: s.lyrics)
+                    }
                 }
             }
         }
     }
 
-    private fun needsEstimate(lyrics: Lyrics) =
-        prefs.autoSync && !lyrics.isSynced && !lyrics.plain.isNullOrBlank()
+    /** Sube (si hace falta) y espera la alineación del servidor para la letra de [key]. */
+    private suspend fun alignOnServer(track: Track, key: String, lyrics: Lyrics, retry: Boolean, forceUpload: Boolean = false) {
+        val client = AlignmentClient(prefs.alignServerUrl, prefs.alignToken)
+        val allowUpload = forceUpload || !prefs.alignWifiOnly || isUnmetered()
+        val outcome = try {
+            repository.align(track, lyrics, client, allowUpload, retryFailed = retry || forceUpload) { stage ->
+                _state.update { s -> if (s.trackKey != key) s else s.copy(alignment = AlignmentUi.Working(stage)) }
+            }
+        } catch (e: AlignmentClient.Unauthorized) {
+            LyricsRepository.AlignOutcome.Failed("El servidor rechazó el token. Revísalo en Ajustes → Letras.")
+        } catch (e: IOException) {
+            LyricsRepository.AlignOutcome.Failed("No se pudo conectar con el servidor de sincronización.")
+        } catch (e: JSONException) {
+            LyricsRepository.AlignOutcome.Failed("El servidor respondió algo inesperado.")
+        }
+        _state.update { s ->
+            if (s.trackKey != key) return@update s
+            // El usuario sincronizó a mano mientras tanto: eso manda.
+            if (s.lyrics?.source == LyricsSource.USER) return@update s.copy(alignment = null)
+            when (outcome) {
+                is LyricsRepository.AlignOutcome.Done -> s.copy(lyrics = outcome.lyrics, estimating = false, alignment = null)
+                LyricsRepository.AlignOutcome.NeedsUpload -> s.copy(alignment = AlignmentUi.WaitingWifi)
+                is LyricsRepository.AlignOutcome.Failed -> s.copy(alignment = AlignmentUi.Failed(outcome.message))
+            }
+        }
+    }
+
+    /** "Sincronizar ahora": sube aunque se esté con datos móviles y reintenta si falló. */
+    fun alignNow() {
+        val track = currentTrack ?: return
+        val state = _state.value
+        val key = state.trackKey ?: return
+        val lyrics = state.lyrics?.takeIf { !it.plain.isNullOrBlank() } ?: return
+        if (prefs.alignServerUrl.isBlank() || state.alignment is AlignmentUi.Working) return
+        alignJob = viewModelScope.launch { alignOnServer(track, key, lyrics, retry = true, forceUpload = true) }
+    }
+
+    private fun isUnmetered(): Boolean {
+        val cm = getApplication<Application>().getSystemService(ConnectivityManager::class.java) ?: return false
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+    }
+
+    private fun LyricsUiState.settingsOnly() = LyricsUiState(
+        searchOnline = searchOnline,
+        autoSync = autoSync,
+        alignServerUrl = alignServerUrl,
+        alignToken = alignToken,
+        alignWifiOnly = alignWifiOnly,
+    )
+
+    fun setAlignServer(url: String, token: String) {
+        prefs.alignServerUrl = url
+        prefs.alignToken = token
+        _state.update { it.copy(alignServerUrl = prefs.alignServerUrl, alignToken = prefs.alignToken) }
+    }
+
+    fun setAlignWifiOnly(enabled: Boolean) {
+        prefs.alignWifiOnly = enabled
+        _state.update { it.copy(alignWifiOnly = enabled) }
+    }
+
+    /** Prueba la conexión con el servidor; devuelve un mensaje para mostrar. */
+    suspend fun testAlignServer(url: String, token: String): String = withContext(Dispatchers.IO) {
+        try {
+            "Conectado: " + AlignmentClient(url, token).health()
+        } catch (e: AlignmentClient.Unauthorized) {
+            "El servidor rechazó el token"
+        } catch (e: IOException) {
+            "No se pudo conectar: ${e.message ?: e.javaClass.simpleName}"
+        } catch (e: JSONException) {
+            "La dirección no parece ser el servidor de sincronización"
+        } catch (e: IllegalArgumentException) {
+            "Dirección inválida"
+        }
+    }
 
     /**
      * Guarda los tiempos marcados tocando. Devuelve true si se escribió un .lrc junto a la
@@ -114,7 +223,7 @@ class LyricsViewModel(app: Application) : AndroidViewModel(app) {
         // El ajuste de desfase ya no tiene sentido sobre tiempos marcados a mano.
         prefs.setOffset(repository.cacheKey(track), 0)
         _state.update {
-            it.copy(lyrics = Lyrics(lines, lines.joinToString("\n") { l -> l.text }, LyricsSource.USER), offsetMs = 0, estimating = false)
+            it.copy(lyrics = Lyrics(lines, lines.joinToString("\n") { l -> l.text }, LyricsSource.USER), offsetMs = 0, estimating = false, alignment = null)
         }
         return savedTo == LyricsRepository.SavedTo.FOLDER
     }

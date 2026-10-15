@@ -40,6 +40,7 @@ import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.FolderOff
 import androidx.compose.runtime.remember
 import cl.lossless.player.library.FolderExclusions
+import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Palette
@@ -93,6 +94,10 @@ fun SettingsScreen(
     onLyricsOnline: (Boolean) -> Unit,
     lyricsAutoSync: Boolean,
     onLyricsAutoSync: (Boolean) -> Unit,
+    alignServerUrl: String,
+    alignWifiOnly: Boolean,
+    onOpenAlignServer: () -> Unit,
+    onAlignWifiOnly: (Boolean) -> Unit,
     onClearLyricsCache: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -224,6 +229,20 @@ fun SettingsScreen(
                     "Para un resultado exacto, usa «Sincronizar tocando» en la letra.",
                 trailing = { Switch(checked = lyricsAutoSync, onCheckedChange = onLyricsAutoSync) },
             )
+            SettingRow(
+                title = "Servidor de sincronización (WhisperX)",
+                subtitle = alignServerUrl.ifBlank { "No configurado · tiempos exactos por palabra con tu propio servidor" },
+                monospace = alignServerUrl.isNotBlank(),
+                trailing = { Icon(Icons.Rounded.Dns, null) },
+                onClick = onOpenAlignServer,
+            )
+            if (alignServerUrl.isNotBlank()) {
+                SettingRow(
+                    title = "Subir audio solo con Wi-Fi",
+                    subtitle = "Para alinear se envía el archivo de audio completo al servidor",
+                    trailing = { Switch(checked = alignWifiOnly, onCheckedChange = onAlignWifiOnly) },
+                )
+            }
             SettingRow(
                 title = "Borrar letras guardadas",
                 subtitle = "Descargas y estimaciones (lo sincronizado por ti se conserva)",

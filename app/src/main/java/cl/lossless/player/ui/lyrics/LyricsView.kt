@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
@@ -50,13 +51,17 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cl.lossless.player.lyrics.LyricLine
 import cl.lossless.player.lyrics.Lyrics
 import cl.lossless.player.lyrics.LyricsAligner
+import cl.lossless.player.lyrics.LyricsRepository.AlignStage
 import cl.lossless.player.ui.player.PlayerUiState
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -74,6 +79,7 @@ fun LyricsView(
     onRetry: () -> Unit,
     onPlayFrom: (Long) -> Unit,
     onSaveSync: suspend (List<LyricLine>) -> Boolean,
+    onAlignNow: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var editing by rememberSaveable(state.trackKey) { mutableStateOf(false) }
@@ -91,8 +97,8 @@ fun LyricsView(
                 onClose = { editing = false },
             )
             lyrics?.isSynced == true ->
-                SyncedLyrics(lyrics, state, player, onSeek, onAdjustOffset, onResetOffset, onRetry, onTapSync)
-            lyrics?.plain != null -> PlainLyrics(lyrics, state, player, onRetry, onTapSync)
+                SyncedLyrics(lyrics, state, player, onSeek, onAdjustOffset, onResetOffset, onRetry, onTapSync, onAlignNow)
+            lyrics?.plain != null -> PlainLyrics(lyrics, state, player, onRetry, onTapSync, onAlignNow)
             lyrics?.instrumental == true -> Message("Instrumental", "Esta pista no tiene letra.", null, null)
             state.notFound -> Message(
                 title = if (state.offline) "Sin conexión" else "Letra no encontrada",
@@ -135,10 +141,12 @@ private fun SyncedLyrics(
     onResetOffset: () -> Unit,
     onRetry: () -> Unit,
     onTapSync: () -> Unit,
+    onAlignNow: () -> Unit,
 ) {
     val lines = lyrics.synced.orEmpty()
     val position = rememberLivePosition(player)
-    val current = lyrics.lineIndexAt(position - state.offsetMs)
+    val lyricPosition = position - state.offsetMs
+    val current = lyrics.lineIndexAt(lyricPosition)
     val listState = rememberLazyListState()
     var lastManualScroll by remember { mutableLongStateOf(0L) }
     val manualScroll = remember {
@@ -173,20 +181,22 @@ private fun SyncedLyrics(
             ) {
                 itemsIndexed(lines, key = { i, l -> "${l.timeMs}#$i" }) { i, line ->
                     LyricLineText(
-                        text = line.text,
+                        line = line,
                         isCurrent = i == current,
                         isPast = i < current,
+                        // Solo la línea actual sigue el reloj por fotograma (resaltado por palabra).
+                        currentWord = if (i == current) line.wordIndexAt(lyricPosition) else -1,
                         onClick = { onSeek(line.timeMs + state.offsetMs) },
                     )
                 }
             }
         }
-        LyricsFooter(state, onAdjustOffset, onResetOffset, onRetry, onTapSync, synced = true)
+        LyricsFooter(state, onAdjustOffset, onResetOffset, onRetry, onTapSync, onAlignNow, synced = true)
     }
 }
 
 @Composable
-private fun LyricLineText(text: String, isCurrent: Boolean, isPast: Boolean, onClick: () -> Unit) {
+private fun LyricLineText(line: LyricLine, isCurrent: Boolean, isPast: Boolean, currentWord: Int, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val color by animateColorAsState(
         when {
@@ -197,6 +207,19 @@ private fun LyricLineText(text: String, isCurrent: Boolean, isPast: Boolean, onC
         label = "lyricColor",
     )
     val scale by animateFloatAsState(if (isCurrent) 1.06f else 1f, label = "lyricScale")
+    val words = line.words
+    // Con tiempos por palabra, la línea actual se va "llenando" como en karaoke.
+    val text = if (isCurrent && words != null) {
+        buildAnnotatedString {
+            words.forEachIndexed { i, word ->
+                if (i > 0) append(' ')
+                val sung = i <= currentWord
+                withStyle(SpanStyle(color = if (sung) colors.primary else colors.onSurface.copy(alpha = 0.6f))) {
+                    append(word.text)
+                }
+            }
+        }
+    } else buildAnnotatedString { append(line.text) }
     Text(
         text,
         style = MaterialTheme.typography.titleLarge,
@@ -213,7 +236,14 @@ private fun LyricLineText(text: String, isCurrent: Boolean, isPast: Boolean, onC
 
 /** Letra sin marcas de tiempo: desplazamiento proporcional al avance de la canción. */
 @Composable
-private fun PlainLyrics(lyrics: Lyrics, state: LyricsUiState, player: PlayerUiState, onRetry: () -> Unit, onTapSync: () -> Unit) {
+private fun PlainLyrics(
+    lyrics: Lyrics,
+    state: LyricsUiState,
+    player: PlayerUiState,
+    onRetry: () -> Unit,
+    onTapSync: () -> Unit,
+    onAlignNow: () -> Unit,
+) {
     val scroll = rememberScrollState()
     var lastManualScroll by remember { mutableLongStateOf(0L) }
     val manualScroll = remember {
@@ -243,7 +273,7 @@ private fun PlainLyrics(lyrics: Lyrics, state: LyricsUiState, player: PlayerUiSt
                 .verticalScroll(scroll)
                 .padding(vertical = 24.dp, horizontal = 8.dp),
         )
-        LyricsFooter(state, {}, {}, onRetry, onTapSync, synced = false)
+        LyricsFooter(state, {}, {}, onRetry, onTapSync, onAlignNow, synced = false)
     }
 }
 
@@ -254,9 +284,11 @@ private fun LyricsFooter(
     onResetOffset: () -> Unit,
     onRetry: () -> Unit,
     onTapSync: () -> Unit,
+    onAlignNow: () -> Unit,
     synced: Boolean,
 ) {
     val lyrics = state.lyrics
+    val alignment = state.alignment
     Row(
         Modifier.fillMaxWidth().padding(top = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -269,15 +301,32 @@ private fun LyricsFooter(
             )
             Text(
                 when {
+                    alignment is AlignmentUi.Working -> when (alignment.stage) {
+                        AlignStage.HASHING -> "Preparando el audio…"
+                        AlignStage.UPLOADING -> "Subiendo el audio al servidor…"
+                        AlignStage.QUEUED -> "En cola en el servidor…"
+                        AlignStage.PROCESSING -> "Alineando en el servidor…"
+                    } + if (lyrics?.estimated == true) " · por ahora, estimada" else ""
+                    alignment is AlignmentUi.WaitingWifi ->
+                        "Sincronización exacta: esperando Wi-Fi" + if (lyrics?.estimated == true) " · por ahora, estimada" else ""
+                    alignment is AlignmentUi.Failed -> alignment.message
                     state.estimating -> "Estimando los tiempos…"
                     lyrics?.estimated == true -> "Sincronización estimada"
                     !synced -> "Sin sincronizar"
                     else -> ""
                 },
                 style = MaterialTheme.typography.labelSmall,
-                color = if (lyrics?.estimated == true || state.estimating) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = when {
+                    alignment is AlignmentUi.Failed -> MaterialTheme.colorScheme.error
+                    alignment != null || lyrics?.estimated == true || state.estimating -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
             )
+        }
+        if (alignment is AlignmentUi.WaitingWifi || alignment is AlignmentUi.Failed) {
+            IconButton(onClick = onAlignNow, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Rounded.CloudUpload, contentDescription = "Sincronizar ahora en el servidor")
+            }
         }
         IconButton(onClick = onTapSync, modifier = Modifier.size(36.dp)) {
             Icon(Icons.Rounded.TouchApp, contentDescription = "Sincronizar tocando")

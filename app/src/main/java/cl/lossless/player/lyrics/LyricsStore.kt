@@ -32,7 +32,13 @@ class LyricsCache(context: Context) {
         val synced = json.optJSONArray("synced")?.let { array ->
             (0 until array.length()).map { i ->
                 val line = array.getJSONObject(i)
-                LyricLine(line.getLong("t"), line.getString("x"))
+                val words = line.optJSONArray("w")?.let { w ->
+                    (0 until w.length()).map { k ->
+                        val word = w.getJSONArray(k)
+                        LyricWord(word.getLong(0), word.getLong(1), word.getString(2))
+                    }
+                }
+                LyricLine(line.getLong("t"), line.getString("x"), words)
             }
         }
         Entry.Found(
@@ -54,7 +60,17 @@ class LyricsCache(context: Context) {
             .put("estimated", lyrics.estimated)
             .put("savedAt", System.currentTimeMillis())
         lyrics.synced?.let { lines ->
-            json.put("synced", JSONArray().apply { lines.forEach { put(JSONObject().put("t", it.timeMs).put("x", it.text)) } })
+            json.put("synced", JSONArray().apply {
+                lines.forEach { line ->
+                    val entry = JSONObject().put("t", line.timeMs).put("x", line.text)
+                    line.words?.let { words ->
+                        entry.put("w", JSONArray().apply {
+                            words.forEach { put(JSONArray().put(it.startMs).put(it.endMs).put(it.text)) }
+                        })
+                    }
+                    put(entry)
+                }
+            })
         }
         write(key, json)
     }
@@ -101,6 +117,20 @@ class LyricsPrefs(context: Context) {
         get() = prefs.getBoolean(KEY_AUTO_SYNC, true)
         set(value) = prefs.edit().putBoolean(KEY_AUTO_SYNC, value).apply()
 
+    /** Servidor de alineación (WhisperX), p. ej. "http://192.168.1.20:8000". Vacío = no se usa. */
+    var alignServerUrl: String
+        get() = prefs.getString(KEY_ALIGN_URL, "").orEmpty()
+        set(value) = prefs.edit().putString(KEY_ALIGN_URL, value.trim().trimEnd('/')).apply()
+
+    var alignToken: String
+        get() = prefs.getString(KEY_ALIGN_TOKEN, "").orEmpty()
+        set(value) = prefs.edit().putString(KEY_ALIGN_TOKEN, value.trim()).apply()
+
+    /** Subir audio al servidor solo con Wi-Fi (los archivos lossless pesan decenas de MB). */
+    var alignWifiOnly: Boolean
+        get() = prefs.getBoolean(KEY_ALIGN_WIFI, true)
+        set(value) = prefs.edit().putBoolean(KEY_ALIGN_WIFI, value).apply()
+
     /** Retraso de la letra respecto del audio, en ms (positivo = la letra aparece más tarde). */
     fun offsetFor(trackKey: String): Long = prefs.getLong(KEY_OFFSET + trackKey, 0L)
 
@@ -113,6 +143,9 @@ class LyricsPrefs(context: Context) {
     private companion object {
         const val KEY_ONLINE = "search_online"
         const val KEY_AUTO_SYNC = "auto_sync"
+        const val KEY_ALIGN_URL = "align_url"
+        const val KEY_ALIGN_TOKEN = "align_token"
+        const val KEY_ALIGN_WIFI = "align_wifi_only"
         const val KEY_OFFSET = "offset:"
     }
 }

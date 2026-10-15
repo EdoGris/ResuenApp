@@ -5,6 +5,7 @@ import android.provider.DocumentsContract
 import cl.lossless.player.library.LibraryLocation
 import cl.lossless.player.library.Track
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.FileInputStream
 import java.io.IOException
@@ -12,6 +13,7 @@ import java.nio.charset.CharacterCodingException
 import java.nio.charset.CodingErrorAction
 
 private const val USER_PREFIX = "user:"
+private const val ALIGN_POLL_MS = 3_000L
 
 sealed interface LyricsResult {
     data class Found(val lyrics: Lyrics) : LyricsResult
@@ -25,6 +27,9 @@ sealed interface LyricsResult {
  *  2. Letra incrustada en las etiquetas del archivo.
  *  3. Caché de descargas anteriores.
  *  4. LRCLIB: búsqueda exacta (con duración) y luego aproximada, prefiriendo letra sincronizada.
+ *
+ * Si lo encontrado no trae tiempos, [align] los pide al servidor de alineación (WhisperX) y
+ * [estimate] los estima en el teléfono mientras tanto o si no hay servidor.
  */
 class LyricsRepository(
     private val context: Context,
@@ -89,6 +94,78 @@ class LyricsRepository(
         val result = lyrics.copy(synced = synced, estimated = true)
         withContext(Dispatchers.IO) { cache.putFound(key, result) }
         return result
+    }
+
+    // ---------- Alineación en el servidor (WhisperX) ----------
+
+    /** Etapa en curso de una alineación en el servidor. */
+    enum class AlignStage { HASHING, UPLOADING, QUEUED, PROCESSING }
+
+    sealed interface AlignOutcome {
+        data class Done(val lyrics: Lyrics) : AlignOutcome
+        /** Hay que subir el audio y no se permite ahora (datos móviles con "solo Wi-Fi"). */
+        data object NeedsUpload : AlignOutcome
+        data class Failed(val message: String) : AlignOutcome
+    }
+
+    private fun alignedKey(track: Track, plain: String) =
+        "aligned:${track.uri}#${AlignmentClient.normalizeLyrics(plain).hashCode()}"
+
+    /** Alineación ya descargada para esta pista y esta letra. */
+    suspend fun cachedAlignment(track: Track, lyrics: Lyrics): Lyrics? {
+        val plain = lyrics.plain ?: return null
+        return (withContext(Dispatchers.IO) { cache.get(alignedKey(track, plain)) } as? LyricsCache.Entry.Found)?.lyrics
+    }
+
+    /**
+     * Pide al servidor los tiempos exactos (por palabra) de una letra sin marcas. Primero
+     * pregunta por el trabajo sin subir nada; si no existe y [allowUpload], sube el audio.
+     * Un trabajo que falló solo se reenvía con [retryFailed]. Luego espera a que termine.
+     * Lanza IOException si no hay conexión.
+     */
+    suspend fun align(
+        track: Track,
+        lyrics: Lyrics,
+        client: AlignmentClient,
+        allowUpload: Boolean,
+        retryFailed: Boolean,
+        onStage: (AlignStage) -> Unit,
+    ): AlignOutcome = withContext(Dispatchers.IO) {
+        val plain = lyrics.plain?.takeIf { it.isNotBlank() } ?: return@withContext AlignOutcome.Failed("La letra está vacía")
+        onStage(AlignStage.HASHING)
+        val audioSha = context.contentResolver.openInputStream(track.uri)?.let(AlignmentClient::sha256)
+            ?: return@withContext AlignOutcome.Failed("No se pudo leer el archivo de audio")
+        val id = AlignmentClient.jobId(audioSha, plain)
+
+        val existing = client.get(id)
+        if (existing?.status == AlignmentJob.Status.FAILED && !retryFailed) {
+            return@withContext AlignOutcome.Failed(existing.error ?: "El servidor no pudo alinear la letra")
+        }
+        var job: AlignmentJob = if (existing != null && existing.status != AlignmentJob.Status.FAILED) {
+            existing
+        } else {
+            if (!allowUpload) return@withContext AlignOutcome.NeedsUpload
+            onStage(AlignStage.UPLOADING)
+            val (title, artist) = TrackMetadataCleaner.clean(track.title, track.artist)
+            client.submit(
+                audio = { context.contentResolver.openInputStream(track.uri) ?: throw IOException("No se pudo leer el audio") },
+                fileName = track.fileName,
+                mimeType = track.mimeType,
+                lyrics = plain,
+                title = title,
+                artist = artist,
+                durationMs = track.durationMs,
+            )
+        }
+        while (job.pending) {
+            onStage(if (job.status == AlignmentJob.Status.QUEUED) AlignStage.QUEUED else AlignStage.PROCESSING)
+            delay(ALIGN_POLL_MS)
+            job = client.get(id) ?: return@withContext AlignOutcome.Failed("El servidor borró el trabajo")
+        }
+        val aligned = AlignmentJson.toLyrics(job, plain)
+            ?: return@withContext AlignOutcome.Failed(job.error ?: "El servidor no pudo alinear la letra")
+        cache.putFound(alignedKey(track, plain), aligned)
+        AlignOutcome.Done(aligned)
     }
 
     // ---------- Sincronización hecha por el usuario ----------
