@@ -8,12 +8,31 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import kotlin.math.abs
+import kotlin.math.min
 
 /**
  * Cliente de LRCLIB (https://lrclib.net): base de datos comunitaria y gratuita de letras
  * sincronizadas, sin clave de API. Idea y estrategia tomadas de Lyricslay (MIT).
  */
-class LrcLibClient(private val userAgent: String = USER_AGENT) {
+class LrcLibClient(
+    private val userAgent: String = USER_AGENT,
+    private val transport: Transport = HttpTransport,
+    private val sleep: (Long) -> Unit = Thread::sleep,
+) {
+
+    /** Respuesta HTTP mínima: código, cuerpo y "Retry-After" en segundos (si vino). */
+    data class Response(val code: Int, val body: String?, val retryAfterSec: Long? = null)
+
+    fun interface Transport {
+        /** Lanza IOException si no hubo respuesta (sin red, DNS, TLS, tiempo agotado). */
+        fun get(url: String, userAgent: String): Response
+    }
+
+    /**
+     * LRCLIB respondió, pero con un error suyo (saturado, caído o rechazando la petición).
+     * Es una IOException para que quien no distinga lo trate como un fallo reintentable.
+     */
+    class ServerError(val code: Int) : IOException("LRCLIB respondió HTTP $code")
 
     data class Record(
         val trackName: String,
@@ -51,24 +70,50 @@ class LrcLibClient(private val userAgent: String = USER_AGENT) {
         return (0 until array.length()).map { array.getJSONObject(it).toRecord() }
     }
 
-    /** Cuerpo de la respuesta, null si es 404. Lanza IOException ante errores de red. */
+    /**
+     * Cuerpo de la respuesta; null si no hay resultado (404) o la petición no sirve (400, p. ej.
+     * una duración fuera de rango). Ante "saturado" (503, 429) o un 5xx pasajero reintenta
+     * respetando Retry-After. Lanza [ServerError] si LRCLIB sigue fallando e IOException si no
+     * hay red.
+     */
     private fun request(endpoint: String, params: Map<String, String>): String? {
         val query = params.entries.joinToString("&") { (k, v) ->
             "$k=" + URLEncoder.encode(v, Charsets.UTF_8.name())
         }
-        val connection = URL("$BASE/$endpoint?$query").openConnection() as HttpURLConnection
-        return try {
-            connection.connectTimeout = 8_000
-            connection.readTimeout = 10_000
-            connection.setRequestProperty("User-Agent", userAgent)
-            connection.setRequestProperty("Accept", "application/json")
-            when (val code = connection.responseCode) {
-                HttpURLConnection.HTTP_OK -> connection.inputStream.bufferedReader().use { it.readText() }
-                HttpURLConnection.HTTP_NOT_FOUND -> null
-                else -> throw IOException("LRCLIB respondió HTTP $code")
+        val url = "$BASE/$endpoint?$query"
+        var attempt = 0
+        while (true) {
+            val response = transport.get(url, userAgent)
+            when (val code = response.code) {
+                HttpURLConnection.HTTP_OK -> return response.body
+                HttpURLConnection.HTTP_NOT_FOUND, HttpURLConnection.HTTP_BAD_REQUEST -> return null
+                in RETRYABLE -> {
+                    if (attempt++ >= MAX_RETRIES) throw ServerError(code)
+                    val waitSec = min(response.retryAfterSec ?: attempt.toLong(), MAX_WAIT_SEC)
+                    sleep(waitSec.coerceAtLeast(1) * 1000)
+                }
+                else -> throw ServerError(code)
             }
-        } finally {
-            connection.disconnect()
+        }
+    }
+
+    /** Conexión real con HttpURLConnection. */
+    private object HttpTransport : Transport {
+        override fun get(url: String, userAgent: String): Response {
+            val connection = URL(url).openConnection() as HttpURLConnection
+            return try {
+                connection.connectTimeout = 8_000
+                connection.readTimeout = 10_000
+                connection.setRequestProperty("User-Agent", userAgent)
+                connection.setRequestProperty("Accept", "application/json")
+                val code = connection.responseCode
+                val body = if (code == HttpURLConnection.HTTP_OK) {
+                    connection.inputStream.bufferedReader().use { it.readText() }
+                } else null
+                Response(code, body, connection.getHeaderField("Retry-After")?.trim()?.toLongOrNull())
+            } finally {
+                connection.disconnect()
+            }
         }
     }
 
@@ -87,6 +132,10 @@ class LrcLibClient(private val userAgent: String = USER_AGENT) {
 
     companion object {
         private const val BASE = "https://lrclib.net/api"
+        private const val MAX_RETRIES = 2
+        private const val MAX_WAIT_SEC = 3L
+        /** Saturado o caído momentáneamente: vale la pena reintentar. */
+        private val RETRYABLE = setOf(429, 500, 502, 503, 504)
         /** LRCLIB pide identificar la app en el User-Agent. */
         const val USER_AGENT = "ResuenApp/1.0 (Android lossless music player)"
 
