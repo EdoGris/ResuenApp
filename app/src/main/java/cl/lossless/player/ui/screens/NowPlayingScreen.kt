@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Equalizer
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -53,6 +54,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import cl.lossless.player.R
+import cl.lossless.player.lyrics.LyricLine
 import cl.lossless.player.ui.lyrics.LyricsUiState
 import cl.lossless.player.ui.lyrics.LyricsView
 import androidx.compose.runtime.getValue
@@ -70,9 +74,11 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import cl.lossless.player.covers.CoverRef
 import cl.lossless.player.library.Track
+import cl.lossless.player.playback.PlaybackStatus
 import cl.lossless.player.ui.components.FormatBadge
 import cl.lossless.player.ui.components.LargeCover
 import cl.lossless.player.ui.components.formatDuration
+import cl.lossless.player.ui.components.swipeToSkip
 import cl.lossless.player.ui.player.PlayerActions
 import cl.lossless.player.ui.player.PlayerUiState
 
@@ -93,6 +99,10 @@ fun NowPlayingScreen(
     onLoadLyrics: (force: Boolean) -> Unit,
     onAdjustLyricsOffset: (Long) -> Unit,
     onResetLyricsOffset: () -> Unit,
+    onSaveLyricsSync: suspend (List<LyricLine>) -> Boolean,
+    onAlignLyricsNow: () -> Unit,
+    onSyncLyricsNow: () -> Unit,
+    swipeToSkip: Boolean,
 ) {
     val current = state.current
     var showQueue by remember { mutableStateOf(false) }
@@ -111,11 +121,11 @@ fun NowPlayingScreen(
             // Barra superior
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onCollapse) {
-                    Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Cerrar", modifier = Modifier.size(32.dp))
+                    Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = stringResource(R.string.player_close), modifier = Modifier.size(32.dp))
                 }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        "REPRODUCIENDO",
+                        stringResource(R.string.player_now_playing_header),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -129,7 +139,7 @@ fun NowPlayingScreen(
                 IconButton(onClick = onToggleFavorite, enabled = current != null) {
                     Icon(
                         if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                        contentDescription = if (isFavorite) "Quitar de favoritos" else "Añadir a favoritos",
+                        contentDescription = stringResource(if (isFavorite) R.string.player_favorite_remove else R.string.player_favorite_add),
                         tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     )
                 }
@@ -143,6 +153,13 @@ fun NowPlayingScreen(
                     onAdjustOffset = onAdjustLyricsOffset,
                     onResetOffset = onResetLyricsOffset,
                     onRetry = { onLoadLyrics(true) },
+                    onPlayFrom = player::playFrom,
+                    onSaveSync = onSaveLyricsSync,
+                    onAlignNow = onAlignLyricsNow,
+                    onSyncNow = onSyncLyricsNow,
+                    swipeToSkip = swipeToSkip,
+                    onNext = player::next,
+                    onPrevious = player::previousTrack,
                     modifier = Modifier.weight(1f).padding(vertical = 8.dp),
                 )
             } else {
@@ -151,7 +168,10 @@ fun NowPlayingScreen(
                 LargeCover(
                     cover = cover,
                     model = current?.artworkUri,
-                    modifier = Modifier.widthIn(max = 420.dp).aspectRatio(1f),
+                    modifier = Modifier
+                        .widthIn(max = 420.dp)
+                        .aspectRatio(1f)
+                        .swipeToSkip(swipeToSkip, onNext = player::next, onPrevious = player::previousTrack),
                 )
 
                 Spacer(Modifier.weight(0.6f))
@@ -159,7 +179,7 @@ fun NowPlayingScreen(
 
             // Título, artista y calidad
             Text(
-                current?.title ?: "Nada en reproducción",
+                current?.title ?: stringResource(R.string.player_nothing_playing),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -178,7 +198,7 @@ fun NowPlayingScreen(
                 track?.let { FormatBadge(it.qualityDetails) }
                 // Con el EQ procesando, la señal ya no es idéntica al archivo: no se anuncia bit-perfect.
                 if (equalizerActive) FormatBadge("EQ", emphasized = true)
-                else if (audioOutput.startsWith("BIT-PERFECT")) FormatBadge("BIT-PERFECT", emphasized = true)
+                else if (audioOutput.startsWith(PlaybackStatus.BIT_PERFECT_PREFIX)) FormatBadge(PlaybackStatus.BIT_PERFECT_PREFIX, emphasized = true)
             }
 
             Spacer(Modifier.height(20.dp))
@@ -193,11 +213,11 @@ fun NowPlayingScreen(
                 ToggleIcon(
                     icon = Icons.Rounded.Shuffle,
                     active = state.shuffle,
-                    description = "Aleatorio",
+                    description = stringResource(R.string.player_shuffle),
                     onClick = player::toggleShuffle,
                 )
                 IconButton(onClick = player::previous, modifier = Modifier.size(56.dp)) {
-                    Icon(Icons.Rounded.SkipPrevious, contentDescription = "Anterior", modifier = Modifier.size(36.dp))
+                    Icon(Icons.Rounded.SkipPrevious, contentDescription = stringResource(R.string.player_previous), modifier = Modifier.size(36.dp))
                 }
                 FilledIconButton(
                     onClick = player::togglePlayPause,
@@ -206,17 +226,17 @@ fun NowPlayingScreen(
                 ) {
                     Icon(
                         if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = if (state.isPlaying) "Pausar" else "Reproducir",
+                        contentDescription = stringResource(if (state.isPlaying) R.string.player_pause else R.string.player_play),
                         modifier = Modifier.size(42.dp),
                     )
                 }
                 IconButton(onClick = player::next, modifier = Modifier.size(56.dp)) {
-                    Icon(Icons.Rounded.SkipNext, contentDescription = "Siguiente", modifier = Modifier.size(36.dp))
+                    Icon(Icons.Rounded.SkipNext, contentDescription = stringResource(R.string.player_next), modifier = Modifier.size(36.dp))
                 }
                 ToggleIcon(
                     icon = if (state.repeatMode == Player.REPEAT_MODE_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
                     active = state.repeatMode != Player.REPEAT_MODE_OFF,
-                    description = "Repetir",
+                    description = stringResource(R.string.player_repeat),
                     onClick = player::cycleRepeat,
                 )
             }
@@ -228,9 +248,15 @@ fun NowPlayingScreen(
                 Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                QuickAction(Icons.Rounded.Equalizer, "Ecualizador", active = equalizerActive, onClick = onOpenEqualizer)
-                QuickAction(Icons.Rounded.Lyrics, "Letra", active = showLyrics, onClick = { showLyrics = !showLyrics })
-                QuickAction(Icons.AutoMirrored.Rounded.QueueMusic, "Cola (${state.queue.size})", active = false) {
+                QuickAction(Icons.Rounded.Equalizer, stringResource(R.string.player_equalizer), active = equalizerActive, onClick = onOpenEqualizer)
+                // Alterna entre carátula y letra: muestra a cuál se pasa al tocarlo.
+                QuickAction(
+                    icon = if (showLyrics) Icons.Rounded.Image else Icons.Rounded.Lyrics,
+                    label = stringResource(if (showLyrics) R.string.player_cover else R.string.player_lyrics),
+                    active = false,
+                    onClick = { showLyrics = !showLyrics },
+                )
+                QuickAction(Icons.AutoMirrored.Rounded.QueueMusic, stringResource(R.string.player_queue_count, state.queue.size), active = false) {
                     showQueue = true
                 }
             }
@@ -323,7 +349,7 @@ private fun ToggleIcon(
 private fun QueueSheet(state: PlayerUiState, player: PlayerActions, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Text(
-            "Cola de reproducción",
+            stringResource(R.string.player_queue_title),
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
@@ -351,7 +377,7 @@ private fun QueueSheet(state: PlayerUiState, player: PlayerActions, onDismiss: (
                     trailingContent = {
                         if (!isCurrent) {
                             IconButton(onClick = { player.removeQueueItem(i) }) {
-                                Icon(Icons.Rounded.Close, contentDescription = "Quitar de la cola")
+                                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.player_queue_remove))
                             }
                         }
                     },

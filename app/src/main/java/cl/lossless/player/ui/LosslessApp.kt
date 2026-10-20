@@ -8,6 +8,7 @@ import android.net.Uri
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -46,10 +47,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.Player
+import cl.lossless.player.R
 import cl.lossless.player.library.Track
 import cl.lossless.player.playback.PlaybackStatus
 import cl.lossless.player.library.FolderExclusions
@@ -67,8 +70,10 @@ import cl.lossless.player.ui.components.EmptyState
 import cl.lossless.player.ui.components.MiniPlayer
 import cl.lossless.player.ui.components.PlaylistNameDialog
 import cl.lossless.player.ui.components.TrackActions
+import cl.lossless.player.ui.components.displayName
 import cl.lossless.player.ui.equalizer.EqualizerScreen
 import cl.lossless.player.ui.equalizer.EqualizerViewModel
+import cl.lossless.player.ui.lyrics.AlignServerDialog
 import cl.lossless.player.ui.lyrics.LyricsViewModel
 import cl.lossless.player.ui.player.PlayerActions
 import cl.lossless.player.ui.player.rememberPlayerUiState
@@ -78,11 +83,11 @@ import cl.lossless.player.ui.screens.NowPlayingScreen
 import cl.lossless.player.ui.screens.PlaylistsScreen
 import cl.lossless.player.ui.screens.SettingsScreen
 
-private enum class Destination(val label: String, val icon: ImageVector, val selectedIcon: ImageVector) {
-    LIBRARY("Biblioteca", Icons.Outlined.LibraryMusic, Icons.Rounded.LibraryMusic),
-    FOLDERS("Carpetas", Icons.Outlined.Folder, Icons.Rounded.Folder),
-    PLAYLISTS("Playlists", Icons.AutoMirrored.Outlined.QueueMusic, Icons.AutoMirrored.Rounded.QueueMusic),
-    SETTINGS("Ajustes", Icons.Outlined.Settings, Icons.Rounded.Settings),
+private enum class Destination(@StringRes val labelRes: Int, val icon: ImageVector, val selectedIcon: ImageVector) {
+    LIBRARY(R.string.library_library, Icons.Outlined.LibraryMusic, Icons.Rounded.LibraryMusic),
+    FOLDERS(R.string.library_folders, Icons.Outlined.Folder, Icons.Rounded.Folder),
+    PLAYLISTS(R.string.library_playlists, Icons.AutoMirrored.Outlined.QueueMusic, Icons.AutoMirrored.Rounded.QueueMusic),
+    SETTINGS(R.string.library_settings, Icons.Outlined.Settings, Icons.Rounded.Settings),
 }
 
 private const val AUDIO_PERMISSION = Manifest.permission.READ_MEDIA_AUDIO
@@ -144,6 +149,7 @@ fun LosslessApp(
 
     // ---------- Carpetas omitidas ----------
     var exclusionsOpen by rememberSaveable { mutableStateOf(false) }
+    var alignServerOpen by rememberSaveable { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val excludeFolder: (List<String>) -> Unit = { segments ->
@@ -151,12 +157,22 @@ fun LosslessApp(
         vm.setFolderExcluded(key, true)
         scope.launch {
             val result = snackbar.showSnackbar(
-                message = "«${segments.lastOrNull().orEmpty()}» omitida de la biblioteca",
-                actionLabel = "Deshacer",
+                message = context.getString(R.string.library_folder_excluded, segments.lastOrNull().orEmpty()),
+                actionLabel = context.getString(R.string.library_undo),
                 duration = SnackbarDuration.Short,
             )
             if (result == SnackbarResult.ActionPerformed) vm.setFolderExcluded(key, false)
         }
+    }
+
+    // ---------- Sincronizar letras de un álbum o carpeta ----------
+    val syncLyrics: (List<Track>) -> Unit = { tracks ->
+        lyricsVm.syncAll(tracks)
+        Toast.makeText(
+            context,
+            context.resources.getQuantityString(R.plurals.library_lyrics_sync_queued, tracks.size, tracks.size),
+            Toast.LENGTH_SHORT,
+        ).show()
     }
 
     // ---------- Acciones de pista ----------
@@ -208,6 +224,8 @@ fun LosslessApp(
                         onPlayPause = playerActions::togglePlayPause,
                         onNext = playerActions::next,
                         onExpand = { nowPlayingOpen = true },
+                        onPrevious = playerActions::previousTrack,
+                        swipeToSkip = state.swipeToSkip,
                     )
                     NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
                         Destination.entries.forEach { d ->
@@ -216,7 +234,7 @@ fun LosslessApp(
                                 selected = selected,
                                 onClick = { destination = d },
                                 icon = { Icon(if (selected) d.selectedIcon else d.icon, contentDescription = null) },
-                                label = { Text(d.label) },
+                                label = { Text(stringResource(d.labelRes)) },
                             )
                         }
                     }
@@ -227,10 +245,10 @@ fun LosslessApp(
                 if (!hasPermission && state.location == null && destination != Destination.SETTINGS) {
                     EmptyState(
                         icon = Icons.Rounded.Lock,
-                        title = "Permiso necesario",
-                        message = "Lossless Player necesita acceso a tus archivos de audio para mostrar " +
-                            "tu música. Nada sale de tu dispositivo.",
-                        actionLabel = if (permanentlyDenied) "Abrir ajustes de la app" else "Conceder permiso",
+                        title = stringResource(R.string.library_permission_title),
+                        message = stringResource(R.string.library_permission_message, stringResource(R.string.app_name)),
+                        actionLabel = if (permanentlyDenied) stringResource(R.string.library_permission_open_settings)
+                        else stringResource(R.string.library_permission_grant),
                         onAction = {
                             if (permanentlyDenied) {
                                 context.startActivity(
@@ -241,7 +259,7 @@ fun LosslessApp(
                                 requestPermission()
                             }
                         },
-                        secondaryLabel = "Elegir una carpeta manualmente",
+                        secondaryLabel = stringResource(R.string.library_permission_pick_folder),
                         onSecondary = pickFolder,
                     )
                 } else when (destination) {
@@ -252,6 +270,7 @@ fun LosslessApp(
                         onRescan = vm::reload,
                         onEditCover = vm::openCoverDialog,
                         onExcludeFolder = excludeFolder,
+                        onSyncLyrics = syncLyrics,
                     )
                     Destination.FOLDERS -> FoldersScreen(
                         tracks = state.tracks,
@@ -283,17 +302,27 @@ fun LosslessApp(
                         onAccent = vm::setAccent,
                         onTintedText = vm::setTintedText,
                         equalizerSummary = when {
-                            !equalizer.enabled -> "Desactivado"
-                            else -> "Activado · " + EqPresets.byId(equalizer.presetId).name
+                            !equalizer.enabled -> stringResource(R.string.library_equalizer_off)
+                            else -> stringResource(R.string.library_equalizer_on, stringResource(EqPresets.byId(equalizer.presetId).nameRes))
                         },
                         onOpenEqualizer = openEqualizer,
                         onOpenExclusions = { exclusionsOpen = true },
                         lyricsOnline = lyricsState.searchOnline,
+                        lyricsAutoSync = lyricsState.autoSync,
+                        onLyricsAutoSync = lyricsVm::setAutoSync,
+                        alignServerUrl = lyricsState.alignServerUrl,
+                        onOpenAlignServer = { alignServerOpen = true },
                         onLyricsOnline = lyricsVm::setSearchOnline,
                         onClearLyricsCache = {
                             lyricsVm.clearCache()
-                            Toast.makeText(context, "Letras guardadas borradas", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.library_lyrics_cache_cleared), Toast.LENGTH_SHORT).show()
                         },
+                        onFont = vm::setFont,
+                        onTextSize = vm::setTextSize,
+                        onNetworkMode = vm::setNetworkMode,
+                        onClearSyncQueue = vm::clearSyncQueue,
+                        onSwipeToSkip = vm::setSwipeToSkip,
+                        onMediaKeysSkip = vm::setMediaKeysSkip,
                     )
                 }
             }
@@ -320,6 +349,10 @@ fun LosslessApp(
                 onLoadLyrics = { force -> lyricsVm.loadFor(currentTrack, force) },
                 onAdjustLyricsOffset = lyricsVm::adjustOffset,
                 onResetLyricsOffset = lyricsVm::resetOffset,
+                onSaveLyricsSync = lyricsVm::saveUserSync,
+                onAlignLyricsNow = lyricsVm::alignNow,
+                onSyncLyricsNow = lyricsVm::syncNow,
+                swipeToSkip = state.swipeToSkip,
             )
         }
 
@@ -331,7 +364,7 @@ fun LosslessApp(
             BackHandler { equalizerOpen = false }
             EqualizerScreen(
                 onBack = { equalizerOpen = false },
-                bitPerfectOutput = audioOutput.startsWith("BIT-PERFECT"),
+                bitPerfectOutput = audioOutput.startsWith(PlaybackStatus.BIT_PERFECT_PREFIX),
                 vm = equalizerVm,
             )
         }
@@ -361,6 +394,15 @@ fun LosslessApp(
     }
 
     // ---------- Diálogos ----------
+    if (alignServerOpen) {
+        AlignServerDialog(
+            url = lyricsState.alignServerUrl,
+            token = lyricsState.alignToken,
+            onTest = lyricsVm::testAlignServer,
+            onSave = lyricsVm::setAlignServer,
+            onDismiss = { alignServerOpen = false },
+        )
+    }
     state.dialog?.let { dialog ->
         CoverDialog(
             dialog = dialog,
@@ -377,7 +419,7 @@ fun LosslessApp(
             onSelect = { p ->
                 playlistsVm.add(p.id, track.uri.toString())
                 addToPlaylistFor = null
-                Toast.makeText(context, "Añadida a ${p.name}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.library_added_to_playlist, p.displayName(context)), Toast.LENGTH_SHORT).show()
             },
             onCreateNew = { createPlaylistWith = track; addToPlaylistFor = null },
             onDismiss = { addToPlaylistFor = null },
@@ -385,7 +427,7 @@ fun LosslessApp(
     }
     createPlaylistWith?.let { track ->
         PlaylistNameDialog(
-            title = "Nueva playlist",
+            title = stringResource(R.string.library_new_playlist),
             onConfirm = { name ->
                 playlistsVm.create(name, listOf(track.uri.toString()))
                 createPlaylistWith = null

@@ -9,26 +9,36 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.annotation.StringRes
+import cl.lossless.player.R
 
-enum class ThemeMode(val label: String) { SYSTEM("Sistema"), DARK("Oscuro"), LIGHT("Claro") }
+enum class ThemeMode(@StringRes val labelRes: Int) {
+    SYSTEM(R.string.settings_theme_system),
+    DARK(R.string.settings_theme_dark),
+    LIGHT(R.string.settings_theme_light),
+}
 
 /**
  * Color de acento de la app. Todo el diseño (pestañas, elemento seleccionado, carpetas,
  * íconos, controles y, opcionalmente, los textos) se deriva de su tono.
  */
-enum class AccentColor(val label: String, val hue: Float, val saturation: Float) {
-    BLUE("Azul", 220f, 0.95f),
-    TEAL("Turquesa", 178f, 0.85f),
-    GREEN("Esmeralda", 145f, 0.75f),
-    AMBER("Ámbar", 38f, 1.00f),
-    ORANGE("Naranja", 18f, 0.95f),
-    RED("Rojo", 355f, 0.85f),
-    PINK("Rosa", 330f, 0.85f),
-    PURPLE("Violeta", 268f, 0.80f),
+enum class AccentColor(@StringRes val labelRes: Int, val hue: Float, val saturation: Float) {
+    BLUE(R.string.settings_accent_blue, 220f, 0.95f),
+    TEAL(R.string.settings_accent_teal, 178f, 0.85f),
+    GREEN(R.string.settings_accent_green, 145f, 0.75f),
+    AMBER(R.string.settings_accent_amber, 38f, 1.00f),
+    ORANGE(R.string.settings_accent_orange, 18f, 0.95f),
+    RED(R.string.settings_accent_red, 355f, 0.85f),
+    PINK(R.string.settings_accent_pink, 330f, 0.85f),
+    PURPLE(R.string.settings_accent_purple, 268f, 0.80f),
     ;
 
     /** Color de muestra para el selector. */
@@ -150,6 +160,8 @@ fun LosslessTheme(
     accent: AccentColor = AccentColor.BLUE,
     tintedText: Boolean = false,
     dynamicColor: Boolean = false,
+    font: AppFont = AppFont.SYSTEM,
+    textSize: TextSize = TextSize.NORMAL,
     content: @Composable () -> Unit,
 ) {
     val dark = mode.isDark()
@@ -163,5 +175,15 @@ fun LosslessTheme(
         dark -> darkScheme(accent, tintedText)
         else -> lightScheme(accent, tintedText)
     }
-    MaterialTheme(colorScheme = colors, content = content)
+    val typography = remember(font) { appTypography(font) }
+    // El tamaño escala todo el texto en "sp", también el que no usa la tipografía del tema
+    // (letras, insignias), y se suma al tamaño de fuente del sistema. En "Normal" se deja la
+    // densidad del sistema tal cual (Android 14 escala las fuentes grandes de forma no lineal).
+    val density = LocalDensity.current
+    val scaled = remember(density, textSize) {
+        if (textSize == TextSize.NORMAL) density else Density(density.density, density.fontScale * textSize.scale)
+    }
+    CompositionLocalProvider(LocalDensity provides scaled) {
+        MaterialTheme(colorScheme = colors, typography = typography, content = content)
+    }
 }

@@ -30,6 +30,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Shuffle
@@ -50,9 +51,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cl.lossless.player.R
 import cl.lossless.player.covers.CoverRef
 import cl.lossless.player.library.AlbumGroup
 import cl.lossless.player.library.Track
@@ -87,6 +91,7 @@ fun LibraryScreen(
     onRescan: () -> Unit,
     onEditCover: (AlbumGroup) -> Unit,
     onExcludeFolder: (List<String>) -> Unit,
+    onSyncLyrics: (List<Track>) -> Unit,
 ) {
     var tab by rememberSaveable { mutableIntStateOf(LibraryTab.TRACKS.ordinal) }
     var openAlbumKey by rememberSaveable { mutableStateOf<String?>(null) }
@@ -110,6 +115,7 @@ fun LibraryScreen(
             actions = actions,
             onBack = { openAlbumKey = null },
             onEditCover = { onEditCover(album) },
+            onSyncLyrics = { onSyncLyrics(album.tracks) },
         )
         return
     }
@@ -123,20 +129,22 @@ fun LibraryScreen(
             actions = actions,
             onBack = { openFolderKey = null },
             onEditCover = null,
+            onSyncLyrics = { onSyncLyrics(folder.tracks) },
         )
         return
     }
 
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(
-            title = "Música Local",
-            trailingText = state.location?.displayPath ?: "Todo el dispositivo",
+            title = stringResource(R.string.library_title),
+            trailingText = state.location?.displayPath ?: stringResource(R.string.library_whole_device),
         )
         SegmentedTabs(
             options = listOf(
-                if (state.tracks.isEmpty()) "Pistas" else "Pistas (${state.tracks.size})",
-                "Álbumes",
-                "Carpetas",
+                if (state.tracks.isEmpty()) stringResource(R.string.library_tab_tracks)
+                else stringResource(R.string.library_tab_tracks_count, state.tracks.size),
+                stringResource(R.string.library_tab_albums),
+                stringResource(R.string.library_folders),
             ),
             selected = tab,
             onSelect = { tab = it },
@@ -145,11 +153,11 @@ fun LibraryScreen(
             state.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
             state.tracks.isEmpty() -> EmptyState(
                 icon = Icons.Rounded.LibraryMusic,
-                title = "No hay música aquí",
-                message = "No se encontraron archivos MP3, FLAC o ALAC en esta ubicación.",
-                actionLabel = "Elegir carpeta",
+                title = stringResource(R.string.library_empty_title),
+                message = stringResource(R.string.library_empty_message),
+                actionLabel = stringResource(R.string.library_pick_folder),
                 onAction = onPickFolder,
-                secondaryLabel = "Volver a escanear",
+                secondaryLabel = stringResource(R.string.library_rescan),
                 onSecondary = onRescan,
             )
             else -> when (LibraryTab.entries[tab]) {
@@ -193,7 +201,7 @@ private fun AlbumGrid(albums: List<AlbumGroup>, covers: Map<String, CoverRef>, o
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        "${album.tracks.size} pistas",
+                        pluralStringResource(R.plurals.library_track_count, album.tracks.size, album.tracks.size),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -218,7 +226,7 @@ private fun FolderList(
             FolderCard(
                 name = folder.name,
                 path = folder.path,
-                detail = "${folder.tracks.size} pistas",
+                detail = pluralStringResource(R.plurals.library_track_count, folder.tracks.size, folder.tracks.size),
                 onExclude = { onExclude(folder) },
             ) { onOpen(folder) }
         }
@@ -266,11 +274,11 @@ fun FolderCard(
                 var menu by remember { mutableStateOf(false) }
                 Box {
                     IconButton(onClick = { menu = true }) {
-                        Icon(Icons.Rounded.MoreVert, contentDescription = "Más opciones")
+                        Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.library_more_options))
                     }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         DropdownMenuItem(
-                            text = { Text("Omitir carpeta") },
+                            text = { Text(stringResource(R.string.library_exclude_folder)) },
                             leadingIcon = { Icon(Icons.Rounded.FolderOff, null) },
                             onClick = { menu = false; onExclude() },
                         )
@@ -293,6 +301,7 @@ private fun CollectionDetail(
     actions: TrackActions,
     onBack: () -> Unit,
     onEditCover: (() -> Unit)?,
+    onSyncLyrics: (() -> Unit)? = null,
 ) {
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(title = "", onBack = onBack)
@@ -305,7 +314,8 @@ private fun CollectionDetail(
                 item(key = "header") {
                     CollectionHeader(title, subtitle, tracks, cover, onEditCover,
                         onPlay = { actions.play(tracks, 0) },
-                        onShuffle = { actions.shuffle(tracks) })
+                        onShuffle = { actions.shuffle(tracks) },
+                        onSyncLyrics = onSyncLyrics)
                 }
             },
         )
@@ -321,6 +331,7 @@ fun CollectionHeader(
     onEditCover: (() -> Unit)?,
     onPlay: () -> Unit,
     onShuffle: () -> Unit,
+    onSyncLyrics: (() -> Unit)? = null,
 ) {
     Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -336,7 +347,8 @@ fun CollectionHeader(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "${tracks.size} pistas · ${formatDuration(tracks.sumOf { it.durationMs })}",
+                    pluralStringResource(R.plurals.library_track_count, tracks.size, tracks.size) +
+                        " · " + formatDuration(tracks.sumOf { it.durationMs }),
                     style = MaterialTheme.typography.labelMedium,
                     fontFamily = FontFamily.Monospace,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -348,16 +360,21 @@ fun CollectionHeader(
             Button(onClick = onPlay, enabled = tracks.isNotEmpty()) {
                 Icon(Icons.Rounded.PlayArrow, null)
                 Spacer(Modifier.width(6.dp))
-                Text("Reproducir")
+                Text(stringResource(R.string.library_play))
             }
             FilledTonalButton(onClick = onShuffle, enabled = tracks.isNotEmpty()) {
                 Icon(Icons.Rounded.Shuffle, null)
                 Spacer(Modifier.width(6.dp))
-                Text("Aleatorio")
+                Text(stringResource(R.string.library_shuffle))
             }
             if (onEditCover != null) {
                 OutlinedIconButton(onClick = onEditCover) {
-                    Icon(Icons.Rounded.Image, contentDescription = "Cambiar carátula")
+                    Icon(Icons.Rounded.Image, contentDescription = stringResource(R.string.library_change_cover))
+                }
+            }
+            if (onSyncLyrics != null) {
+                OutlinedIconButton(onClick = onSyncLyrics, enabled = tracks.isNotEmpty()) {
+                    Icon(Icons.Rounded.Lyrics, contentDescription = stringResource(R.string.library_sync_lyrics))
                 }
             }
         }

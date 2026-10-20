@@ -31,10 +31,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import android.content.Context
+import cl.lossless.player.R
+import cl.lossless.player.library.Playlist
 
 fun formatDuration(ms: Long): String {
     val total = (ms / 1000).coerceAtLeast(0)
@@ -43,6 +47,13 @@ fun formatDuration(ms: Long): String {
     val s = total % 60
     return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
 }
+
+/** Nombre visible: "Favoritos" se traduce (el nombre guardado queda en español). */
+@Composable
+fun Playlist.displayName(): String = if (isFavorites) stringResource(R.string.library_favorites) else name
+
+fun Playlist.displayName(context: Context): String =
+    if (isFavorites) context.getString(R.string.library_favorites) else name
 
 /** Encabezado de pantalla: título grande y ruta/subtítulo monoespaciado a la derecha. */
 @Composable
@@ -59,7 +70,7 @@ fun ScreenHeader(
     ) {
         if (onBack != null) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Volver")
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.library_back))
             }
         }
         Text(

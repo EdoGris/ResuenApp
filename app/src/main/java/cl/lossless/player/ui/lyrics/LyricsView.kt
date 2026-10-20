@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -26,6 +27,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CloudUpload
+import androidx.compose.material.icons.rounded.Sync
+import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -36,6 +40,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,11 +53,21 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import cl.lossless.player.R
+import cl.lossless.player.lyrics.LyricLine
 import cl.lossless.player.lyrics.Lyrics
+import cl.lossless.player.lyrics.LyricsAligner
+import cl.lossless.player.lyrics.LyricsRepository.AlignStage
+import cl.lossless.player.sync.NetworkMode
+import cl.lossless.player.ui.components.swipeToSkip
 import cl.lossless.player.ui.player.PlayerUiState
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -67,31 +83,71 @@ fun LyricsView(
     onAdjustOffset: (Long) -> Unit,
     onResetOffset: () -> Unit,
     onRetry: () -> Unit,
+    onPlayFrom: (Long) -> Unit,
+    onSaveSync: suspend (List<LyricLine>) -> Boolean,
+    onAlignNow: () -> Unit,
+    onSyncNow: () -> Unit,
     modifier: Modifier = Modifier,
+    swipeToSkip: Boolean = false,
+    onNext: () -> Unit = {},
+    onPrevious: () -> Unit = {},
 ) {
-    Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+    var editing by rememberSaveable(state.trackKey) { mutableStateOf(false) }
+    Box(
+        modifier
+            .fillMaxWidth()
+            // Al marcar tiempos tocando no se cambia de canción por un roce.
+            .swipeToSkip(swipeToSkip && !editing, onNext = onNext, onPrevious = onPrevious),
+        contentAlignment = Alignment.Center,
+    ) {
         val lyrics = state.lyrics
+        val onTapSync = { editing = true }
         when {
             state.loading -> CircularProgressIndicator()
-            lyrics?.isSynced == true -> SyncedLyrics(lyrics, state, player, onSeek, onAdjustOffset, onResetOffset, onRetry)
-            lyrics?.plain != null -> PlainLyrics(lyrics, player, onRetry)
-            lyrics?.instrumental == true -> Message("Instrumental", "Esta pista no tiene letra.", null, null)
+            editing && lyrics != null -> TapSyncEditor(
+                lines = lyrics.synced?.map { it.text }
+                    ?: LyricsAligner.splitLines(lyrics.plain.orEmpty()).map { it.text },
+                player = player,
+                onPlayFrom = onPlayFrom,
+                onSave = onSaveSync,
+                onClose = { editing = false },
+            )
+            lyrics?.isSynced == true ->
+                SyncedLyrics(lyrics, state, player, onSeek, onAdjustOffset, onResetOffset, onRetry, onTapSync, onAlignNow, onSyncNow)
+            lyrics?.plain != null -> PlainLyrics(lyrics, state, player, onRetry, onTapSync, onAlignNow, onSyncNow)
+            lyrics?.instrumental == true -> Message(
+                stringResource(R.string.lyrics_instrumental_title),
+                stringResource(R.string.lyrics_instrumental_body),
+                null,
+                null,
+            )
             state.notFound -> Message(
-                title = if (state.offline) "Sin conexión" else "Letra no encontrada",
-                body = when {
-                    state.offline -> "No se pudo consultar LRCLIB. Revisa tu conexión."
-                    state.onlineDisabled -> "No hay letra en el archivo. Activa la búsqueda en internet en " +
-                        "Ajustes → Letras, o agrega un .lrc junto a la canción."
-                    else -> "No hay letra en el archivo ni en LRCLIB. Puedes agregar un archivo .lrc " +
-                        "con el mismo nombre que la canción, en su carpeta."
+                title = when {
+                    state.serverError -> stringResource(R.string.lyrics_not_found_title_server_error)
+                    state.offline -> stringResource(R.string.lyrics_not_found_title_offline)
+                    else -> stringResource(R.string.lyrics_not_found_title)
                 },
-                actionLabel = "Buscar de nuevo",
+                body = when {
+                    state.serverError ->
+                        stringResource(R.string.lyrics_not_found_body_server_error) + state.errorDetail.asDetail()
+                    state.offline -> stringResource(R.string.lyrics_not_found_body_offline) + state.errorDetail.asDetail()
+                    state.onlineDisabled -> stringResource(R.string.lyrics_not_found_body_online_disabled)
+                    else -> stringResource(R.string.lyrics_not_found_body)
+                },
+                actionLabel = stringResource(R.string.lyrics_search_again),
                 onAction = onRetry,
             )
-            else -> Message("Sin letra", "No hay ninguna pista en reproducción.", null, null)
+            else -> Message(
+                stringResource(R.string.lyrics_no_track_title),
+                stringResource(R.string.lyrics_no_track_body),
+                null,
+                null,
+            )
         }
     }
 }
+
+private fun String?.asDetail() = if (isNullOrBlank()) "" else "\n($this)"
 
 /** Posición actual interpolada en cada fotograma a partir de la última lectura del reproductor. */
 @Composable
@@ -116,10 +172,14 @@ private fun SyncedLyrics(
     onAdjustOffset: (Long) -> Unit,
     onResetOffset: () -> Unit,
     onRetry: () -> Unit,
+    onTapSync: () -> Unit,
+    onAlignNow: () -> Unit,
+    onSyncNow: () -> Unit,
 ) {
     val lines = lyrics.synced.orEmpty()
     val position = rememberLivePosition(player)
-    val current = lyrics.lineIndexAt(position - state.offsetMs)
+    val lyricPosition = position - state.offsetMs
+    val current = lyrics.lineIndexAt(lyricPosition)
     val listState = rememberLazyListState()
     var lastManualScroll by remember { mutableLongStateOf(0L) }
     val manualScroll = remember {
@@ -154,20 +214,23 @@ private fun SyncedLyrics(
             ) {
                 itemsIndexed(lines, key = { i, l -> "${l.timeMs}#$i" }) { i, line ->
                     LyricLineText(
-                        text = line.text,
+                        line = line,
                         isCurrent = i == current,
                         isPast = i < current,
+                        // Solo la línea actual sigue el reloj por fotograma (resaltado por palabra).
+                        currentWord = if (i == current) line.wordIndexAt(lyricPosition) else -1,
                         onClick = { onSeek(line.timeMs + state.offsetMs) },
                     )
                 }
             }
         }
-        LyricsFooter(state, onAdjustOffset, onResetOffset, onRetry, synced = true)
+        SyncButton(state, onSyncNow)
+        LyricsFooter(state, onAdjustOffset, onResetOffset, onRetry, onTapSync, onAlignNow, synced = true)
     }
 }
 
 @Composable
-private fun LyricLineText(text: String, isCurrent: Boolean, isPast: Boolean, onClick: () -> Unit) {
+private fun LyricLineText(line: LyricLine, isCurrent: Boolean, isPast: Boolean, currentWord: Int, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val color by animateColorAsState(
         when {
@@ -178,6 +241,19 @@ private fun LyricLineText(text: String, isCurrent: Boolean, isPast: Boolean, onC
         label = "lyricColor",
     )
     val scale by animateFloatAsState(if (isCurrent) 1.06f else 1f, label = "lyricScale")
+    val words = line.words
+    // Con tiempos por palabra, la línea actual se va "llenando" como en karaoke.
+    val text = if (isCurrent && words != null) {
+        buildAnnotatedString {
+            words.forEachIndexed { i, word ->
+                if (i > 0) append(' ')
+                val sung = i <= currentWord
+                withStyle(SpanStyle(color = if (sung) colors.primary else colors.onSurface.copy(alpha = 0.6f))) {
+                    append(word.text)
+                }
+            }
+        }
+    } else buildAnnotatedString { append(line.text) }
     Text(
         text,
         style = MaterialTheme.typography.titleLarge,
@@ -194,7 +270,15 @@ private fun LyricLineText(text: String, isCurrent: Boolean, isPast: Boolean, onC
 
 /** Letra sin marcas de tiempo: desplazamiento proporcional al avance de la canción. */
 @Composable
-private fun PlainLyrics(lyrics: Lyrics, player: PlayerUiState, onRetry: () -> Unit) {
+private fun PlainLyrics(
+    lyrics: Lyrics,
+    state: LyricsUiState,
+    player: PlayerUiState,
+    onRetry: () -> Unit,
+    onTapSync: () -> Unit,
+    onAlignNow: () -> Unit,
+    onSyncNow: () -> Unit,
+) {
     val scroll = rememberScrollState()
     var lastManualScroll by remember { mutableLongStateOf(0L) }
     val manualScroll = remember {
@@ -224,32 +308,101 @@ private fun PlainLyrics(lyrics: Lyrics, player: PlayerUiState, onRetry: () -> Un
                 .verticalScroll(scroll)
                 .padding(vertical = 24.dp, horizontal = 8.dp),
         )
-        LyricsFooter(null, {}, {}, onRetry, synced = false, source = lyrics.source.label)
+        SyncButton(state, onSyncNow)
+        LyricsFooter(state, {}, {}, onRetry, onTapSync, onAlignNow, synced = false)
+    }
+}
+
+/** "Sincronizar": letra sin tiempos (o solo estimados) → tiempos exactos del servidor o estimados. */
+@Composable
+private fun SyncButton(state: LyricsUiState, onSyncNow: () -> Unit) {
+    if (!state.canSync) return
+    Box(Modifier.fillMaxWidth().padding(top = 4.dp), contentAlignment = Alignment.Center) {
+        FilledTonalButton(onClick = onSyncNow, shape = RoundedCornerShape(50)) {
+            Icon(Icons.Rounded.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(
+                when {
+                    state.alignServerUrl.isBlank() -> stringResource(R.string.lyrics_sync_estimated)
+                    state.alignment is AlignmentUi.Failed -> stringResource(R.string.lyrics_sync_retry)
+                    else -> stringResource(R.string.lyrics_sync_with_music)
+                }
+            )
+        }
     }
 }
 
 @Composable
 private fun LyricsFooter(
-    state: LyricsUiState?,
+    state: LyricsUiState,
     onAdjustOffset: (Long) -> Unit,
     onResetOffset: () -> Unit,
     onRetry: () -> Unit,
+    onTapSync: () -> Unit,
+    onAlignNow: () -> Unit,
     synced: Boolean,
-    source: String? = state?.lyrics?.source?.label,
 ) {
+    val lyrics = state.lyrics
+    val alignment = state.alignment
+    val estimated = lyrics?.estimated == true
+    val estimatedSuffix = stringResource(R.string.lyrics_status_estimated_for_now)
+    fun withEstimate(text: String) = if (estimated) "$text · $estimatedSuffix" else text
     Row(
         Modifier.fillMaxWidth().padding(top = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            if (synced) "Fuente: $source" else "Fuente: $source · sin sincronizar",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f),
-        )
-        if (synced && state != null) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.lyrics_source, lyrics?.source?.let { stringResource(it.labelRes) }.orEmpty()),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                when {
+                    alignment is AlignmentUi.Working -> withEstimate(
+                        when (alignment.stage) {
+                            AlignStage.HASHING -> stringResource(R.string.lyrics_stage_hashing)
+                            AlignStage.UPLOADING -> stringResource(R.string.lyrics_stage_uploading)
+                            AlignStage.QUEUED -> stringResource(R.string.lyrics_stage_queued)
+                            AlignStage.PROCESSING -> stringResource(R.string.lyrics_stage_processing)
+                        }
+                    )
+                    alignment is AlignmentUi.Queued -> withEstimate(stringResource(R.string.lyrics_status_in_queue))
+                    alignment is AlignmentUi.WaitingNetwork -> withEstimate(
+                        stringResource(
+                            R.string.lyrics_status_waiting_network,
+                            when (alignment.mode) {
+                                NetworkMode.WIFI -> stringResource(R.string.lyrics_network_wifi)
+                                NetworkMode.MOBILE -> stringResource(R.string.lyrics_network_mobile)
+                                NetworkMode.ANY -> stringResource(R.string.lyrics_network_any)
+                            },
+                        )
+                    )
+                    alignment is AlignmentUi.Failed -> alignment.message
+                    state.estimating -> stringResource(R.string.lyrics_status_estimating)
+                    estimated -> stringResource(R.string.lyrics_status_estimated)
+                    !synced -> stringResource(R.string.lyrics_status_unsynced)
+                    else -> ""
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = when {
+                    alignment is AlignmentUi.Failed -> MaterialTheme.colorScheme.error
+                    alignment != null || estimated || state.estimating -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+        }
+        if (alignment is AlignmentUi.WaitingNetwork || alignment is AlignmentUi.Failed) {
+            IconButton(onClick = onAlignNow, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Rounded.CloudUpload, contentDescription = stringResource(R.string.lyrics_cd_align_now))
+            }
+        }
+        IconButton(onClick = onTapSync, modifier = Modifier.size(36.dp)) {
+            Icon(Icons.Rounded.TouchApp, contentDescription = stringResource(R.string.lyrics_tap_sync))
+        }
+        if (synced) {
             IconButton(onClick = { onAdjustOffset(-250) }, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Rounded.Remove, contentDescription = "Letra antes")
+                Icon(Icons.Rounded.Remove, contentDescription = stringResource(R.string.lyrics_cd_offset_earlier))
             }
             Text(
                 "%+.2f s".format(state.offsetMs / 1000f),
@@ -259,11 +412,11 @@ private fun LyricsFooter(
                 modifier = Modifier.clickable(onClick = onResetOffset).padding(horizontal = 2.dp),
             )
             IconButton(onClick = { onAdjustOffset(250) }, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Rounded.Add, contentDescription = "Letra después")
+                Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.lyrics_cd_offset_later))
             }
         }
         IconButton(onClick = onRetry, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.Rounded.Refresh, contentDescription = "Buscar de nuevo")
+            Icon(Icons.Rounded.Refresh, contentDescription = stringResource(R.string.lyrics_search_again))
         }
     }
 }

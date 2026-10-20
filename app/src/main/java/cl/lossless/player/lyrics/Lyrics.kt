@@ -1,12 +1,30 @@
 package cl.lossless.player.lyrics
 
-/** Una línea de letra sincronizada. */
-data class LyricLine(val timeMs: Long, val text: String)
+import androidx.annotation.StringRes
+import cl.lossless.player.R
 
-enum class LyricsSource(val label: String) {
-    SIDECAR("Archivo .lrc"),
-    EMBEDDED("Etiquetas del archivo"),
-    LRCLIB("LRCLIB"),
+/** Una palabra con su tiempo (LRC "mejorado" o alineación del servidor). */
+data class LyricWord(val startMs: Long, val endMs: Long, val text: String)
+
+/** Una línea de letra sincronizada; [words] solo si se conoce el tiempo de cada palabra. */
+data class LyricLine(val timeMs: Long, val text: String, val words: List<LyricWord>? = null) {
+    /** Índice de la palabra que suena en [positionMs] (-1 antes de la primera o sin palabras). */
+    fun wordIndexAt(positionMs: Long): Int {
+        val list = words ?: return -1
+        var found = -1
+        for (i in list.indices) {
+            if (list[i].startMs <= positionMs) found = i else break
+        }
+        return found
+    }
+}
+
+enum class LyricsSource(@StringRes val labelRes: Int) {
+    SIDECAR(R.string.lyrics_source_sidecar),
+    EMBEDDED(R.string.lyrics_source_embedded),
+    LRCLIB(R.string.lyrics_source_lrclib),
+    USER(R.string.lyrics_source_user),
+    ALIGNED(R.string.lyrics_source_aligned),
 }
 
 /**
@@ -18,6 +36,8 @@ data class Lyrics(
     val plain: String?,
     val source: LyricsSource,
     val instrumental: Boolean = false,
+    /** Tiempos calculados por la app (análisis del audio), no venían con la letra. */
+    val estimated: Boolean = false,
 ) {
     val isSynced: Boolean get() = !synced.isNullOrEmpty()
 

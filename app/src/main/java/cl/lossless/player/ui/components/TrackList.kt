@@ -35,9 +35,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cl.lossless.player.R
 import cl.lossless.player.covers.CoverRef
 import cl.lossless.player.library.Track
 
@@ -121,27 +123,27 @@ private fun TrackMenu(track: Track, actions: TrackActions, extraActions: List<Ex
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) {
-            Icon(Icons.Rounded.MoreVert, contentDescription = "Más opciones")
+            Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.library_more_options))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(
-                text = { Text("Reproducir a continuación") },
+                text = { Text(stringResource(R.string.library_play_next)) },
                 leadingIcon = { Icon(Icons.Rounded.SkipNext, null) },
                 onClick = { open = false; actions.playNext(track) },
             )
             DropdownMenuItem(
-                text = { Text("Añadir a la cola") },
+                text = { Text(stringResource(R.string.library_add_to_queue)) },
                 leadingIcon = { Icon(Icons.AutoMirrored.Rounded.QueueMusic, null) },
                 onClick = { open = false; actions.enqueue(track) },
             )
             val favorite = actions.isFavorite(track)
             DropdownMenuItem(
-                text = { Text(if (favorite) "Quitar de favoritos" else "Añadir a favoritos") },
+                text = { Text(stringResource(if (favorite) R.string.library_remove_favorite else R.string.library_add_favorite)) },
                 leadingIcon = { Icon(if (favorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, null) },
                 onClick = { open = false; actions.toggleFavorite(track) },
             )
             DropdownMenuItem(
-                text = { Text("Añadir a playlist…") },
+                text = { Text(stringResource(R.string.library_add_to_playlist_ellipsis)) },
                 leadingIcon = { Icon(Icons.AutoMirrored.Rounded.PlaylistAdd, null) },
                 onClick = { open = false; actions.addToPlaylist(track) },
             )

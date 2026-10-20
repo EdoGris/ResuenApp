@@ -12,8 +12,8 @@ android {
         applicationId = "cl.lossless.player"
         minSdk = 34          // Android 14: necesario para AudioMixerAttributes (bit-perfect USB)
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
 
     buildTypes {
@@ -32,6 +32,9 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures { compose = true }
+    // Idiomas: español (por defecto, res/values), inglés, francés y portugués. Genera el
+    // locale_config para que Android 13+ ofrezca elegir el idioma de la app en Ajustes del sistema.
+    androidResources { generateLocaleConfig = true }
 }
 
 kotlin { jvmToolchain(17) }
@@ -62,5 +65,11 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
+    // Cola de sincronización (carátulas y letras): sigue aunque se cierre la app y respeta
+    // la red elegida (solo Wi-Fi, solo datos o ambas).
+    implementation("androidx.work:work-runtime-ktx:2.10.1")
+
     testImplementation("junit:junit:4.13.2")
+    // org.json real: el de android.jar en los tests de JVM son solo firmas vacías.
+    testImplementation("org.json:json:20240303")
 }

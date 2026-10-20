@@ -43,7 +43,10 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import cl.lossless.player.R
 import cl.lossless.player.library.FolderExclusions
 import cl.lossless.player.library.FolderSuggestion
 import cl.lossless.player.library.FolderTreeNode
@@ -81,15 +84,16 @@ fun ExcludedFoldersScreen(
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize().systemBarsPadding()) {
             ScreenHeader(
-                title = "Carpetas a omitir",
+                title = stringResource(R.string.settings_excluded_folders),
                 onBack = onBack,
                 actions = {
-                    if (excluded.isNotEmpty()) TextButton(onClick = onClear) { Text("Incluir todo") }
+                    if (excluded.isNotEmpty()) TextButton(onClick = onClear) { Text(stringResource(R.string.settings_excluded_include_all)) }
                 },
             )
             Text(
-                if (excluded.isEmpty()) "Desmarca una carpeta para ocultar su música de la biblioteca."
-                else "${excluded.size} carpetas omitidas · $hiddenTracks pistas ocultas",
+                if (excluded.isEmpty()) stringResource(R.string.settings_excluded_hint)
+                else pluralStringResource(R.plurals.settings_excluded_folders_count, excluded.size, excluded.size) +
+                    " · " + pluralStringResource(R.plurals.settings_hidden_tracks_count, hiddenTracks, hiddenTracks),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 20.dp),
@@ -107,7 +111,7 @@ fun ExcludedFoldersScreen(
                 }
                 item(key = "tree-title") {
                     Text(
-                        "Todas las carpetas",
+                        stringResource(R.string.settings_excluded_all_folders),
                         style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                     )
@@ -155,13 +159,13 @@ private fun SuggestionsCard(
                 Icon(Icons.Rounded.Sms, null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    "Audio de otras apps detectado",
+                    stringResource(R.string.settings_excluded_other_apps_title),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
             Text(
-                "Mensajería, grabadoras y archivos internos de apps que probablemente no son tu música.",
+                stringResource(R.string.settings_excluded_other_apps_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                 modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
@@ -170,7 +174,8 @@ private fun SuggestionsCard(
                 Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            "${s.appName} · ${s.trackCount} pistas",
+                            (s.appNameRes?.let { stringResource(it) } ?: s.appName) + " · " +
+                                pluralStringResource(R.plurals.settings_tracks_count, s.trackCount, s.trackCount),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
@@ -183,7 +188,7 @@ private fun SuggestionsCard(
                             overflow = TextOverflow.StartEllipsis,
                         )
                     }
-                    TextButton(onClick = { onExclude(s.key) }) { Text("Omitir") }
+                    TextButton(onClick = { onExclude(s.key) }) { Text(stringResource(R.string.settings_excluded_exclude)) }
                 }
             }
             if (suggestions.size > 1) {
@@ -193,7 +198,7 @@ private fun SuggestionsCard(
                 ) {
                     Icon(Icons.Rounded.FolderOff, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Omitir todas")
+                    Text(stringResource(R.string.settings_excluded_exclude_all))
                 }
             }
         }
@@ -224,7 +229,7 @@ private fun FolderTreeRow(
             if (hasChildren) {
                 Icon(
                     if (isExpanded) Icons.Rounded.KeyboardArrowDown else Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = if (isExpanded) "Contraer" else "Expandir",
+                    contentDescription = stringResource(if (isExpanded) R.string.settings_collapse else R.string.settings_expand),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -239,9 +244,12 @@ private fun FolderTreeRow(
             Text(name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 when {
-                    inheritedExcluded -> "Omitida por una carpeta superior"
-                    !included -> "Omitida · ${node.trackCount} pistas"
-                    else -> "${node.trackCount} pistas"
+                    inheritedExcluded -> stringResource(R.string.settings_excluded_by_parent)
+                    !included -> stringResource(
+                        R.string.settings_excluded_folder_tracks,
+                        pluralStringResource(R.plurals.settings_tracks_count, node.trackCount, node.trackCount),
+                    )
+                    else -> pluralStringResource(R.plurals.settings_tracks_count, node.trackCount, node.trackCount)
                 },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

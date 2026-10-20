@@ -106,6 +106,21 @@ class LibraryPrefs(private val context: Context) {
         get() = prefs.getStringSet(KEY_EXCLUDED, emptySet())?.toSet() ?: emptySet()
         set(value) = prefs.edit().putStringSet(KEY_EXCLUDED, value).apply()
 
+    /** Nombre de [cl.lossless.player.ui.theme.AppFont]. */
+    var appFont: String?
+        get() = prefs.getString(KEY_FONT, null)
+        set(value) = prefs.edit().putString(KEY_FONT, value).apply()
+
+    /** Nombre de [cl.lossless.player.ui.theme.TextSize]. */
+    var textSize: String?
+        get() = prefs.getString(KEY_TEXT_SIZE, null)
+        set(value) = prefs.edit().putString(KEY_TEXT_SIZE, value).apply()
+
+    /** Deslizar la carátula o el mini reproductor para cambiar de canción. */
+    var swipeToSkip: Boolean
+        get() = prefs.getBoolean(KEY_SWIPE_SKIP, true)
+        set(value) = prefs.edit().putBoolean(KEY_SWIPE_SKIP, value).apply()
+
     var saveCoversInFolder: Boolean
         get() = prefs.getBoolean(KEY_COVERS_IN_FOLDER, true)
         set(value) = prefs.edit().putBoolean(KEY_COVERS_IN_FOLDER, value).apply()
@@ -140,5 +155,8 @@ class LibraryPrefs(private val context: Context) {
         const val KEY_DYNAMIC_COLOR = "dynamic_color"
         const val KEY_ACCENT = "accent_color"
         const val KEY_TINTED_TEXT = "tinted_text"
+        const val KEY_FONT = "app_font"
+        const val KEY_TEXT_SIZE = "text_size"
+        const val KEY_SWIPE_SKIP = "swipe_to_skip"
     }
 }

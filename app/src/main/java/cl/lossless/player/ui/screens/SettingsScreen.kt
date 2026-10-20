@@ -1,5 +1,7 @@
 package cl.lossless.player.ui.screens
 
+import android.app.LocaleManager
+import android.os.LocaleList
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,6 +22,12 @@ import cl.lossless.player.ui.components.FormatBadge
 import cl.lossless.player.ui.components.ResuenLogo
 import androidx.compose.ui.platform.LocalContext
 import cl.lossless.player.ui.theme.AccentColor
+import cl.lossless.player.ui.theme.AppFont
+import cl.lossless.player.ui.theme.TextSize
+import cl.lossless.player.sync.NetworkMode
+import androidx.compose.material.icons.rounded.CloudSync
+import androidx.compose.material.icons.rounded.Swipe
+import androidx.compose.material3.FilterChip
 import cl.lossless.player.ui.theme.isDark
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,10 +46,15 @@ import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.FolderOff
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import cl.lossless.player.library.FolderExclusions
+import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Usb
@@ -66,7 +79,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import cl.lossless.player.R
 import cl.lossless.player.ui.LibraryUiState
 import cl.lossless.player.ui.components.ScreenHeader
 import cl.lossless.player.ui.theme.ThemeMode
@@ -91,52 +107,71 @@ fun SettingsScreen(
     onOpenExclusions: () -> Unit,
     lyricsOnline: Boolean,
     onLyricsOnline: (Boolean) -> Unit,
+    lyricsAutoSync: Boolean,
+    onLyricsAutoSync: (Boolean) -> Unit,
+    alignServerUrl: String,
+    onOpenAlignServer: () -> Unit,
     onClearLyricsCache: () -> Unit,
+    onFont: (AppFont) -> Unit,
+    onTextSize: (TextSize) -> Unit,
+    onNetworkMode: (NetworkMode) -> Unit,
+    onClearSyncQueue: () -> Unit,
+    onSwipeToSkip: (Boolean) -> Unit,
+    onMediaKeysSkip: (Boolean) -> Unit,
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        ScreenHeader(title = "Ajustes")
+        ScreenHeader(title = stringResource(R.string.settings_title))
         BrandHeader()
 
-        SettingsSection("Biblioteca", Icons.Rounded.Folder) {
+        SettingsSection(stringResource(R.string.settings_section_library), Icons.Rounded.Folder) {
             SettingRow(
-                title = "Ubicación",
-                subtitle = state.location?.displayPath ?: "Toda la música del dispositivo",
+                title = stringResource(R.string.settings_location),
+                subtitle = state.location?.displayPath ?: stringResource(R.string.settings_location_all_device),
                 monospace = true,
             )
             Row(Modifier.padding(horizontal = 16.dp)) {
-                FilledTonalButton(onClick = onPickFolder) { Text("Elegir carpeta") }
+                FilledTonalButton(onClick = onPickFolder) { Text(stringResource(R.string.settings_pick_folder)) }
                 if (state.location != null) {
                     Spacer(Modifier.width(8.dp))
-                    TextButton(onClick = onShowWholeLibrary) { Text("Usar toda la música") }
+                    TextButton(onClick = onShowWholeLibrary) { Text(stringResource(R.string.settings_use_all_music)) }
                 }
             }
             val suggestions = remember(state.allTracks, state.excludedFolders) {
                 FolderExclusions.suggestions(state.allTracks, state.excludedFolders)
             }
             SettingRow(
-                title = "Carpetas a omitir",
+                title = stringResource(R.string.settings_excluded_folders),
                 subtitle = buildString {
-                    append(if (state.excludedFolders.isEmpty()) "Ninguna" else "${state.excludedFolders.size} omitidas")
-                    if (suggestions.isNotEmpty()) append(" · ${suggestions.size} de otras apps detectadas")
+                    append(
+                        if (state.excludedFolders.isEmpty()) stringResource(R.string.settings_excluded_none)
+                        else pluralStringResource(
+                            R.plurals.settings_excluded_count, state.excludedFolders.size, state.excludedFolders.size,
+                        )
+                    )
+                    if (suggestions.isNotEmpty()) {
+                        append(" · ")
+                        append(pluralStringResource(R.plurals.settings_excluded_suggestions, suggestions.size, suggestions.size))
+                    }
                 },
                 trailing = { Icon(Icons.Rounded.FolderOff, null) },
                 onClick = onOpenExclusions,
             )
             SettingRow(
-                title = "Volver a escanear",
-                subtitle = "${state.tracks.size} pistas · ${state.albums.size} álbumes",
+                title = stringResource(R.string.settings_rescan),
+                subtitle = pluralStringResource(R.plurals.settings_tracks_count, state.tracks.size, state.tracks.size) +
+                    " · " + pluralStringResource(R.plurals.settings_albums_count, state.albums.size, state.albums.size),
                 trailing = { Icon(Icons.Rounded.Refresh, null) },
                 onClick = onRescan,
             )
         }
 
-        SettingsSection("Carátulas", Icons.Rounded.Image) {
+        SettingsSection(stringResource(R.string.settings_section_covers), Icons.Rounded.Image) {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 if (state.coverTaskRunning) {
-                    OutlinedButton(onClick = onCancelFetch) { Text("Detener búsqueda") }
+                    OutlinedButton(onClick = onCancelFetch) { Text(stringResource(R.string.settings_covers_stop)) }
                 } else {
                     OutlinedButton(onClick = onFetchCovers, enabled = state.albums.isNotEmpty()) {
-                        Text("Buscar carátulas faltantes")
+                        Text(stringResource(R.string.settings_covers_fetch_missing))
                     }
                 }
                 state.coverTaskStatus?.let {
@@ -150,8 +185,10 @@ fun SettingsScreen(
                 if (state.coverTaskRunning) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 8.dp))
             }
             SettingRow(
-                title = "Guardar cover.jpg en la carpeta",
-                subtitle = if (state.location == null) "Requiere elegir una carpeta" else "Además de la caché de la app",
+                title = stringResource(R.string.settings_covers_save_in_folder),
+                subtitle = stringResource(
+                    if (state.location == null) R.string.settings_covers_requires_folder else R.string.settings_covers_also_cache
+                ),
                 trailing = {
                     Switch(
                         checked = state.saveCoversInFolder,
@@ -162,18 +199,44 @@ fun SettingsScreen(
             )
         }
 
-        SettingsSection("Apariencia", Icons.Rounded.Palette) {
+        LanguageSection()
+
+        SettingsSection(stringResource(R.string.settings_section_appearance), Icons.Rounded.Palette) {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                 ThemeMode.entries.forEachIndexed { i, mode ->
                     SegmentedButton(
                         selected = state.themeMode == mode,
                         onClick = { onThemeMode(mode) },
                         shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
-                    ) { Text(mode.label) }
+                    ) { Text(stringResource(mode.labelRes)) }
                 }
             }
             Text(
-                "Color de acento · " + if (state.dynamicColor) "Material You" else state.accent.label,
+                stringResource(R.string.settings_text_size),
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+            )
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                TextSize.entries.forEachIndexed { i, size ->
+                    SegmentedButton(
+                        selected = state.textSize == size,
+                        onClick = { onTextSize(size) },
+                        shape = SegmentedButtonDefaults.itemShape(i, TextSize.entries.size),
+                        icon = {},
+                    ) { Text(stringResource(size.labelRes), maxLines = 1, softWrap = false) }
+                }
+            }
+            Text(
+                stringResource(R.string.settings_font_with_value, state.font.label),
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+            )
+            FontPicker(selected = state.font, onSelect = onFont)
+            Text(
+                stringResource(
+                    R.string.settings_accent_with_value,
+                    if (state.dynamicColor) "Material You" else stringResource(state.accent.labelRes),
+                ),
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
             )
@@ -186,54 +249,131 @@ fun SettingsScreen(
             )
             if (state.dynamicColor) {
                 Text(
-                    "Material You está activo: la app usa los colores de tu fondo de pantalla. " +
-                        "Toca un color para usar tu propia paleta.",
+                    stringResource(R.string.settings_material_you_active),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
                 )
             }
             SettingRow(
-                title = "Colorear textos",
-                subtitle = if (state.dynamicColor) "Los títulos y subtítulos toman un matiz de tu fondo de pantalla"
-                else "Los títulos y subtítulos toman un matiz del color de acento",
+                title = stringResource(R.string.settings_tinted_text),
+                subtitle = stringResource(
+                    if (state.dynamicColor) R.string.settings_tinted_text_wallpaper else R.string.settings_tinted_text_accent
+                ),
                 trailing = {
                     Switch(checked = state.tintedText, onCheckedChange = onTintedText)
                 },
             )
             AccentPreview(Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
             SettingRow(
-                title = "Colores dinámicos",
-                subtitle = "Usa la paleta del fondo de pantalla (Material You); reemplaza el color de acento",
+                title = stringResource(R.string.settings_dynamic_colors),
+                subtitle = stringResource(R.string.settings_dynamic_colors_desc),
                 trailing = { Switch(checked = state.dynamicColor, onCheckedChange = onDynamicColor) },
             )
         }
 
-        SettingsSection("Letras", Icons.Rounded.Lyrics) {
+        SettingsSection(stringResource(R.string.settings_section_lyrics), Icons.Rounded.Lyrics) {
             SettingRow(
-                title = "Buscar letras en internet",
-                subtitle = "Si la canción no trae letra ni archivo .lrc, se busca en LRCLIB (lrclib.net). " +
-                    "Se envían título, artista y duración.",
+                title = stringResource(R.string.settings_lyrics_online),
+                subtitle = stringResource(R.string.settings_lyrics_online_desc),
                 trailing = { Switch(checked = lyricsOnline, onCheckedChange = onLyricsOnline) },
             )
             SettingRow(
-                title = "Borrar letras guardadas",
-                subtitle = "Las descargadas se guardan para no volver a pedirlas",
+                title = stringResource(R.string.settings_lyrics_auto_sync),
+                subtitle = stringResource(R.string.settings_lyrics_auto_sync_desc),
+                trailing = { Switch(checked = lyricsAutoSync, onCheckedChange = onLyricsAutoSync) },
+            )
+            SettingRow(
+                title = stringResource(R.string.settings_align_server),
+                subtitle = alignServerUrl.ifBlank { stringResource(R.string.settings_align_server_not_set) },
+                monospace = alignServerUrl.isNotBlank(),
+                trailing = { Icon(Icons.Rounded.Dns, null) },
+                onClick = onOpenAlignServer,
+            )
+            SettingRow(
+                title = stringResource(R.string.settings_clear_lyrics),
+                subtitle = stringResource(R.string.settings_clear_lyrics_desc),
                 trailing = { Icon(Icons.Rounded.DeleteSweep, null) },
                 onClick = onClearLyricsCache,
             )
         }
 
-        SettingsSection("Audio", Icons.Rounded.GraphicEq) {
+        SettingsSection(stringResource(R.string.settings_section_sync), Icons.Rounded.CloudSync) {
+            Text(
+                stringResource(R.string.settings_sync_network_title),
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+            )
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                NetworkMode.entries.forEachIndexed { i, mode ->
+                    SegmentedButton(
+                        selected = state.networkMode == mode,
+                        onClick = { onNetworkMode(mode) },
+                        shape = SegmentedButtonDefaults.itemShape(i, NetworkMode.entries.size),
+                        icon = {},
+                    ) { Text(stringResource(mode.labelRes), maxLines = 1, softWrap = false) }
+                }
+            }
+            Text(
+                stringResource(
+                    when (state.networkMode) {
+                        NetworkMode.WIFI -> R.string.settings_network_wifi_desc
+                        NetworkMode.MOBILE -> R.string.settings_network_mobile_desc
+                        NetworkMode.ANY -> R.string.settings_network_any_desc
+                    }
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+            )
+            val queue = state.syncQueue
+            val coversText = pluralStringResource(R.plurals.settings_sync_queue_covers, queue.covers, queue.covers)
+            val lyricsText = pluralStringResource(R.plurals.settings_sync_queue_lyrics, queue.lyrics, queue.lyrics)
+            val queueItems = when {
+                queue.covers > 0 && queue.lyrics > 0 -> stringResource(R.string.settings_sync_queue_and, coversText, lyricsText)
+                queue.covers > 0 -> coversText
+                else -> lyricsText
+            }
+            val pendingText = pluralStringResource(
+                R.plurals.settings_sync_queue_pending, queue.covers + queue.lyrics, queueItems,
+            )
+            val waitingText = stringResource(R.string.settings_sync_queue_waiting_network)
             SettingRow(
-                title = "Ecualizador",
-                subtitle = "$equalizerSummary · 10 bandas, preamp, graves y virtualizador",
+                title = stringResource(R.string.settings_sync_queue),
+                subtitle = if (queue.isEmpty) stringResource(R.string.settings_sync_queue_empty) else buildString {
+                    append(pendingText)
+                    queue.current?.let { append(" · ").append(it) }
+                    if (queue.waitingNetwork) append(" · ").append(waitingText)
+                },
+                trailing = if (queue.isEmpty) null else {
+                    { TextButton(onClick = onClearSyncQueue) { Text(stringResource(R.string.settings_sync_queue_clear)) } }
+                },
+            )
+        }
+
+        SettingsSection(stringResource(R.string.settings_section_gestures), Icons.Rounded.Swipe) {
+            SettingRow(
+                title = stringResource(R.string.settings_swipe_to_skip),
+                subtitle = stringResource(R.string.settings_swipe_to_skip_desc),
+                trailing = { Switch(checked = state.swipeToSkip, onCheckedChange = onSwipeToSkip) },
+            )
+            SettingRow(
+                title = stringResource(R.string.settings_media_keys_skip),
+                subtitle = stringResource(R.string.settings_media_keys_skip_desc),
+                trailing = { Switch(checked = state.mediaKeysSkip, onCheckedChange = onMediaKeysSkip) },
+            )
+        }
+
+        SettingsSection(stringResource(R.string.settings_section_audio), Icons.Rounded.GraphicEq) {
+            SettingRow(
+                title = stringResource(R.string.settings_equalizer),
+                subtitle = stringResource(R.string.settings_equalizer_desc, equalizerSummary),
                 trailing = { Icon(Icons.Rounded.Equalizer, null) },
                 onClick = onOpenEqualizer,
             )
-            SettingRow(title = "Origen", subtitle = audioSource, monospace = true)
+            SettingRow(title = stringResource(R.string.settings_audio_source), subtitle = audioSource, monospace = true)
             SettingRow(
-                title = "Salida",
+                title = stringResource(R.string.settings_audio_output),
                 subtitle = audioOutput,
                 monospace = true,
                 trailing = if (audioOutput.startsWith("BIT-PERFECT")) {
@@ -305,6 +445,67 @@ private fun SettingRow(
     )
 }
 
+/** Idiomas de la app: etiqueta BCP 47 ("" = el del sistema) y su nombre en ese idioma. */
+private val appLanguages = listOf("es" to "Español", "en" to "English", "fr" to "Français", "pt" to "Português")
+
+/**
+ * Idioma de la app, independiente del sistema (LocaleManager, Android 13+). Al cambiarlo,
+ * Android recrea la actividad con los textos nuevos; queda en Ajustes → Apps → Idioma también.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun LanguageSection() {
+    val context = LocalContext.current
+    val localeManager = remember(context) { context.getSystemService(LocaleManager::class.java) }
+    var selected by remember {
+        mutableStateOf(localeManager?.applicationLocales?.takeIf { !it.isEmpty }?.get(0)?.language.orEmpty())
+    }
+    SettingsSection(stringResource(R.string.settings_section_language), Icons.Rounded.Language) {
+        Text(
+            stringResource(R.string.settings_language_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp),
+        )
+        FlowRow(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            (listOf("" to stringResource(R.string.settings_language_system)) + appLanguages).forEach { (tag, name) ->
+                FilterChip(
+                    selected = selected == tag,
+                    onClick = {
+                        if (selected != tag) {
+                            selected = tag
+                            localeManager?.applicationLocales =
+                                if (tag.isEmpty()) LocaleList.getEmptyLocaleList() else LocaleList.forLanguageTags(tag)
+                        }
+                    },
+                    label = { Text(name) },
+                )
+            }
+        }
+    }
+}
+
+/** Tipos de letra, cada uno escrito con su propia fuente. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FontPicker(selected: AppFont, onSelect: (AppFont) -> Unit) {
+    FlowRow(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        AppFont.entries.forEach { font ->
+            FilterChip(
+                selected = font == selected,
+                onClick = { onSelect(font) },
+                label = { Text(font.label, fontFamily = font.family ?: FontFamily.Default) },
+            )
+        }
+    }
+}
+
 /** Muestras circulares de los colores de acento. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -322,6 +523,7 @@ private fun AccentPicker(
     ) {
         AccentColor.entries.forEach { accent ->
             val isSelected = showSelection && accent == selected
+            val accentName = stringResource(accent.labelRes)
             Box(
                 Modifier
                     .size(44.dp)
@@ -333,7 +535,7 @@ private fun AccentPicker(
                         shape = CircleShape,
                     )
                     .clickable(enabled = enabled) { onSelect(accent) }
-                    .semantics { contentDescription = accent.label },
+                    .semantics { contentDescription = accentName },
                 contentAlignment = Alignment.Center,
             ) {
                 if (isSelected) {
@@ -363,8 +565,8 @@ private fun AccentPreview(modifier: Modifier = Modifier) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier.clip(CircleShape).background(colors.primaryContainer).padding(horizontal = 14.dp, vertical = 6.dp)
-            ) { Text("Pistas", color = colors.secondary, style = MaterialTheme.typography.labelLarge) }
-            Text("Álbumes", color = colors.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
+            ) { Text(stringResource(R.string.settings_preview_tracks), color = colors.secondary, style = MaterialTheme.typography.labelLarge) }
+            Text(stringResource(R.string.settings_preview_albums), color = colors.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.weight(1f))
             Icon(Icons.Rounded.Folder, null, tint = colors.primary)
         }
@@ -379,9 +581,9 @@ private fun AccentPreview(modifier: Modifier = Modifier) {
                     contentAlignment = Alignment.Center,
                 ) { Text("01", color = colors.primary, fontWeight = FontWeight.Bold) }
                 Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                    Text("Pista seleccionada", color = colors.onPrimaryContainer, style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.settings_preview_selected_track), color = colors.onPrimaryContainer, style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "Artista • Álbum",
+                        stringResource(R.string.settings_preview_artist_album),
                         color = colors.onPrimaryContainer.copy(alpha = 0.75f),
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -389,6 +591,6 @@ private fun AccentPreview(modifier: Modifier = Modifier) {
                 FormatBadge("FLAC 24-bit")
             }
         }
-        Text("Texto de la app", color = colors.onSurface, style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(R.string.settings_preview_app_text), color = colors.onSurface, style = MaterialTheme.typography.bodyMedium)
     }
 }

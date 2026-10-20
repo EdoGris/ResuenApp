@@ -21,6 +21,10 @@ Media3 / ExoPlayer, MediaCodec, MediaStore y AudioManager.
   con controles en la notificación y pantalla de bloqueo.
 - `MainActivity.kt`: interfaz en Compose con la lista de pistas, los controles y el
   estado de la salida.
+- `lyrics/`: letras (.lrc junto al audio, etiquetas, LRCLIB), estimación de tiempos en el
+  teléfono y cliente del servidor de alineación (`AlignmentClient.kt`).
+- `aligner/`: servidor opcional (Python, FastAPI + WhisperX) que calcula los tiempos exactos
+  de cada palabra de una letra sin marcas. Ver [aligner/README.md](aligner/README.md).
 
 ## Qué calidad llega según la salida
 - **DAC USB**: bit-perfect si el DAC ofrece un modo con la misma frecuencia y canales
@@ -38,6 +42,12 @@ Con música sonando por el DAC, ejecuta:
 
 Busca el hilo de salida USB y revisa que su frecuencia y formato coincidan con el
 archivo, y que tenga la marca de bit-perfect.
+
+## Cola de sincronización
+Las búsquedas de carátulas y la sincronización de letras pasan por una cola persistente
+(`sync/`, con WorkManager): sigue aunque se cierre la app y solo trabaja con la red elegida
+en Ajustes → Sincronización (solo Wi-Fi, solo datos o ambas). "Solo Wi-Fi" usa las redes
+sin límite de datos; un punto de acceso Wi-Fi marcado como medido cuenta como datos.
 
 ## Limitaciones conocidas y próximos pasos
 - **Cambio de frecuencia entre pistas.** Cuando la siguiente pista tiene otra frecuencia

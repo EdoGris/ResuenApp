@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="lyrics_source">Source: %1$s</string>
+    <string name="lyrics_source_sidecar">.lrc file</string>
+    <string name="lyrics_source_embedded">File tags</string>
+    <string name="lyrics_source_lrclib">LRCLIB</string>
+    <string name="lyrics_source_user">Synced by you</string>
+    <string name="lyrics_source_aligned">Automatic alignment (WhisperX)</string>
+
+    <string name="lyrics_instrumental_title">Instrumental</string>
+    <string name="lyrics_instrumental_body">This track has no lyrics.</string>
+    <string name="lyrics_not_found_title_server_error">LRCLIB is not responding</string>
+    <string name="lyrics_not_found_title_offline">No connection</string>
+    <string name="lyrics_not_found_title">Lyrics not found</string>
+    <string name="lyrics_not_found_body_server_error">The lyrics server is overloaded or having problems. Try again in a while.</string>
+    <string name="lyrics_not_found_body_offline">Couldn\'t reach LRCLIB. Check your connection.</string>
+    <string name="lyrics_not_found_body_online_disabled">The file has no lyrics. Turn on online search in Settings → Lyrics, or add an .lrc file next to the song.</string>
+    <string name="lyrics_not_found_body">No lyrics in the file or on LRCLIB. You can add an .lrc file with the same name as the song, in its folder.</string>
+    <string name="lyrics_search_again">Search again</string>
+    <string name="lyrics_no_track_title">No lyrics</string>
+    <string name="lyrics_no_track_body">Nothing is playing.</string>
+
+    <string name="lyrics_sync_estimated">Sync (estimated)</string>
+    <string name="lyrics_sync_retry">Retry sync</string>
+    <string name="lyrics_sync_with_music">Sync with the music</string>
+    <string name="lyrics_stage_hashing">Preparing the audio…</string>
+    <string name="lyrics_stage_uploading">Uploading the audio to the server…</string>
+    <string name="lyrics_stage_queued">Queued on the server…</string>
+    <string name="lyrics_stage_processing">Aligning on the server…</string>
+    <string name="lyrics_status_estimated_for_now">estimated for now</string>
+    <string name="lyrics_status_in_queue">In the sync queue</string>
+    <string name="lyrics_status_waiting_network">Exact sync: waiting for %1$s</string>
+    <string name="lyrics_network_wifi">Wi-Fi</string>
+    <string name="lyrics_network_mobile">mobile data</string>
+    <string name="lyrics_network_any">a connection</string>
+    <string name="lyrics_status_estimating">Estimating timings…</string>
+    <string name="lyrics_status_estimated">Estimated sync</string>
+    <string name="lyrics_status_unsynced">Not synced</string>
+    <string name="lyrics_cd_align_now">Sync now on the current network</string>
+    <string name="lyrics_cd_offset_earlier">Lyrics earlier</string>
+    <string name="lyrics_cd_offset_later">Lyrics later</string>
+
+    <string name="lyrics_align_error_empty">The lyrics are empty</string>
+    <string name="lyrics_align_error_read_audio">Couldn\'t read the audio file</string>
+    <string name="lyrics_align_error_server_failed">The server couldn\'t align the lyrics</string>
+    <string name="lyrics_align_error_job_deleted">The server deleted the job</string>
+    <string name="lyrics_align_error_generic">Couldn\'t sync</string>
+    <string name="lyrics_align_error_unauthorized">The server rejected the token. Check it in Settings → Lyrics.</string>
+    <string name="lyrics_align_error_connect">Couldn\'t connect to the sync server.</string>
+    <string name="lyrics_align_error_unexpected">The server sent an unexpected response.</string>
+
+    <string name="lyrics_align_test_connected">Connected: %1$s · %2$s · %3$s</string>
+    <plurals name="lyrics_align_test_queued">
+        <item quantity="one">%d queued</item>
+        <item quantity="other">%d queued</item>
+    </plurals>
+    <string name="lyrics_align_test_unauthorized">The server rejected the token</string>
+    <string name="lyrics_align_test_http_error">The server responded %1$s</string>
+    <string name="lyrics_align_test_connect_failed">Couldn\'t connect: %1$s</string>
+    <string name="lyrics_align_test_not_server">This address doesn\'t look like the sync server</string>
+    <string name="lyrics_align_test_invalid_url">Invalid address</string>
+
+    <string name="lyrics_tap_sync">Tap to sync</string>
+    <string name="lyrics_tap_sync_hint">Play from the start and tap “Mark” right when each line begins to be sung.</string>
+    <string name="lyrics_tap_sync_saved_folder">Saved as .lrc next to the song</string>
+    <string name="lyrics_tap_sync_saved_app">Sync saved in the app</string>
+    <string name="lyrics_tap_sync_save">Save</string>
+    <string name="lyrics_tap_sync_play_to_mark">Play to start marking</string>
+    <string name="lyrics_tap_sync_mark_line">Mark line %1$d of %2$d</string>
+    <string name="lyrics_tap_sync_restart">From the start</string>
+    <string name="lyrics_tap_sync_undo">Undo</string>
+    <string name="lyrics_tap_sync_cancel">Cancel</string>
+</resources>

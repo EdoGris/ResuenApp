@@ -18,7 +18,8 @@ data class AlbumGroup(
 /** Clave del álbum al que pertenece la pista (coincide con [AlbumGroup.key]). */
 val Track.albumKey: String get() = "$folderKey|${album.trim().lowercase()}"
 
-fun List<Track>.toAlbumGroups(): List<AlbumGroup> =
+/** [variousArtists] es el texto visible (traducido) para álbumes con más de un artista. */
+fun List<Track>.toAlbumGroups(variousArtists: String = "Varios artistas"): List<AlbumGroup> =
     groupBy { it.folderKey }.flatMap { (folderKey, folderTracks) ->
         val byAlbum = folderTracks.groupBy { it.album.trim().lowercase() }
         byAlbum.map { (_, tracks) ->
@@ -27,7 +28,7 @@ fun List<Track>.toAlbumGroups(): List<AlbumGroup> =
             AlbumGroup(
                 key = first.albumKey,
                 title = first.album.ifBlank { first.folderName },
-                artist = artists.singleOrNull() ?: "Varios artistas",
+                artist = artists.singleOrNull() ?: variousArtists,
                 folderName = first.folderName,
                 folderDocId = first.folderDocId,
                 singleAlbumFolder = byAlbum.size == 1,
