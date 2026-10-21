@@ -36,13 +36,8 @@ data class Track(
     /** Nombre del archivo (ej. "01 Bombtrack.flac"); sirve para encontrar su .lrc. */
     val fileName: String = "",
 ) {
-    /** Un .m4a puede ser ALAC (sin pérdida) o AAC (con pérdida); el códec real se ve al reproducir. */
     val containerLabel: String
-        get() = when (mimeType) {
-            "audio/mpeg" -> "MP3"
-            "audio/flac", "audio/x-flac" -> "FLAC"
-            else -> "M4A"
-        }
+        get() = AudioFormats.containerLabel(mimeType)
 
     /** "FLAC 24-bit", "MP3 320kbps"… para las listas. */
     val qualityLabel: String
@@ -88,17 +83,8 @@ class MusicRepository(private val context: Context) {
     private val untitled get() = context.getString(R.string.library_untitled)
     private val unknownArtist get() = context.getString(R.string.library_unknown_artist)
 
-    private val supportedMimes = arrayOf(
-        "audio/mpeg",                              // MP3
-        "audio/flac", "audio/x-flac",              // FLAC
-        "audio/mp4", "audio/x-m4a", "audio/alac",  // ALAC (contenedor MP4/M4A)
-    )
-    private val supportedExtensions = mapOf(
-        "mp3" to "audio/mpeg",
-        "flac" to "audio/flac",
-        "m4a" to "audio/mp4",
-        "alac" to "audio/mp4",
-    )
+    private val supportedMimes = AudioFormats.supportedMimes
+    private val supportedExtensions = AudioFormats.extensions
 
     /**
      * Sin carpeta: toda la música indexada del teléfono.
