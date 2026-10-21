@@ -23,6 +23,7 @@ enum class LyricsSource(@StringRes val labelRes: Int) {
     SIDECAR(R.string.lyrics_source_sidecar),
     EMBEDDED(R.string.lyrics_source_embedded),
     LRCLIB(R.string.lyrics_source_lrclib),
+    LYRICS_OVH(R.string.lyrics_source_lyrics_ovh),
     USER(R.string.lyrics_source_user),
     ALIGNED(R.string.lyrics_source_aligned),
 }

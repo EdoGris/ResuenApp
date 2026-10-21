@@ -21,7 +21,7 @@ Media3 / ExoPlayer, MediaCodec, MediaStore y AudioManager.
   con controles en la notificación y pantalla de bloqueo.
 - `MainActivity.kt`: interfaz en Compose con la lista de pistas, los controles y el
   estado de la salida.
-- `lyrics/`: letras (.lrc junto al audio, etiquetas, LRCLIB), estimación de tiempos en el
+- `lyrics/`: letras (.lrc junto al audio, etiquetas, LRCLIB y Lyrics.ovh de respaldo), estimación de tiempos en el
   teléfono y cliente del servidor de alineación (`AlignmentClient.kt`).
 - `aligner/`: servidor opcional (Python, FastAPI + WhisperX) que calcula los tiempos exactos
   de cada palabra de una letra sin marcas. Ver [aligner/README.md](aligner/README.md).
