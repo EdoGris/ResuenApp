@@ -92,4 +92,17 @@
         <item quantity="many">%d músicas na fila de sincronização de letras</item>
         <item quantity="other">%d músicas na fila de sincronização de letras</item>
     </plurals>
+
+    <!-- Búsqueda y orden -->
+    <string name="library_search_albums">Pesquisar álbuns</string>
+    <string name="library_search_folders">Pesquisar pastas</string>
+    <string name="library_search_folders_tracks">Pesquisar pastas e músicas</string>
+    <string name="library_search_clear">Limpar pesquisa</string>
+    <string name="library_search_no_results">Sem resultados para “%1$s”</string>
+    <string name="library_sort">Ordenar pastas</string>
+    <string name="library_sort_name_asc">Nome (A-Z)</string>
+    <string name="library_sort_name_desc">Nome (Z-A)</string>
+    <string name="library_sort_newest">Modificadas recentemente</string>
+    <string name="library_sort_oldest">Modificadas há mais tempo</string>
+    <string name="library_sort_most_tracks">Mais músicas</string>
 </resources>

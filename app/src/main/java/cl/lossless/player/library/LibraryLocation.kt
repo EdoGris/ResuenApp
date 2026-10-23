@@ -121,6 +121,11 @@ class LibraryPrefs(private val context: Context) {
         get() = prefs.getBoolean(KEY_SWIPE_SKIP, true)
         set(value) = prefs.edit().putBoolean(KEY_SWIPE_SKIP, value).apply()
 
+    /** Nombre de [FolderSort] elegido en las vistas de carpetas. */
+    var folderSort: String?
+        get() = prefs.getString(KEY_FOLDER_SORT, null)
+        set(value) = prefs.edit().putString(KEY_FOLDER_SORT, value).apply()
+
     var saveCoversInFolder: Boolean
         get() = prefs.getBoolean(KEY_COVERS_IN_FOLDER, true)
         set(value) = prefs.edit().putBoolean(KEY_COVERS_IN_FOLDER, value).apply()
@@ -158,5 +163,6 @@ class LibraryPrefs(private val context: Context) {
         const val KEY_FONT = "app_font"
         const val KEY_TEXT_SIZE = "text_size"
         const val KEY_SWIPE_SKIP = "swipe_to_skip"
+        const val KEY_FOLDER_SORT = "folder_sort"
     }
 }

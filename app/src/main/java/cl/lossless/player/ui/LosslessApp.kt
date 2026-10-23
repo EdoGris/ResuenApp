@@ -271,12 +271,15 @@ fun LosslessApp(
                         onEditCover = vm::openCoverDialog,
                         onExcludeFolder = excludeFolder,
                         onSyncLyrics = syncLyrics,
+                        onFolderSort = vm::setFolderSort,
                     )
                     Destination.FOLDERS -> FoldersScreen(
                         tracks = state.tracks,
                         actions = trackActions,
                         onPickFolder = pickFolder,
                         onExcludeFolder = excludeFolder,
+                        folderSort = state.folderSort,
+                        onFolderSort = vm::setFolderSort,
                     )
                     Destination.PLAYLISTS -> PlaylistsScreen(
                         playlists = playlists,

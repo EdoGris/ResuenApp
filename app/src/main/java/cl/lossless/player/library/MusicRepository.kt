@@ -35,6 +35,8 @@ data class Track(
     val sampleRate: Int = 0,
     /** Nombre del archivo (ej. "01 Bombtrack.flac"); sirve para encontrar su .lrc. */
     val fileName: String = "",
+    /** Última modificación del archivo en milisegundos (0 si se desconoce). */
+    val dateModified: Long = 0L,
 ) {
     /** Un .m4a puede ser ALAC (sin pérdida) o AAC (con pérdida); el códec real se ve al reproducir. */
     val containerLabel: String
@@ -131,6 +133,7 @@ class MusicRepository(private val context: Context) {
             MediaStore.Audio.Media.BITS_PER_SAMPLE,
             MediaStore.Audio.Media.SAMPLERATE,
             MediaStore.Audio.Media.DISPLAY_NAME,
+            MediaStore.Audio.Media.DATE_MODIFIED,
         )
         val conditions = mutableListOf(
             "${MediaStore.Audio.Media.IS_MUSIC} != 0",
@@ -165,6 +168,7 @@ class MusicRepository(private val context: Context) {
             val bitsCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.BITS_PER_SAMPLE)
             val rateCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.SAMPLERATE)
             val nameCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+            val modifiedCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
             while (c.moveToNext()) {
                 val id = c.getLong(idCol)
                 val vol = c.getString(volCol) ?: MediaStore.VOLUME_EXTERNAL_PRIMARY
@@ -186,6 +190,8 @@ class MusicRepository(private val context: Context) {
                     bitsPerSample = c.getInt(bitsCol),
                     sampleRate = c.getInt(rateCol),
                     fileName = c.getString(nameCol) ?: "",
+                    // MediaStore lo guarda en segundos
+                    dateModified = c.getLong(modifiedCol) * 1000L,
                 )
             }
         }
@@ -207,6 +213,7 @@ class MusicRepository(private val context: Context) {
                         DocumentsContract.Document.COLUMN_DOCUMENT_ID,
                         DocumentsContract.Document.COLUMN_DISPLAY_NAME,
                         DocumentsContract.Document.COLUMN_MIME_TYPE,
+                        DocumentsContract.Document.COLUMN_LAST_MODIFIED,
                     ),
                     null, null, null
                 )?.use { c ->
@@ -214,6 +221,7 @@ class MusicRepository(private val context: Context) {
                         val docId = c.getString(0) ?: continue
                         val name = c.getString(1) ?: ""
                         val mime = c.getString(2) ?: ""
+                        val modified = if (c.isNull(3)) 0L else c.getLong(3)
                         if (mime == DocumentsContract.Document.MIME_TYPE_DIR) {
                             pending.add(docId)
                             continue
@@ -222,7 +230,7 @@ class MusicRepository(private val context: Context) {
                         val normalizedMime = supportedExtensions[ext]
                             ?: mime.takeIf { it in supportedMimes } ?: continue
                         result += readDocumentTrack(
-                            retriever, location, folderId, docId, name, normalizedMime
+                            retriever, location, folderId, docId, name, normalizedMime, modified
                         )
                     }
                 }
@@ -240,6 +248,7 @@ class MusicRepository(private val context: Context) {
         docId: String,
         name: String,
         mime: String,
+        modified: Long,
     ): Track {
         val uri = DocumentsContract.buildDocumentUriUsingTree(location.treeUri, docId)
         val meta = runCatching { retriever.setDataSource(context, uri); true }.getOrDefault(false)
@@ -263,6 +272,7 @@ class MusicRepository(private val context: Context) {
             bitsPerSample = tag(MediaMetadataRetriever.METADATA_KEY_BITS_PER_SAMPLE)?.toIntOrNull() ?: 0,
             sampleRate = tag(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)?.toIntOrNull() ?: 0,
             fileName = name,
+            dateModified = modified,
         )
     }
 
