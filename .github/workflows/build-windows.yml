@@ -18,14 +18,14 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Instalador MSI
-        run: ./gradlew :shared:jvmTest :desktopApp:packageMsi
+        run: ./gradlew :shared:jvmTest :desktopApp:createDistributable :desktopApp:packageMsi
 
       # Abre el ejecutable ya empaquetado en modo de prueba: comprueba que FFmpeg y la lectura
       # de etiquetas funcionan dentro del instalador (sin salida de audio, el servidor no tiene).
       - name: Prueba del ejecutable
         shell: pwsh
         run: |
-          $exe = "desktopApp/build/compose/binaries/main/app/ResuenApp/ResuenApp.exe"
+          $exe = (Resolve-Path "desktopApp/build/compose/binaries/main/app/ResuenApp/ResuenApp.exe").Path
           $out = Join-Path $env:RUNNER_TEMP "selftest.txt"
           $p = Start-Process -FilePath $exe -ArgumentList "--self-test", "`"$out`"" -Wait -PassThru
           if (Test-Path $out) { Get-Content $out } else { Write-Output "Sin reporte" }
