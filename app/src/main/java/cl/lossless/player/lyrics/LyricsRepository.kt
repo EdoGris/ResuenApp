@@ -266,7 +266,8 @@ class LyricsRepository(
         LrcParser.parse(syncedLyrics)?.let { lines ->
             return Lyrics(lines, plainLyrics ?: lines.joinToString("\n") { it.text }, LyricsSource.LRCLIB, instrumental)
         }
-        if (!plainLyrics.isNullOrBlank()) return Lyrics(null, plainLyrics.trim(), LyricsSource.LRCLIB, instrumental)
+        val plain = plainLyrics
+        if (!plain.isNullOrBlank()) return Lyrics(null, plain.trim(), LyricsSource.LRCLIB, instrumental)
         return if (instrumental) Lyrics(null, null, LyricsSource.LRCLIB, instrumental = true) else null
     }
 
