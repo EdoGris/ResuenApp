@@ -42,6 +42,9 @@ kotlin { jvmToolchain(17) }
 val media3 = "1.8.0"   // revisa la última versión estable de Media3
 
 dependencies {
+    // Lógica compartida con la versión de escritorio (letras, carátulas, ecualizador)
+    implementation(project(":shared"))
+
     // Reproducción y sesión multimedia (Google / AndroidX)
     implementation("androidx.media3:media3-exoplayer:$media3")
     implementation("androidx.media3:media3-session:$media3")

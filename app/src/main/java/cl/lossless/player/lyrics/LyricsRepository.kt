@@ -106,7 +106,7 @@ class LyricsRepository(
         val key = "estimate:${track.uri}#${plain.hashCode()}"
         (withContext(Dispatchers.IO) { cache.get(key) } as? LyricsCache.Entry.Found)?.let { return it.lyrics }
 
-        val segments = withContext(Dispatchers.Default) { VocalActivity.analyze(context, track.uri) }.orEmpty()
+        val segments = withContext(Dispatchers.Default) { VocalAnalyzer.analyze(context, track.uri) }.orEmpty()
         val synced = LyricsAligner.align(lines, segments, track.durationMs)
         val result = lyrics.copy(synced = synced, estimated = true)
         withContext(Dispatchers.IO) { cache.putFound(key, result) }

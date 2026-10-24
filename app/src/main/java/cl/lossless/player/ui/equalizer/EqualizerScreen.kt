@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.lossless.player.R
 import cl.lossless.player.playback.eq.EqPreset
+import cl.lossless.player.playback.eq.nameRes
 import cl.lossless.player.playback.eq.EqSpec
 import cl.lossless.player.playback.eq.EqualizerSettings
 
