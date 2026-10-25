@@ -20,6 +20,13 @@ jobs:
       - name: Instalador MSI
         run: ./gradlew :shared:jvmTest :desktopApp:createDistributable :desktopApp:packageMsi
 
+      # Ícono de ResuenApp en el asistente de instalación (banner y panel de bienvenida).
+      - name: Imágenes del instalador
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem desktopApp/build/compose/binaries/main/msi/*.msi | Select-Object -First 1
+          ./desktopApp/installer/brand-msi.ps1 -Msi $msi.FullName
+
       # Abre el ejecutable ya empaquetado en modo de prueba: comprueba que FFmpeg y la lectura
       # de etiquetas funcionan dentro del instalador (sin salida de audio, el servidor no tiene).
       - name: Prueba del ejecutable
