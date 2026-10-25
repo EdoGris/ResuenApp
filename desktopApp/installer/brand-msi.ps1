@@ -10,12 +10,19 @@ $images = @{
     "WixUI_Bmp_Dialog" = Join-Path $dir "dialog.bmp"
 }
 
-function Call($obj, [string]$name, [object[]]$params) {
-    $obj.GetType().InvokeMember($name, [Reflection.BindingFlags]::InvokeMethod, $null, $obj, $params)
+# El COM de Windows Installer no tiene información de tipos: se llama por reflexión, y los
+# argumentos deben ir sin el envoltorio PSObject de PowerShell (si no, DISP_E_TYPEMISMATCH).
+function Call($obj, [string]$name, [object[]]$params = @()) {
+    $plain = [object[]]::new($params.Count)
+    for ($i = 0; $i -lt $params.Count; $i++) {
+        $v = $params[$i]
+        $plain[$i] = if ($v -is [psobject]) { $v.psobject.BaseObject } else { $v }
+    }
+    $obj.GetType().InvokeMember($name, [Reflection.BindingFlags]::InvokeMethod, $null, $obj, $plain)
 }
 
 $installer = New-Object -ComObject WindowsInstaller.Installer
-$db = Call $installer "OpenDatabase" @((Resolve-Path $Msi).Path, 1)   # 1 = modo transaccional
+$db = Call $installer "OpenDatabase" @([string](Resolve-Path $Msi).Path, [int]1)   # 1 = modo transaccional
 
 foreach ($name in $images.Keys) {
     # Comprueba que la fila exista: si jpackage cambiara de diálogos, mejor fallar que no hacer nada.
@@ -26,8 +33,8 @@ foreach ($name in $images.Keys) {
     if ($null -eq $row) { throw "El .msi no tiene la imagen $name" }
 
     $view = Call $db "OpenView" @("UPDATE ``Binary`` SET ``Data`` = ? WHERE ``Name`` = '$name'")
-    $rec = Call $installer "CreateRecord" @(1)
-    Call $rec "SetStream" @(1, $images[$name]) | Out-Null
+    $rec = Call $installer "CreateRecord" @([int]1)
+    Call $rec "SetStream" @([int]1, [string]$images[$name]) | Out-Null
     Call $view "Execute" @($rec) | Out-Null
     Call $view "Close" @() | Out-Null
     Write-Output "$name <- $($images[$name])"
