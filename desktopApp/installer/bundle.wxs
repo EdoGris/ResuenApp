@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Instalador ResuenApp-Setup.exe: envuelve el .msi en un "bundle" de WiX (Burn). El asistente
+  de un .msi solo siempre muestra el ícono genérico de Windows Installer en la barra de título;
+  el del bundle muestra el ícono y el logo de ResuenApp.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:bal="http://schemas.microsoft.com/wix/BalExtension">
+  <Bundle Name="ResuenApp"
+          Version="$(var.Version)"
+          Manufacturer="EdoGris"
+          UpgradeCode="8a8e038c-76f6-411d-811e-b68a5c072172"
+          IconSourceFile="$(var.InstallerDir)\..\icons\resuenapp.ico">
+    <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.HyperlinkLicense">
+      <bal:WixStandardBootstrapperApplication
+          LicenseUrl=""
+          LogoFile="$(var.InstallerDir)\logo.png"
+          SuppressOptionsUI="yes"
+          LaunchTarget="[LocalAppDataFolder]ResuenApp\ResuenApp.exe" />
+    </BootstrapperApplicationRef>
+    <Chain>
+      <MsiPackage SourceFile="$(var.Msi)" Compressed="yes" />
+    </Chain>
+  </Bundle>
+</Wix>
