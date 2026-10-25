@@ -119,6 +119,20 @@ object AppSettings {
     var volume: Float
         get() = prefs.getFloat("volume", 1f)
         set(value) = prefs.putFloat("volume", value)
+
+    // Apariencia: nombres de ThemeMode, Accent, AppFont y TextSize (ver ui/Theme.kt).
+    var theme: String?
+        get() = prefs.get("theme", null)
+        set(value) = prefs.put("theme", value.orEmpty())
+    var accent: String?
+        get() = prefs.get("accent", null)
+        set(value) = prefs.put("accent", value.orEmpty())
+    var font: String?
+        get() = prefs.get("font", null)
+        set(value) = prefs.put("font", value.orEmpty())
+    var textSize: String?
+        get() = prefs.get("text_size", null)
+        set(value) = prefs.put("text_size", value.orEmpty())
 }
 
 /** Lee las carpetas elegidas y sus etiquetas. Reutiliza lo ya leído si el archivo no cambió. */

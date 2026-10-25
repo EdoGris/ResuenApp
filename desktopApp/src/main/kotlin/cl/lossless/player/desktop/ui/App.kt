@@ -200,7 +200,7 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
                         Text(t(S.scanning, n), fontFamily = Mono, fontSize = 11.sp, color = Neon.Muted)
                         LinearProgressIndicator(
                             Modifier.fillMaxWidth().padding(top = 6.dp).height(2.dp),
-                            color = Neon.Cyan,
+                            color = Neon.Accent,
                             trackColor = Neon.Border,
                         )
                     }
@@ -278,7 +278,7 @@ private fun TitleBar(query: String, onQuery: (String) -> Unit, searchFocus: Focu
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(Modifier.width(228.dp), verticalAlignment = Alignment.CenterVertically) {
-            Image(AppIcon, contentDescription = null, modifier = Modifier.size(26.dp).glow(Neon.Cyan, 8.dp, RoundedCornerShape(6.dp)))
+            Image(AppIcon, contentDescription = null, modifier = Modifier.size(26.dp).glow(Neon.Accent, 8.dp, RoundedCornerShape(6.dp)))
             Spacer(Modifier.width(8.dp))
             Text("ResuenApp", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Neon.Text, letterSpacing = 0.6.sp)
             Spacer(Modifier.width(8.dp))
@@ -311,7 +311,7 @@ private fun SearchField(query: String, onQuery: (String) -> Unit, focus: FocusRe
     var focused by remember { mutableStateOf(false) }
     Row(
         modifier.height(30.dp).clip(shape).background(Neon.Card.copy(alpha = 0.8f))
-            .border(1.dp, if (focused) Neon.Cyan.copy(alpha = 0.6f) else Neon.Border, shape)
+            .border(1.dp, if (focused) Neon.Accent.copy(alpha = 0.6f) else Neon.Border, shape)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -323,8 +323,8 @@ private fun SearchField(query: String, onQuery: (String) -> Unit, focus: FocusRe
                 value = query,
                 onValueChange = onQuery,
                 singleLine = true,
-                textStyle = TextStyle(color = Neon.Text, fontSize = 12.sp, fontFamily = Inter),
-                cursorBrush = SolidColor(Neon.Cyan),
+                textStyle = TextStyle(color = Neon.Text, fontSize = 12.sp, fontFamily = Appearance.font.family),
+                cursorBrush = SolidColor(Neon.Accent),
                 modifier = Modifier.fillMaxWidth().focusRequester(focus)
                     .onFocusChanged { focused = it.isFocused },
             )
@@ -365,7 +365,7 @@ private fun NavItem(icon: ImageVector, label: String, selected: Boolean, badge: 
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
     val color = when {
-        selected -> Neon.Cyan
+        selected -> Neon.Accent
         hovered -> Neon.Text
         else -> Neon.Muted
     }
@@ -373,12 +373,12 @@ private fun NavItem(icon: ImageVector, label: String, selected: Boolean, badge: 
         Modifier.fillMaxWidth().padding(vertical = 1.dp).clip(shape)
             .background(
                 when {
-                    selected -> Neon.Cyan.copy(alpha = 0.10f)
+                    selected -> Neon.Accent.copy(alpha = 0.10f)
                     hovered -> Neon.Hover
                     else -> Color.Transparent
                 },
             )
-            .border(1.dp, if (selected) Neon.Cyan.copy(alpha = 0.20f) else Color.Transparent, shape)
+            .border(1.dp, if (selected) Neon.Accent.copy(alpha = 0.20f) else Color.Transparent, shape)
             .hoverable(interaction)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 9.dp),

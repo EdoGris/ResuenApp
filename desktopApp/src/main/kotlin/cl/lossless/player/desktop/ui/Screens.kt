@@ -14,6 +14,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -41,6 +43,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.LibraryMusic
@@ -68,6 +71,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -143,7 +147,7 @@ fun CoverImage(track: Track?, size: Dp, px: Int, modifier: Modifier = Modifier, 
 
 /** Tres barras que suben y bajan junto a la pista que suena. */
 @Composable
-fun PlayingBars(active: Boolean, color: Color = Neon.Cyan) {
+fun PlayingBars(active: Boolean, color: Color = Neon.Accent) {
     val transition = rememberInfiniteTransition()
     val periods = listOf(800, 1100, 700)
     Row(Modifier.height(16.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -166,11 +170,11 @@ fun EmptyLibrary(onAdd: () -> Unit) {
         verticalArrangement = Arrangement.Center,
     ) {
         Box(
-            Modifier.size(88.dp).clip(CircleShape).background(Neon.Cyan.copy(alpha = 0.10f))
-                .border(1.dp, Neon.Cyan.copy(alpha = 0.3f), CircleShape),
+            Modifier.size(88.dp).clip(CircleShape).background(Neon.Accent.copy(alpha = 0.10f))
+                .border(1.dp, Neon.Accent.copy(alpha = 0.3f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Rounded.LibraryMusic, null, tint = Neon.Cyan, modifier = Modifier.size(40.dp))
+            Icon(Icons.Rounded.LibraryMusic, null, tint = Neon.Accent, modifier = Modifier.size(40.dp))
         }
         Spacer(Modifier.height(20.dp))
         Text(t(S.emptyTitle), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Neon.TextStrong)
@@ -186,13 +190,13 @@ fun EmptyLibrary(onAdd: () -> Unit) {
 fun PrimaryButton(icon: ImageVector, label: String, onClick: () -> Unit) {
     val shape = RoundedCornerShape(8.dp)
     Row(
-        Modifier.glow(Neon.Cyan, 12.dp, shape).clip(shape).background(Neon.Cyan).clickable(onClick = onClick)
+        Modifier.glow(Neon.Accent, 12.dp, shape).clip(shape).background(Neon.Accent).clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, null, tint = Neon.Night, modifier = Modifier.size(16.dp))
+        Icon(icon, null, tint = Neon.OnAccent, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(8.dp))
-        Text(label, color = Neon.Night, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+        Text(label, color = Neon.OnAccent, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
     }
 }
 
@@ -234,10 +238,10 @@ private fun ViewHeader(
         Column(Modifier.weight(1f)) {
             if (eyebrow != null) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
-                    Icon(eyebrowIcon, null, tint = Neon.Cyan, modifier = Modifier.size(14.dp))
+                    Icon(eyebrowIcon, null, tint = Neon.Accent, modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        eyebrow.uppercase(), color = Neon.Cyan, fontFamily = Mono, fontSize = 11.sp, letterSpacing = 1.5.sp,
+                        eyebrow.uppercase(), color = Neon.Accent, fontFamily = Mono, fontSize = 11.sp, letterSpacing = 1.5.sp,
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
                 }
@@ -341,7 +345,7 @@ private fun TrackRow(track: Track, number: Int, current: Boolean, playing: Boole
             Modifier.fillMaxWidth()
                 .background(
                     when {
-                        current -> Neon.Cyan.copy(alpha = 0.10f)
+                        current -> Neon.Accent.copy(alpha = 0.10f)
                         hovered -> Neon.Hover.copy(alpha = 0.8f)
                         else -> Color.Transparent
                     },
@@ -357,7 +361,7 @@ private fun TrackRow(track: Track, number: Int, current: Boolean, playing: Boole
                 } else {
                     Text(
                         "%02d".format(number), fontFamily = Mono, fontSize = 12.sp,
-                        color = if (hovered) Neon.Cyan else Neon.Faint,
+                        color = if (hovered) Neon.Accent else Neon.Faint,
                     )
                 }
             }
@@ -366,7 +370,7 @@ private fun TrackRow(track: Track, number: Int, current: Boolean, playing: Boole
                 Spacer(Modifier.width(12.dp))
                 Text(
                     track.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                    color = if (current || hovered) Neon.Cyan else Neon.Text,
+                    color = if (current || hovered) Neon.Accent else Neon.Text,
                 )
             }
             Text(
@@ -380,14 +384,14 @@ private fun TrackRow(track: Track, number: Int, current: Boolean, playing: Boole
                 )
             }
             Box(Modifier.width(ColFormat), contentAlignment = Alignment.Center) {
-                NeonBadge(track.formatLabel, color = if (track.isHiRes) Neon.Cyan else Neon.Muted, emphasized = track.isHiRes)
+                NeonBadge(track.formatLabel, color = if (track.isHiRes) Neon.Accent else Neon.Muted, emphasized = track.isHiRes)
             }
             Text(
                 formatTime(track.durationMs), Modifier.width(ColDuration).padding(horizontal = 6.dp), textAlign = TextAlign.End,
                 color = Neon.Muted, fontFamily = Mono, fontSize = 12.sp,
             )
         }
-        if (current) Box(Modifier.width(2.dp).height(48.dp).background(Neon.Cyan))
+        if (current) Box(Modifier.width(2.dp).height(48.dp).background(Neon.Accent))
     }
 }
 
@@ -399,7 +403,7 @@ private fun GlassCard(onClick: () -> Unit, modifier: Modifier = Modifier, conten
     val shape = RoundedCornerShape(12.dp)
     Box(
         modifier.clip(shape).background(Neon.Card.copy(alpha = 0.6f))
-            .border(1.dp, if (hovered) Neon.Cyan.copy(alpha = 0.4f) else Neon.Border, shape)
+            .border(1.dp, if (hovered) Neon.Accent.copy(alpha = 0.4f) else Neon.Border, shape)
             .hoverable(interaction).clickable(onClick = onClick)
             .padding(12.dp),
     ) { content() }
@@ -449,10 +453,10 @@ fun AlbumDetail(album: Album, currentPath: String?, playing: Boolean, onBack: ()
         Row(Modifier.fillMaxWidth().padding(bottom = 20.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, t(S.back), tint = Neon.Muted) }
             Spacer(Modifier.width(8.dp))
-            CoverImage(album.tracks.first(), size = 160.dp, px = 360, corner = 12.dp, modifier = Modifier.glow(Neon.Cyan, 18.dp, RoundedCornerShape(12.dp)))
+            CoverImage(album.tracks.first(), size = 160.dp, px = 360, corner = 12.dp, modifier = Modifier.glow(Neon.Accent, 18.dp, RoundedCornerShape(12.dp)))
             Spacer(Modifier.width(24.dp))
             Column(Modifier.weight(1f)) {
-                SectionLabel(album.tracks.first().formatLabel, color = Neon.Cyan)
+                SectionLabel(album.tracks.first().formatLabel, color = Neon.Accent)
                 Spacer(Modifier.height(4.dp))
                 Text(album.title.ifBlank { t(S.unknownAlbum) }, color = Neon.TextStrong, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                 Text(album.artist.ifBlank { t(S.unknownArtist) }, color = Neon.Muted, fontSize = 13.sp)
@@ -491,11 +495,11 @@ fun ArtistGrid(artists: List<Artist>, onOpen: (Artist) -> Unit) {
             GlassCard(onClick = { onOpen(artist) }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        Modifier.size(40.dp).clip(CircleShape).background(Neon.Cyan.copy(alpha = 0.10f))
-                            .border(1.dp, Neon.Cyan.copy(alpha = 0.3f), CircleShape),
+                        Modifier.size(40.dp).clip(CircleShape).background(Neon.Accent.copy(alpha = 0.10f))
+                            .border(1.dp, Neon.Accent.copy(alpha = 0.3f), CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(artist.name.take(1).uppercase(), color = Neon.Cyan, fontWeight = FontWeight.Bold)
+                        Text(artist.name.take(1).uppercase(), color = Neon.Accent, fontWeight = FontWeight.Bold)
                     }
                     Spacer(Modifier.width(12.dp))
                     Column {
@@ -605,6 +609,8 @@ fun SettingsScreen(
             }
         }
 
+        AppearanceCard()
+
         SettingsCard(t(S.output)) {
             Text(t(S.outputShared), color = Neon.Text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
             if (outputFormat != null) Text(outputFormat, color = Neon.Teal, fontFamily = Mono, fontSize = 12.sp)
@@ -621,6 +627,74 @@ fun SettingsScreen(
     }
 }
 
+/** Tema, color de acento, tipo de letra y tamaño del texto, como en Ajustes de Android. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AppearanceCard() {
+    SettingsCard(t(S.appearance)) {
+        SubLabel(t(S.theme))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ThemeMode.entries.forEach { mode ->
+                Pill(t(mode.label), selected = Appearance.theme == mode) { Appearance.set(mode) }
+            }
+        }
+
+        SubLabel(t(S.accentColor, t(Appearance.accent.label)))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Accent.entries.forEach { accent ->
+                val selected = Appearance.accent == accent
+                val color = accent.color(Appearance.palette.dark)
+                Box(
+                    Modifier.size(32.dp)
+                        .then(if (selected) Modifier.glow(color, 10.dp, CircleShape) else Modifier)
+                        .clip(CircleShape).background(color)
+                        .border(if (selected) 2.dp else 0.dp, if (selected) Neon.TextStrong else Color.Transparent, CircleShape)
+                        .clickable { Appearance.set(accent) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (selected) Icon(Icons.Rounded.Check, t(accent.label), tint = Palette.of(Appearance.theme, accent).onAccent, modifier = Modifier.size(18.dp))
+                }
+            }
+        }
+
+        SubLabel(t(S.font, Appearance.font.brandName ?: t(S.fontSystem)))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            AppFont.entries.forEach { font ->
+                Pill(font.brandName ?: t(S.fontSystem), selected = Appearance.font == font, fontFamily = font.family) { Appearance.set(font) }
+            }
+        }
+
+        SubLabel(t(S.textSize))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextSize.entries.forEach { size ->
+                Pill(t(size.label), selected = Appearance.textSize == size) { Appearance.set(size) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SubLabel(text: String) {
+    Text(text, color = Neon.Text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
+}
+
+@Composable
+private fun Pill(label: String, selected: Boolean, fontFamily: FontFamily? = null, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(50)
+    Text(
+        label,
+        modifier = Modifier.clip(shape)
+            .background(if (selected) Neon.Accent.copy(alpha = 0.15f) else Neon.Card)
+            .border(1.dp, if (selected) Neon.Accent.copy(alpha = 0.5f) else Neon.Border, shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+        color = if (selected) Neon.Accent else Neon.Text,
+        fontSize = 12.sp,
+        fontFamily = fontFamily,
+        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+    )
+}
+
 @Composable
 private fun SettingsCard(title: String, content: @Composable () -> Unit) {
     Column(
@@ -629,7 +703,7 @@ private fun SettingsCard(title: String, content: @Composable () -> Unit) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        SectionLabel(title, color = Neon.Cyan)
+        SectionLabel(title, color = Neon.Accent)
         Box(Modifier.fillMaxWidth().height(1.dp).background(Neon.Border))
         content()
     }
@@ -644,7 +718,7 @@ private fun LanguageOption(label: String, selected: Boolean, onClick: () -> Unit
     ) {
         RadioButton(
             selected = selected, onClick = null,
-            colors = RadioButtonDefaults.colors(selectedColor = Neon.Cyan, unselectedColor = Neon.Faint),
+            colors = RadioButtonDefaults.colors(selectedColor = Neon.Accent, unselectedColor = Neon.Faint),
         )
         Spacer(Modifier.width(8.dp))
         Text(label, color = if (selected) Neon.TextStrong else Neon.Text, fontSize = 13.sp)

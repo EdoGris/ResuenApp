@@ -118,11 +118,11 @@ private fun PanelTab(label: String, selected: Boolean, onClick: () -> Unit) {
     Text(
         label,
         modifier = Modifier.clip(shape)
-            .background(if (selected) Neon.Cyan.copy(alpha = 0.20f) else Color.Transparent)
-            .border(1.dp, if (selected) Neon.Cyan.copy(alpha = 0.30f) else Color.Transparent, shape)
+            .background(if (selected) Neon.Accent.copy(alpha = 0.20f) else Color.Transparent)
+            .border(1.dp, if (selected) Neon.Accent.copy(alpha = 0.30f) else Color.Transparent, shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 4.dp),
-        color = if (selected) Neon.Cyan else Neon.Muted,
+        color = if (selected) Neon.Accent else Neon.Muted,
         fontSize = 12.sp,
         fontWeight = FontWeight.SemiBold,
     )
@@ -137,7 +137,7 @@ private fun NowPlayingContent(track: Track, positionMs: Long, onSeek: (Long) -> 
     Column(Modifier.fillMaxSize().padding(top = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         CoverImage(
             track, size = 224.dp, px = 512, corner = 16.dp,
-            modifier = Modifier.glow(Neon.Cyan.copy(alpha = 0.6f), 22.dp, RoundedCornerShape(16.dp)),
+            modifier = Modifier.glow(Neon.Accent.copy(alpha = 0.6f), 22.dp, RoundedCornerShape(16.dp)),
         )
         Spacer(Modifier.height(16.dp))
         Text(
@@ -150,7 +150,7 @@ private fun NowPlayingContent(track: Track, positionMs: Long, onSeek: (Long) -> 
         )
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            NeonBadge(track.codecLabel, color = Neon.Cyan, emphasized = true)
+            NeonBadge(track.codecLabel, color = Neon.Accent, emphasized = true)
             track.specsLabel?.let { NeonBadge(it, color = Neon.Text) }
         }
         Spacer(Modifier.height(16.dp))
@@ -163,11 +163,11 @@ private fun LyricsCard(result: LyricsResult?, positionMs: Long, onSeek: (Long) -
     val found = (result as? LyricsResult.Found)?.lyrics
     Column(modifier.glass(RoundedCornerShape(12.dp), Neon.Card.copy(alpha = 0.6f)).padding(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.AutoMirrored.Rounded.Notes, null, tint = Neon.Cyan, modifier = Modifier.size(12.dp))
+            Icon(Icons.AutoMirrored.Rounded.Notes, null, tint = Neon.Accent, modifier = Modifier.size(12.dp))
             Spacer(Modifier.width(4.dp))
             SectionLabel(if (found?.isSynced == true) t(S.lyricsSynced) else t(S.lyrics), Modifier.weight(1f))
             if (found != null) {
-                Text(sourceLabel(found.source).uppercase(), color = Neon.Cyan, fontFamily = Mono, fontSize = 10.sp, maxLines = 1)
+                Text(sourceLabel(found.source).uppercase(), color = Neon.Accent, fontFamily = Mono, fontSize = 10.sp, maxLines = 1)
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -215,7 +215,7 @@ private fun SyncedLyrics(lyrics: Lyrics, positionMs: Long, onSeek: (Long) -> Uni
             val active = i == current
             val color by animateColorAsState(
                 when {
-                    active -> Neon.Cyan
+                    active -> Neon.Accent
                     i < current -> Neon.Faint.copy(alpha = 0.6f)
                     else -> Neon.Faint
                 },
@@ -261,7 +261,7 @@ private fun QueueList(state: PlayerState, onPlay: (Int) -> Unit) {
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
                         .background(
                             when {
-                                current -> Neon.Cyan.copy(alpha = 0.10f)
+                                current -> Neon.Accent.copy(alpha = 0.10f)
                                 hovered -> Neon.Hover.copy(alpha = 0.6f)
                                 else -> Color.Transparent
                             },
@@ -279,7 +279,7 @@ private fun QueueList(state: PlayerState, onPlay: (Int) -> Unit) {
                     Spacer(Modifier.width(8.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
-                            track.title, color = if (current) Neon.Cyan else Neon.Text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                            track.title, color = if (current) Neon.Accent else Neon.Text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                             maxLines = 1, overflow = TextOverflow.Ellipsis,
                         )
                         Text(
@@ -350,13 +350,13 @@ fun NeonSlider(
         Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Neon.Border))
         Box(
             Modifier.fillMaxWidth(fraction).height(4.dp).clip(RoundedCornerShape(2.dp))
-                .background(if (enabled) Neon.Cyan else Neon.Faint),
+                .background(if (enabled) Neon.Accent else Neon.Faint),
         )
         if (enabled) {
             val x = (maxWidth - thumb) * fraction
             Box(
-                Modifier.offset(x = x).size(thumb).glow(Neon.Cyan, 8.dp, CircleShape)
-                    .clip(CircleShape).background(Neon.Cyan),
+                Modifier.offset(x = x).size(thumb).glow(Neon.Accent, 8.dp, CircleShape)
+                    .clip(CircleShape).background(Neon.Accent),
             )
         }
     }
@@ -394,8 +394,8 @@ fun PlayerBar(player: Player, state: PlayerState, positionMs: Long, panelOpen: B
                 if (track != null) {
                     Row(Modifier.padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            track.codecLabel, color = Neon.Cyan, fontFamily = Mono, fontSize = 9.sp,
-                            modifier = Modifier.clip(RoundedCornerShape(3.dp)).background(Neon.Cyan.copy(alpha = 0.10f)).padding(horizontal = 4.dp),
+                            track.codecLabel, color = Neon.Accent, fontFamily = Mono, fontSize = 9.sp,
+                            modifier = Modifier.clip(RoundedCornerShape(3.dp)).background(Neon.Accent.copy(alpha = 0.10f)).padding(horizontal = 4.dp),
                         )
                         if (track.bitsPerSample > 0 && track.sampleRate > 0) {
                             Spacer(Modifier.width(6.dp))
@@ -412,15 +412,15 @@ fun PlayerBar(player: Player, state: PlayerState, positionMs: Long, panelOpen: B
                 SmallIconButton(Icons.Rounded.SkipPrevious, t(S.previous), tint = Neon.Text, size = 20.dp) { if (track != null) player.previous() }
                 val shape = CircleShape
                 Box(
-                    Modifier.size(40.dp).glow(Neon.Cyan, if (track != null) 16.dp else 0.dp, shape).clip(shape)
-                        .background(if (track != null) Neon.Cyan else Neon.Hover)
+                    Modifier.size(40.dp).glow(Neon.Accent, if (track != null) 16.dp else 0.dp, shape).clip(shape)
+                        .background(if (track != null) Neon.Accent else Neon.Hover)
                         .clickable(enabled = track != null, onClick = player::toggle),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         if (state.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                         if (state.playing) t(S.pause) else t(S.play),
-                        tint = Neon.Night,
+                        tint = Neon.OnAccent,
                         modifier = Modifier.size(24.dp),
                     )
                 }
@@ -480,7 +480,7 @@ fun PlayerBar(player: Player, state: PlayerState, positionMs: Long, panelOpen: B
             Spacer(Modifier.width(6.dp))
             SmallIconButton(
                 Icons.Rounded.ViewSidebar, t(S.togglePanel),
-                tint = if (panelOpen) Neon.Cyan else Neon.Muted,
+                tint = if (panelOpen) Neon.Accent else Neon.Muted,
                 onClick = onTogglePanel,
             )
         }
