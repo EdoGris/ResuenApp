@@ -66,6 +66,7 @@ import cl.lossless.player.lyrics.LyricLine
 import cl.lossless.player.lyrics.Lyrics
 import cl.lossless.player.lyrics.LyricsAligner
 import cl.lossless.player.lyrics.LyricsRepository.AlignStage
+import cl.lossless.player.lyrics.labelRes
 import cl.lossless.player.sync.NetworkMode
 import cl.lossless.player.ui.components.swipeToSkip
 import cl.lossless.player.ui.player.PlayerUiState
