@@ -1,10 +1,19 @@
 package cl.lossless.player.desktop
 
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import cl.lossless.player.desktop.ui.App
+import cl.lossless.player.desktop.ui.AppIcon
 import cl.lossless.player.lyrics.LrcParser
 import java.io.DataOutputStream
 import java.io.File
@@ -14,7 +23,7 @@ import kotlin.math.sin
 import javax.swing.UIManager
 import kotlin.system.exitProcess
 
-const val APP_VERSION = "1.0.0"
+const val APP_VERSION = "1.1.0"
 
 fun main(args: Array<String>) {
     if (args.firstOrNull() == "--self-test") {
@@ -24,15 +33,26 @@ fun main(args: Array<String>) {
     runCatching { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()) }
     val player = Player()
     application {
+        val searchFocus = remember { FocusRequester() }
         Window(
             onCloseRequest = {
                 player.shutdown()
                 exitApplication()
             },
             title = "ResuenApp",
-            state = rememberWindowState(width = 1280.dp, height = 820.dp),
+            icon = BitmapPainter(AppIcon),
+            state = rememberWindowState(width = 1360.dp, height = 860.dp),
+            // Ctrl+F lleva a la búsqueda, como en la maqueta.
+            onPreviewKeyEvent = { e ->
+                if (e.type == KeyEventType.KeyDown && e.isCtrlPressed && e.key == Key.F) {
+                    runCatching { searchFocus.requestFocus() }
+                    true
+                } else {
+                    false
+                }
+            },
         ) {
-            App(player)
+            App(player, searchFocus)
         }
     }
 }
@@ -64,6 +84,9 @@ private fun selfTest(report: File?): Int {
         }
         log.appendLine("ffmpeg: $frames frames")
         check(frames in 90_000..100_000) { "cuadros decodificados: $frames" }
+
+        check(AppIcon.width == 256) { "ícono: ${AppIcon.width}px" }
+        log.appendLine("icon: ok")
 
         val lines = LrcParser.parse("[00:01.00]Hola\n[00:02.50]Mundo")
         check(lines?.size == 2) { "LRC" }

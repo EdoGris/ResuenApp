@@ -111,4 +111,36 @@ object S {
     val sourceSidecar = Str("archivo .lrc", ".lrc file", "fichier .lrc", "arquivo .lrc")
     val sourceEmbedded = Str("etiquetas del archivo", "file tags", "étiquettes du fichier", "tags do arquivo")
     val sourceLrclib = Str("LRCLIB", "LRCLIB", "LRCLIB", "LRCLIB")
+
+    // Rediseño "Fusión Neón"
+    val library = Str("Biblioteca", "Library", "Bibliothèque", "Biblioteca")
+    val artists = Str("Artistas", "Artists", "Artistes", "Artistas")
+    val allTracks = Str("Todas las canciones", "All songs", "Tous les titres", "Todas as músicas")
+    val searchHint = Str(
+        "Buscar canciones, álbumes, artistas, FLAC…",
+        "Search songs, albums, artists, FLAC…",
+        "Rechercher titres, albums, artistes, FLAC…",
+        "Pesquisar músicas, álbuns, artistas, FLAC…",
+    )
+    val librarySummary = Str(
+        "%1\$d archivos · %2\$s · %3\$d en alta resolución",
+        "%1\$d files · %2\$s · %3\$d hi-res",
+        "%1\$d fichiers · %2\$s · %3\$d haute résolution",
+        "%1\$d arquivos · %2\$s · %3\$d em alta resolução",
+    )
+    val folderCount = Str("%1\$d carpetas", "%1\$d folders", "%1\$d dossiers", "%1\$d pastas")
+    val albumCount = Str("%1\$d álbumes", "%1\$d albums", "%1\$d albums", "%1\$d álbuns")
+    val colTitle = Str("Título", "Title", "Titre", "Título")
+    val colArtist = Str("Artista", "Artist", "Artiste", "Artista")
+    val colAlbum = Str("Álbum", "Album", "Album", "Álbum")
+    val colFormat = Str("Formato", "Format", "Format", "Formato")
+    val colDuration = Str("Duración", "Duration", "Durée", "Duração")
+    val nowPlaying = Str("Reproduciendo", "Now playing", "En lecture", "Tocando agora")
+    val queue = Str("Cola (%1\$d)", "Queue (%1\$d)", "File (%1\$d)", "Fila (%1\$d)")
+    val upNext = Str("A continuación", "Up next", "À suivre", "A seguir")
+    val lyricsSynced = Str("Letra sincronizada", "Synced lyrics", "Paroles synchronisées", "Letra sincronizada")
+    val togglePanel = Str("Panel lateral", "Side panel", "Panneau latéral", "Painel lateral")
+    val mute = Str("Silenciar", "Mute", "Couper le son", "Silenciar")
+    val outputDevice = Str("Windows · modo compartido", "Windows · shared mode", "Windows · mode partagé", "Windows · modo compartilhado")
+    val outputIdle = Str("Salida en espera", "Output idle", "Sortie en attente", "Saída em espera")
 }

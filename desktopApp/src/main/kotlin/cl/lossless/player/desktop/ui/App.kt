@@ -1,5 +1,12 @@
 package cl.lossless.player.desktop.ui
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,25 +17,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Folder
-import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.VerticalDivider
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -42,16 +47,25 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import cl.lossless.player.desktop.Album
+import androidx.compose.ui.unit.sp
+import cl.lossless.player.desktop.APP_VERSION
+import cl.lossless.player.desktop.AppSettings
 import cl.lossless.player.desktop.Lang
 import cl.lossless.player.desktop.LibraryScanner
 import cl.lossless.player.desktop.LocalLang
 import cl.lossless.player.desktop.Player
 import cl.lossless.player.desktop.S
-import cl.lossless.player.desktop.AppSettings
 import cl.lossless.player.desktop.Track
 import cl.lossless.player.desktop.sortedForLibrary
 import cl.lossless.player.desktop.t
@@ -63,48 +77,25 @@ import kotlinx.coroutines.withContext
 import java.text.Normalizer
 import javax.swing.JFileChooser
 
-private enum class Tab { SONGS, ALBUMS, FOLDERS, SETTINGS }
-
-/** Colores de la app Android en modo oscuro con el acento azul por defecto. */
-private val DarkColors = darkColorScheme(
-    primary = Color(0xFF6EA8FF),
-    onPrimary = Color(0xFF0A1A33),
-    primaryContainer = Color(0xFF243A5C),
-    onPrimaryContainer = Color(0xFFD6E4FF),
-    secondaryContainer = Color(0xFF243A5C),
-    onSecondaryContainer = Color(0xFFD6E4FF),
-    background = Color(0xFF161616),
-    onBackground = Color(0xFFE8E8E8),
-    surface = Color(0xFF1C1C1C),
-    onSurface = Color(0xFFE8E8E8),
-    surfaceVariant = Color(0xFF2A2A2A),
-    onSurfaceVariant = Color(0xFFA8A8A8),
-    surfaceContainerLowest = Color(0xFF121212),
-    surfaceContainerLow = Color(0xFF1A1A1A),
-    surfaceContainer = Color(0xFF212121),
-    surfaceContainerHigh = Color(0xFF282828),
-    surfaceContainerHighest = Color(0xFF303030),
-    outline = Color(0xFF4A4A4A),
-    outlineVariant = Color(0xFF333333),
-)
+private enum class Tab { SONGS, ALBUMS, ARTISTS, FOLDERS, SETTINGS }
 
 private fun String.searchKey(): String =
     Normalizer.normalize(lowercase(), Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
 
 @Composable
-fun App(player: Player) {
+fun App(player: Player, searchFocus: FocusRequester) {
     var language by remember { mutableStateOf(AppSettings.language) }
     CompositionLocalProvider(LocalLang provides (language ?: Lang.system())) {
-        MaterialTheme(colorScheme = DarkColors) {
-            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                Library(player, language) { language = it; AppSettings.language = it }
+        NeonTheme {
+            Box(Modifier.fillMaxSize().background(Neon.Night)) {
+                Library(player, searchFocus, language) { language = it; AppSettings.language = it }
             }
         }
     }
 }
 
 @Composable
-private fun Library(player: Player, language: Lang?, onLanguage: (Lang?) -> Unit) {
+private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?, onLanguage: (Lang?) -> Unit) {
     val scope = rememberCoroutineScope()
     var tracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var scanning by remember { mutableStateOf<Int?>(null) }
@@ -112,7 +103,9 @@ private fun Library(player: Player, language: Lang?, onLanguage: (Lang?) -> Unit
     var tab by remember { mutableStateOf(Tab.SONGS) }
     var query by remember { mutableStateOf("") }
     var openAlbum by remember { mutableStateOf<String?>(null) }
+    var openArtist by remember { mutableStateOf<String?>(null) }
     var openFolder by remember { mutableStateOf<String?>(null) }
+    var panelOpen by remember { mutableStateOf(true) }
 
     fun rescan() {
         if (scanning != null) return
@@ -163,74 +156,53 @@ private fun Library(player: Player, language: Lang?, onLanguage: (Lang?) -> Unit
         }
     }
 
-    val searchIndex = remember(tracks) { tracks.map { "${it.title} ${it.artist} ${it.album} ${it.albumArtist}".searchKey() } }
+    // La búsqueda también encuentra formatos ("flac", "24/96") como en la maqueta.
+    val searchIndex = remember(tracks) {
+        tracks.map { "${it.title} ${it.artist} ${it.album} ${it.albumArtist} ${it.formatLabel}".searchKey() }
+    }
     val filtered = remember(tracks, query) {
         val q = query.trim().searchKey()
         if (q.isEmpty()) tracks else tracks.filterIndexed { i, _ -> q in searchIndex[i] }
     }
     val various = t(S.variousArtists)
+    val unknownArtist = t(S.unknownArtist)
     val albums = remember(filtered, various) { filtered.toAlbums(various) }
+    val artists = remember(filtered, unknownArtist) { filtered.toArtists(unknownArtist) }
     val folderGroups = remember(filtered) {
         filtered.groupBy { it.folder }.toSortedMap(String.CASE_INSENSITIVE_ORDER).map { (path, list) -> path to list }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        Row(Modifier.weight(1f).fillMaxWidth()) {
-            NavigationRail(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    "ResuenApp",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-                )
-                RailItem(Tab.SONGS, tab, Icons.Rounded.LibraryMusic, t(S.songs)) { tab = it; openAlbum = null; openFolder = null }
-                RailItem(Tab.ALBUMS, tab, Icons.Rounded.Album, t(S.albums)) { tab = it; openAlbum = null }
-                RailItem(Tab.FOLDERS, tab, Icons.Rounded.Folder, t(S.folders)) { tab = it; openFolder = null }
-                Spacer(Modifier.weight(1f))
-                RailItem(Tab.SETTINGS, tab, Icons.Rounded.Settings, t(S.settings)) { tab = it }
-                Spacer(Modifier.height(12.dp))
-            }
-            VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    fun select(target: Tab) {
+        tab = target
+        openAlbum = null; openArtist = null; openFolder = null
+    }
 
-            Column(Modifier.weight(1f).fillMaxHeight()) {
-                if (tab != Tab.SETTINGS && (tracks.isNotEmpty() || folders.isNotEmpty())) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        Text(
-                            when (tab) {
-                                Tab.SONGS -> t(S.songs)
-                                Tab.ALBUMS -> t(S.albums)
-                                else -> t(S.folders)
-                            },
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            t(S.trackCount, filtered.size),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.weight(1f))
-                        OutlinedTextField(
-                            value = query,
-                            onValueChange = { query = it },
-                            singleLine = true,
-                            placeholder = { Text(t(S.search)) },
-                            leadingIcon = { Icon(Icons.Rounded.Search, null) },
-                            shape = RoundedCornerShape(24.dp),
-                            modifier = Modifier.width(320.dp),
-                        )
-                    }
-                }
+    Column(Modifier.fillMaxSize()) {
+        TitleBar(
+            query = query,
+            onQuery = {
+                query = it
+                if (tab == Tab.SETTINGS) tab = Tab.SONGS
+            },
+            searchFocus = searchFocus,
+            outputFormat = state.outputFormat,
+        )
+        Row(Modifier.weight(1f).fillMaxWidth()) {
+            Sidebar(
+                selected = tab,
+                trackCount = filtered.size,
+                onSelect = ::select,
+            )
+
+            Column(Modifier.weight(1f).fillMaxHeight().background(Neon.Night)) {
                 scanning?.let { n ->
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-                        Text(t(S.scanning, n), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 6.dp))
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp)) {
+                        Text(t(S.scanning, n), fontFamily = Mono, fontSize = 11.sp, color = Neon.Muted)
+                        LinearProgressIndicator(
+                            Modifier.fillMaxWidth().padding(top = 6.dp).height(2.dp),
+                            color = Neon.Cyan,
+                            trackColor = Neon.Border,
+                        )
                     }
                 }
                 Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -246,20 +218,33 @@ private fun Library(player: Player, language: Lang?, onLanguage: (Lang?) -> Unit
                             onLanguage = onLanguage,
                         )
                         folders.isEmpty() && tracks.isEmpty() -> EmptyLibrary(onAdd = ::addFolder)
-                        tab == Tab.SONGS -> TrackList(filtered, current, showAlbum = true) { player.playQueue(filtered, it) }
+                        tab == Tab.SONGS -> TrackTable(
+                            filtered,
+                            currentPath = current,
+                            playing = state.playing,
+                            header = { SongsHeader(folders, filtered) { player.playQueue(filtered, 0) } },
+                        ) { player.playQueue(filtered, it) }
                         tab == Tab.ALBUMS -> {
                             val album = openAlbum?.let { key -> albums.firstOrNull { it.key == key } }
                             if (album != null) {
-                                AlbumDetail(album, current, onBack = { openAlbum = null }) { player.playQueue(album.tracks, it) }
+                                AlbumDetail(album, current, state.playing, onBack = { openAlbum = null }) { player.playQueue(album.tracks, it) }
                             } else {
-                                AlbumGrid(albums) { a: Album -> openAlbum = a.key }
+                                AlbumGrid(albums) { openAlbum = it.key }
+                            }
+                        }
+                        tab == Tab.ARTISTS -> {
+                            val artist = openArtist?.let { name -> artists.firstOrNull { it.name == name } }
+                            if (artist != null) {
+                                ArtistDetail(artist, current, state.playing, onBack = { openArtist = null }) { player.playQueue(artist.tracks, it) }
+                            } else {
+                                ArtistGrid(artists) { openArtist = it.name }
                             }
                         }
                         else -> {
                             val folder = openFolder?.let { path -> folderGroups.firstOrNull { it.first == path } }
                             if (folder != null) {
                                 val list = remember(folder) { folder.second.sortedWith(compareBy({ it.discNumber }, { it.trackNumber }, { it.file.name.lowercase() })) }
-                                FolderDetail(folder.first, list, current, onBack = { openFolder = null }) { player.playQueue(list, it) }
+                                FolderDetail(folder.first, list, current, state.playing, onBack = { openFolder = null }) { player.playQueue(list, it) }
                             } else {
                                 FolderList(folderGroups) { openFolder = it }
                             }
@@ -268,28 +253,140 @@ private fun Library(player: Player, language: Lang?, onLanguage: (Lang?) -> Unit
                 }
             }
 
-            state.current?.let { track ->
-                VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                NowPlayingPanel(track, state.outputFormat, position, onSeek = player::seek, modifier = Modifier.width(400.dp).fillMaxHeight())
+            val track = state.current
+            if (track != null && panelOpen) {
+                RightPanel(
+                    track = track,
+                    state = state,
+                    positionMs = position,
+                    onSeek = player::seek,
+                    onPlayQueueItem = { player.playQueue(state.queue, it) },
+                    onClose = { panelOpen = false },
+                    modifier = Modifier.width(320.dp).fillMaxHeight(),
+                )
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        PlayerBar(player, state, position)
+        PlayerBar(player, state, position, panelOpen = panelOpen && state.current != null) { panelOpen = !panelOpen }
     }
 }
 
+/** Barra superior: logo, versión, búsqueda global (Ctrl+F) y estado de la salida de audio. */
 @Composable
-private fun androidx.compose.foundation.layout.ColumnScope.RailItem(
-    tab: Tab,
-    selected: Tab,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    onClick: (Tab) -> Unit,
-) {
-    NavigationRailItem(
-        selected = tab == selected,
-        onClick = { onClick(tab) },
-        icon = { Icon(icon, null) },
-        label = { Text(label) },
-    )
+private fun TitleBar(query: String, onQuery: (String) -> Unit, searchFocus: FocusRequester, outputFormat: String?) {
+    Row(
+        Modifier.fillMaxWidth().height(48.dp).background(Neon.Night).padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(Modifier.width(228.dp), verticalAlignment = Alignment.CenterVertically) {
+            Image(AppIcon, contentDescription = null, modifier = Modifier.size(26.dp).glow(Neon.Cyan, 8.dp, RoundedCornerShape(6.dp)))
+            Spacer(Modifier.width(8.dp))
+            Text("ResuenApp", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Neon.Text, letterSpacing = 0.6.sp)
+            Spacer(Modifier.width(8.dp))
+            NeonBadge("v$APP_VERSION")
+        }
+        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            SearchField(query, onQuery, searchFocus, Modifier.widthIn(max = 460.dp).fillMaxWidth())
+        }
+        Row(Modifier.width(228.dp), horizontalArrangement = Arrangement.End) {
+            if (outputFormat != null) {
+                val shape = RoundedCornerShape(50)
+                Row(
+                    Modifier.clip(shape).background(Neon.Amber.copy(alpha = 0.10f)).border(1.dp, Neon.Amber.copy(alpha = 0.30f), shape)
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Rounded.Bolt, null, tint = Neon.Amber, modifier = Modifier.size(12.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(outputFormat.uppercase(), color = Neon.Amber, fontFamily = Mono, fontSize = 10.sp, maxLines = 1)
+                }
+            }
+        }
+    }
+    Box(Modifier.fillMaxWidth().height(1.dp).background(Neon.Border))
+}
+
+@Composable
+private fun SearchField(query: String, onQuery: (String) -> Unit, focus: FocusRequester, modifier: Modifier) {
+    val shape = RoundedCornerShape(50)
+    var focused by remember { mutableStateOf(false) }
+    Row(
+        modifier.height(30.dp).clip(shape).background(Neon.Card.copy(alpha = 0.8f))
+            .border(1.dp, if (focused) Neon.Cyan.copy(alpha = 0.6f) else Neon.Border, shape)
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Rounded.Search, null, tint = Neon.Muted, modifier = Modifier.size(15.dp))
+        Spacer(Modifier.width(8.dp))
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            if (query.isEmpty()) Text(t(S.searchHint), color = Neon.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            BasicTextField(
+                value = query,
+                onValueChange = onQuery,
+                singleLine = true,
+                textStyle = TextStyle(color = Neon.Text, fontSize = 12.sp, fontFamily = Inter),
+                cursorBrush = SolidColor(Neon.Cyan),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus)
+                    .onFocusChanged { focused = it.isFocused },
+            )
+        }
+        if (query.isNotEmpty()) {
+            Icon(
+                Icons.Rounded.Close, t(S.back), tint = Neon.Muted,
+                modifier = Modifier.size(15.dp).clip(RoundedCornerShape(50)).clickable { onQuery("") },
+            )
+        } else {
+            NeonBadge("Ctrl+F", color = Neon.Faint)
+        }
+    }
+}
+
+/** Barra lateral izquierda: secciones de la biblioteca y Ajustes al pie. */
+@Composable
+private fun Sidebar(selected: Tab, trackCount: Int, onSelect: (Tab) -> Unit) {
+    Column(
+        Modifier.width(240.dp).fillMaxHeight().background(Neon.Surface.copy(alpha = 0.75f)).padding(10.dp),
+    ) {
+        SectionLabel(t(S.library), Modifier.padding(start = 12.dp, bottom = 8.dp, top = 6.dp))
+        NavItem(Icons.Rounded.MusicNote, t(S.songs), selected == Tab.SONGS, badge = "$trackCount") { onSelect(Tab.SONGS) }
+        NavItem(Icons.Rounded.Album, t(S.albums), selected == Tab.ALBUMS) { onSelect(Tab.ALBUMS) }
+        NavItem(Icons.Rounded.Mic, t(S.artists), selected == Tab.ARTISTS) { onSelect(Tab.ARTISTS) }
+        NavItem(Icons.Rounded.Folder, t(S.folders), selected == Tab.FOLDERS) { onSelect(Tab.FOLDERS) }
+        Spacer(Modifier.weight(1f))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Neon.Border))
+        Spacer(Modifier.height(8.dp))
+        NavItem(Icons.Rounded.Settings, t(S.settings), selected == Tab.SETTINGS) { onSelect(Tab.SETTINGS) }
+    }
+    Box(Modifier.width(1.dp).fillMaxHeight().background(Neon.Border))
+}
+
+@Composable
+private fun NavItem(icon: ImageVector, label: String, selected: Boolean, badge: String? = null, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(8.dp)
+    val interaction = remember { MutableInteractionSource() }
+    val hovered by interaction.collectIsHoveredAsState()
+    val color = when {
+        selected -> Neon.Cyan
+        hovered -> Neon.Text
+        else -> Neon.Muted
+    }
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 1.dp).clip(shape)
+            .background(
+                when {
+                    selected -> Neon.Cyan.copy(alpha = 0.10f)
+                    hovered -> Neon.Hover
+                    else -> Color.Transparent
+                },
+            )
+            .border(1.dp, if (selected) Neon.Cyan.copy(alpha = 0.20f) else Color.Transparent, shape)
+            .hoverable(interaction)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, tint = color, modifier = Modifier.size(17.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(label, color = color, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        if (badge != null) Text(badge, color = color.copy(alpha = 0.6f), fontFamily = Mono, fontSize = 10.sp)
+    }
 }

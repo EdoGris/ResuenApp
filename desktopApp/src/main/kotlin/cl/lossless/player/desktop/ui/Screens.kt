@@ -1,20 +1,32 @@
 package cl.lossless.player.desktop.ui
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -23,6 +35,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -30,21 +43,16 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Folder
-import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,19 +63,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import cl.lossless.player.desktop.APP_VERSION
 import cl.lossless.player.desktop.Album
 import cl.lossless.player.desktop.Covers
 import cl.lossless.player.desktop.Lang
 import cl.lossless.player.desktop.S
 import cl.lossless.player.desktop.Track
+import cl.lossless.player.desktop.khz
 import cl.lossless.player.desktop.t
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -83,8 +96,27 @@ fun formatTime(ms: Long): String {
     val h = total / 3600
     val m = (total % 3600) / 60
     val s = total % 60
-    return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
+    return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
 }
+
+/** Duración total de una lista, "12 h 04 min" o "48 min". */
+private fun formatTotal(ms: Long): String {
+    val minutes = ms / 60_000
+    return if (minutes >= 60) "%d h %02d min".format(minutes / 60, minutes % 60) else "$minutes min"
+}
+
+/** Más de 16 bits o más de 48 kHz: se resalta en cian como en la maqueta. */
+val Track.isHiRes: Boolean get() = bitsPerSample > 16 || sampleRate > 48_000
+
+val Track.codecLabel: String get() = codec.ifBlank { file.extension.uppercase() }
+
+/** "24-bit / 96 kHz", o null si el archivo no lo informa. */
+val Track.specsLabel: String?
+    get() = when {
+        bitsPerSample > 0 && sampleRate > 0 -> "$bitsPerSample-bit / ${khz(sampleRate)} kHz"
+        sampleRate > 0 -> "${khz(sampleRate)} kHz"
+        else -> null
+    }
 
 @Composable
 fun CoverImage(track: Track?, size: Dp, px: Int, modifier: Modifier = Modifier, corner: Dp = 8.dp) {
@@ -95,15 +127,33 @@ fun CoverImage(track: Track?, size: Dp, px: Int, modifier: Modifier = Modifier, 
             image = withContext(coverDispatcher) { Covers.load(track, px) }
         }
     }
+    val shape = RoundedCornerShape(corner)
     Box(
-        modifier.size(size).clip(RoundedCornerShape(corner)).background(MaterialTheme.colorScheme.surfaceVariant),
+        modifier.size(size).clip(shape).background(Neon.Card).border(1.dp, Neon.Border, shape),
         contentAlignment = Alignment.Center,
     ) {
         val img = image
         if (img != null) {
             Image(img, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else {
-            Icon(Icons.Rounded.MusicNote, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(size / 2.5f))
+            Icon(Icons.Rounded.MusicNote, null, tint = Neon.Faint, modifier = Modifier.size(size / 2.5f))
+        }
+    }
+}
+
+/** Tres barras que suben y bajan junto a la pista que suena. */
+@Composable
+fun PlayingBars(active: Boolean, color: Color = Neon.Cyan) {
+    val transition = rememberInfiniteTransition()
+    val periods = listOf(800, 1100, 700)
+    Row(Modifier.height(16.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        periods.forEachIndexed { i, period ->
+            val h by transition.animateFloat(
+                initialValue = 4f,
+                targetValue = 16f,
+                animationSpec = infiniteRepeatable(tween(period / 2, delayMillis = i * 100), RepeatMode.Reverse),
+            )
+            Box(Modifier.width(3.dp).height(if (active) h.dp else 6.dp).background(color))
         }
     }
 }
@@ -115,188 +165,405 @@ fun EmptyLibrary(onAdd: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(Icons.Rounded.LibraryMusic, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(72.dp))
-        Spacer(Modifier.height(16.dp))
-        Text(t(S.emptyTitle), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+        Box(
+            Modifier.size(88.dp).clip(CircleShape).background(Neon.Cyan.copy(alpha = 0.10f))
+                .border(1.dp, Neon.Cyan.copy(alpha = 0.3f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Rounded.LibraryMusic, null, tint = Neon.Cyan, modifier = Modifier.size(40.dp))
+        }
+        Spacer(Modifier.height(20.dp))
+        Text(t(S.emptyTitle), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Neon.TextStrong)
         Spacer(Modifier.height(8.dp))
-        Text(t(S.emptyBody), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(t(S.emptyBody), color = Neon.Muted, fontSize = 13.sp, textAlign = TextAlign.Center)
         Spacer(Modifier.height(24.dp))
-        Button(onClick = onAdd) {
-            Icon(Icons.Rounded.Add, null)
-            Spacer(Modifier.width(8.dp))
-            Text(t(S.addFolder))
-        }
+        PrimaryButton(Icons.Rounded.Add, t(S.addFolder), onAdd)
     }
 }
 
+/** Botón cian con resplandor ("Reproducir todo"). */
 @Composable
-fun TrackList(tracks: List<Track>, currentPath: String?, showAlbum: Boolean, header: (@Composable () -> Unit)? = null, onPlay: (Int) -> Unit) {
-    if (tracks.isEmpty() && header == null) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(t(S.noResults), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        return
-    }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
-        if (header != null) item { header() }
-        itemsIndexed(tracks, key = { _, it -> it.path }) { i, track ->
-            TrackRow(track, number = if (showAlbum) null else track.trackNumber, playing = track.path == currentPath, showAlbum = showAlbum) { onPlay(i) }
-        }
-    }
-}
-
-@Composable
-private fun TrackRow(track: Track, number: Int?, playing: Boolean, showAlbum: Boolean, onClick: () -> Unit) {
-    val colors = MaterialTheme.colorScheme
+fun PrimaryButton(icon: ImageVector, label: String, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(8.dp)
     Row(
-        Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (playing) colors.primaryContainer.copy(alpha = 0.45f) else colors.background)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+        Modifier.glow(Neon.Cyan, 12.dp, shape).clip(shape).background(Neon.Cyan).clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Box(Modifier.width(32.dp), contentAlignment = Alignment.Center) {
-            when {
-                playing -> Icon(Icons.Rounded.GraphicEq, null, tint = colors.primary, modifier = Modifier.size(20.dp))
-                number != null && number > 0 -> Text("$number", color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-                else -> Icon(Icons.Rounded.MusicNote, null, tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
+        Icon(icon, null, tint = Neon.Night, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(label, color = Neon.Night, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+    }
+}
+
+/** Botón secundario con borde. */
+@Composable
+fun GhostButton(icon: ImageVector?, label: String, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(8.dp)
+    val interaction = remember { MutableInteractionSource() }
+    val hovered by interaction.collectIsHoveredAsState()
+    Row(
+        Modifier.clip(shape).background(if (hovered) Neon.Hover else Neon.Card).border(1.dp, Neon.Border, shape)
+            .hoverable(interaction).clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (icon != null) {
+            Icon(icon, null, tint = Neon.Text, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(8.dp))
+        }
+        Text(label, color = Neon.Text, fontSize = 12.sp)
+    }
+}
+
+/** Cabecera de una vista: ruta monoespaciada en cian, título grande, resumen y acción. */
+@Composable
+private fun ViewHeader(
+    title: String,
+    eyebrow: String? = null,
+    eyebrowIcon: ImageVector = Icons.Rounded.Storage,
+    summary: String? = null,
+    onBack: (() -> Unit)? = null,
+    action: (@Composable () -> Unit)? = null,
+) {
+    Row(Modifier.fillMaxWidth().padding(bottom = 20.dp), verticalAlignment = Alignment.Bottom) {
+        if (onBack != null) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, t(S.back), tint = Neon.Muted) }
+            Spacer(Modifier.width(4.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            if (eyebrow != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
+                    Icon(eyebrowIcon, null, tint = Neon.Cyan, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        eyebrow.uppercase(), color = Neon.Cyan, fontFamily = Mono, fontSize = 11.sp, letterSpacing = 1.5.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            Text(title, color = Neon.TextStrong, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (summary != null) Text(summary, color = Neon.Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
+        }
+        if (action != null) action()
+    }
+}
+
+@Composable
+private fun summaryOf(tracks: List<Track>): String =
+    t(S.librarySummary, tracks.size, formatTotal(tracks.sumOf { it.durationMs }), tracks.count { it.isHiRes })
+
+@Composable
+fun SongsHeader(folders: List<String>, tracks: List<Track>, onPlayAll: () -> Unit) {
+    ViewHeader(
+        title = t(S.allTracks),
+        eyebrow = folders.singleOrNull() ?: t(S.folderCount, folders.size),
+        summary = summaryOf(tracks),
+        action = { if (tracks.isNotEmpty()) PrimaryButton(Icons.Rounded.PlayArrow, t(S.playAll), onPlayAll) },
+    )
+}
+
+private val ColNumber = 48.dp
+private val ColFormat = 150.dp
+private val ColDuration = 64.dp
+
+/** Tabla de pistas en un panel translúcido: #, título con carátula, artista, álbum, formato y duración. */
+@Composable
+fun TrackTable(
+    tracks: List<Track>,
+    currentPath: String?,
+    playing: Boolean,
+    showAlbum: Boolean = true,
+    useTrackNumbers: Boolean = false,
+    header: (@Composable () -> Unit)? = null,
+    onPlay: (Int) -> Unit,
+) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(24.dp)) {
+        if (header != null) item { header() }
+        if (tracks.isEmpty()) {
+            item {
+                Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
+                    Text(t(S.noResults), color = Neon.Muted)
+                }
+            }
+            return@LazyColumn
+        }
+        item {
+            Row(
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                    .background(Neon.Surface)
+                    .border(1.dp, Neon.Border, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                HeaderCell("#", Modifier.width(ColNumber), TextAlign.Center)
+                HeaderCell(t(S.colTitle), Modifier.weight(1.6f))
+                HeaderCell(t(S.colArtist), Modifier.weight(1f))
+                if (showAlbum) HeaderCell(t(S.colAlbum), Modifier.weight(1f))
+                HeaderCell(t(S.colFormat), Modifier.width(ColFormat), TextAlign.Center)
+                HeaderCell(t(S.colDuration), Modifier.width(ColDuration), TextAlign.End)
             }
         }
-        Column(Modifier.weight(1.4f)) {
-            Text(
-                track.title,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                fontWeight = if (playing) FontWeight.SemiBold else FontWeight.Medium,
-                color = if (playing) colors.primary else colors.onSurface,
-            )
-            Text(
-                track.artist.ifBlank { t(S.unknownArtist) },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.onSurfaceVariant,
-            )
+        itemsIndexed(tracks, key = { _, it -> it.path }) { i, track ->
+            val number = if (useTrackNumbers && track.trackNumber > 0) track.trackNumber else i + 1
+            TrackRow(
+                track,
+                number = number,
+                current = track.path == currentPath,
+                playing = playing,
+                showAlbum = showAlbum,
+                last = i == tracks.lastIndex,
+            ) { onPlay(i) }
         }
-        if (showAlbum) {
-            Text(
-                track.album.ifBlank { track.folderName },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Text(track.formatLabel, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant, modifier = Modifier.width(96.dp))
-        Text(formatTime(track.durationMs), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.width(52.dp))
     }
+}
+
+@Composable
+private fun HeaderCell(text: String, modifier: Modifier, align: TextAlign = TextAlign.Start) {
+    Text(
+        text.uppercase(), modifier = modifier.padding(horizontal = 6.dp), textAlign = align,
+        color = Neon.Muted, fontFamily = Mono, fontSize = 11.sp, maxLines = 1,
+    )
+}
+
+@Composable
+private fun TrackRow(track: Track, number: Int, current: Boolean, playing: Boolean, showAlbum: Boolean, last: Boolean, onClick: () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    val hovered by interaction.collectIsHoveredAsState()
+    val shape = if (last) RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp) else RoundedCornerShape(0.dp)
+    Box(
+        Modifier.fillMaxWidth().clip(shape)
+            .background(Neon.Surface.copy(alpha = 0.75f))
+            .border(1.dp, Neon.Border.copy(alpha = 0.6f), shape),
+    ) {
+        Row(
+            Modifier.fillMaxWidth()
+                .background(
+                    when {
+                        current -> Neon.Cyan.copy(alpha = 0.10f)
+                        hovered -> Neon.Hover.copy(alpha = 0.8f)
+                        else -> Color.Transparent
+                    },
+                )
+                .hoverable(interaction)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.width(ColNumber), contentAlignment = Alignment.Center) {
+                if (current) {
+                    PlayingBars(active = playing)
+                } else {
+                    Text(
+                        "%02d".format(number), fontFamily = Mono, fontSize = 12.sp,
+                        color = if (hovered) Neon.Cyan else Neon.Faint,
+                    )
+                }
+            }
+            Row(Modifier.weight(1.6f).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                CoverImage(track, size = 32.dp, px = 64, corner = 4.dp)
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    track.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                    color = if (current || hovered) Neon.Cyan else Neon.Text,
+                )
+            }
+            Text(
+                track.artist.ifBlank { t(S.unknownArtist) }, Modifier.weight(1f).padding(horizontal = 6.dp),
+                color = Neon.Muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+            if (showAlbum) {
+                Text(
+                    track.album.ifBlank { track.folderName }, Modifier.weight(1f).padding(horizontal = 6.dp),
+                    color = Neon.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Box(Modifier.width(ColFormat), contentAlignment = Alignment.Center) {
+                NeonBadge(track.formatLabel, color = if (track.isHiRes) Neon.Cyan else Neon.Muted, emphasized = track.isHiRes)
+            }
+            Text(
+                formatTime(track.durationMs), Modifier.width(ColDuration).padding(horizontal = 6.dp), textAlign = TextAlign.End,
+                color = Neon.Muted, fontFamily = Mono, fontSize = 12.sp,
+            )
+        }
+        if (current) Box(Modifier.width(2.dp).height(48.dp).background(Neon.Cyan))
+    }
+}
+
+/** Tarjeta translúcida que se ilumina en cian al pasar el mouse. */
+@Composable
+private fun GlassCard(onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    val hovered by interaction.collectIsHoveredAsState()
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        modifier.clip(shape).background(Neon.Card.copy(alpha = 0.6f))
+            .border(1.dp, if (hovered) Neon.Cyan.copy(alpha = 0.4f) else Neon.Border, shape)
+            .hoverable(interaction).clickable(onClick = onClick)
+            .padding(12.dp),
+    ) { content() }
 }
 
 @Composable
 fun AlbumGrid(albums: List<Album>, onOpen: (Album) -> Unit) {
-    if (albums.isEmpty()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(t(S.noResults), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        return
-    }
     LazyVerticalGrid(
         columns = GridCells.Adaptive(180.dp),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+        contentPadding = PaddingValues(24.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+            ViewHeader(title = t(S.albums), summary = t(S.albumCount, albums.size))
+        }
+        if (albums.isEmpty()) {
+            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                Text(t(S.noResults), color = Neon.Muted, textAlign = TextAlign.Center, modifier = Modifier.padding(48.dp))
+            }
+        }
         items(albums, key = { it.key }) { album ->
-            Column(Modifier.clip(RoundedCornerShape(10.dp)).clickable { onOpen(album) }.padding(6.dp)) {
-                Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
-                    CoverImage(album.tracks.first(), size = 200.dp, px = 360, modifier = Modifier.fillMaxSize(), corner = 10.dp)
+            GlassCard(onClick = { onOpen(album) }) {
+                Column {
+                    Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
+                        CoverImage(album.tracks.first(), size = 220.dp, px = 360, modifier = Modifier.fillMaxSize(), corner = 8.dp)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        album.title.ifBlank { t(S.unknownAlbum) }, color = Neon.TextStrong, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        album.artist.ifBlank { t(S.unknownArtist) }, color = Neon.Muted, fontSize = 11.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
                 }
-                Spacer(Modifier.height(8.dp))
-                Text(album.title.ifBlank { t(S.unknownAlbum) }, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
-                Text(
-                    album.artist.ifBlank { t(S.unknownArtist) },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
     }
 }
 
 @Composable
-fun AlbumDetail(album: Album, currentPath: String?, onBack: () -> Unit, onPlay: (Int) -> Unit) {
-    TrackList(album.tracks, currentPath, showAlbum = false, header = {
-        Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, t(S.back)) }
-            CoverImage(album.tracks.first(), size = 160.dp, px = 360, corner = 10.dp)
+fun AlbumDetail(album: Album, currentPath: String?, playing: Boolean, onBack: () -> Unit, onPlay: (Int) -> Unit) {
+    TrackTable(album.tracks, currentPath, playing, showAlbum = false, useTrackNumbers = true, header = {
+        Row(Modifier.fillMaxWidth().padding(bottom = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, t(S.back), tint = Neon.Muted) }
+            Spacer(Modifier.width(8.dp))
+            CoverImage(album.tracks.first(), size = 160.dp, px = 360, corner = 12.dp, modifier = Modifier.glow(Neon.Cyan, 18.dp, RoundedCornerShape(12.dp)))
+            Spacer(Modifier.width(24.dp))
             Column(Modifier.weight(1f)) {
-                Text(album.title.ifBlank { t(S.unknownAlbum) }, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                Text(album.artist.ifBlank { t(S.unknownArtist) }, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(
-                    "${t(S.trackCount, album.tracks.size)} · ${album.tracks.first().formatLabel}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(12.dp))
-                FilledTonalButton(onClick = { onPlay(0) }) {
-                    Icon(Icons.Rounded.PlayArrow, null)
-                    Spacer(Modifier.width(6.dp))
-                    Text(t(S.playAll))
+                SectionLabel(album.tracks.first().formatLabel, color = Neon.Cyan)
+                Spacer(Modifier.height(4.dp))
+                Text(album.title.ifBlank { t(S.unknownAlbum) }, color = Neon.TextStrong, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text(album.artist.ifBlank { t(S.unknownArtist) }, color = Neon.Muted, fontSize = 13.sp)
+                Text(summaryOf(album.tracks), color = Neon.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
+                Spacer(Modifier.height(14.dp))
+                PrimaryButton(Icons.Rounded.PlayArrow, t(S.playAll)) { onPlay(0) }
+            }
+        }
+    }, onPlay = onPlay)
+}
+
+/** Un artista (el del álbum si existe) con todas sus pistas. */
+data class Artist(val name: String, val tracks: List<Track>, val albumCount: Int)
+
+fun List<Track>.toArtists(unknown: String): List<Artist> =
+    groupBy { it.albumArtist.ifBlank { it.artist }.trim().ifBlank { unknown } }
+        .map { (name, list) ->
+            val sorted = list.sortedWith(compareBy({ it.album.lowercase() }, { it.discNumber }, { it.trackNumber }, { it.title.lowercase() }))
+            Artist(name, sorted, list.map { it.albumKey }.distinct().size)
+        }
+        .sortedBy { it.name.lowercase() }
+
+@Composable
+fun ArtistGrid(artists: List<Artist>, onOpen: (Artist) -> Unit) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(260.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(24.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+            ViewHeader(title = t(S.artists), summary = "${artists.size}")
+        }
+        items(artists, key = { it.name }) { artist ->
+            GlassCard(onClick = { onOpen(artist) }) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(40.dp).clip(CircleShape).background(Neon.Cyan.copy(alpha = 0.10f))
+                            .border(1.dp, Neon.Cyan.copy(alpha = 0.3f), CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(artist.name.take(1).uppercase(), color = Neon.Cyan, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(artist.name, color = Neon.TextStrong, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            "${t(S.albumCount, artist.albumCount)} · ${t(S.trackCount, artist.tracks.size)}",
+                            color = Neon.Muted, fontSize = 11.sp, maxLines = 1,
+                        )
+                    }
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+fun ArtistDetail(artist: Artist, currentPath: String?, playing: Boolean, onBack: () -> Unit, onPlay: (Int) -> Unit) {
+    TrackTable(artist.tracks, currentPath, playing, header = {
+        ViewHeader(
+            title = artist.name,
+            summary = summaryOf(artist.tracks),
+            onBack = onBack,
+            action = { PrimaryButton(Icons.Rounded.PlayArrow, t(S.playAll)) { onPlay(0) } },
+        )
     }, onPlay = onPlay)
 }
 
 @Composable
 fun FolderList(folders: List<Pair<String, List<Track>>>, onOpen: (String) -> Unit) {
-    if (folders.isEmpty()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(t(S.noResults), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        return
-    }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(24.dp)) {
+        item { ViewHeader(title = t(S.folders), summary = t(S.folderCount, folders.size)) }
+        if (folders.isEmpty()) item { Text(t(S.noResults), color = Neon.Muted, modifier = Modifier.padding(24.dp)) }
         items(folders, key = { it.first }) { (path, list) ->
+            val interaction = remember { MutableInteractionSource() }
+            val hovered by interaction.collectIsHoveredAsState()
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { onOpen(path) }.padding(horizontal = 12.dp, vertical = 10.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                    .background(if (hovered) Neon.Hover.copy(alpha = 0.6f) else Color.Transparent)
+                    .hoverable(interaction).clickable { onOpen(path) }
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Icon(Icons.Rounded.Folder, null, tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Rounded.Folder, null, tint = Neon.Amber, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(File(path).name, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
-                    Text(path, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        File(path).name, color = if (hovered) Neon.TextStrong else Neon.Text, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(path, color = Neon.Faint, fontFamily = Mono, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Text(t(S.trackCount, list.size), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(t(S.trackCount, list.size), color = Neon.Muted, fontFamily = Mono, fontSize = 11.sp)
             }
         }
     }
 }
 
 @Composable
-fun FolderDetail(path: String, tracks: List<Track>, currentPath: String?, onBack: () -> Unit, onPlay: (Int) -> Unit) {
-    TrackList(tracks, currentPath, showAlbum = true, header = {
-        Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, t(S.back)) }
-            Icon(Icons.Rounded.Folder, null, tint = MaterialTheme.colorScheme.primary)
-            Column(Modifier.weight(1f)) {
-                Text(File(path).name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                Text(path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            FilledTonalButton(onClick = { onPlay(0) }) {
-                Icon(Icons.Rounded.PlayArrow, null)
-                Spacer(Modifier.width(6.dp))
-                Text(t(S.playAll))
-            }
-        }
+fun FolderDetail(path: String, tracks: List<Track>, currentPath: String?, playing: Boolean, onBack: () -> Unit, onPlay: (Int) -> Unit) {
+    TrackTable(tracks, currentPath, playing, header = {
+        ViewHeader(
+            title = File(path).name,
+            eyebrow = path,
+            eyebrowIcon = Icons.Rounded.Folder,
+            summary = summaryOf(tracks),
+            onBack = onBack,
+            action = { PrimaryButton(Icons.Rounded.PlayArrow, t(S.playAll)) { onPlay(0) } },
+        )
     }, onPlay = onPlay)
 }
 
@@ -310,31 +577,24 @@ fun SettingsScreen(
     onRescan: () -> Unit,
     onLanguage: (Lang?) -> Unit,
 ) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(t(S.settings), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        ViewHeader(title = t(S.settings))
 
         SettingsCard(t(S.libraryFolders)) {
             folders.forEach { path ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Folder, null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Rounded.Folder, null, tint = Neon.Amber, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(12.dp))
-                    Text(path, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    IconButton(onClick = { onRemove(path) }) { Icon(Icons.Rounded.Delete, t(S.removeFolder)) }
+                    Text(path, Modifier.weight(1f), color = Neon.Text, fontFamily = Mono, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    IconButton(onClick = { onRemove(path) }) { Icon(Icons.Rounded.Delete, t(S.removeFolder), tint = Neon.Muted) }
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(onClick = onAdd) {
-                    Icon(Icons.Rounded.Add, null)
-                    Spacer(Modifier.width(6.dp))
-                    Text(t(S.addFolder))
-                }
-                if (folders.isNotEmpty()) {
-                    OutlinedButton(onClick = onRescan) {
-                        Icon(Icons.Rounded.Refresh, null)
-                        Spacer(Modifier.width(6.dp))
-                        Text(t(S.rescan))
-                    }
-                }
+                PrimaryButton(Icons.Rounded.Add, t(S.addFolder), onAdd)
+                if (folders.isNotEmpty()) GhostButton(Icons.Rounded.Refresh, t(S.rescan), onRescan)
             }
         }
 
@@ -346,39 +606,47 @@ fun SettingsScreen(
         }
 
         SettingsCard(t(S.output)) {
-            Text(t(S.outputShared), fontWeight = FontWeight.Medium)
-            if (outputFormat != null) Text(outputFormat, color = MaterialTheme.colorScheme.primary)
-            Text(t(S.outputNote), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(t(S.outputShared), color = Neon.Text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            if (outputFormat != null) Text(outputFormat, color = Neon.Teal, fontFamily = Mono, fontSize = 12.sp)
+            Text(t(S.outputNote), color = Neon.Muted, fontSize = 12.sp)
         }
 
         SettingsCard(t(S.about)) {
-            Text("ResuenApp · ${t(S.version, APP_VERSION)}")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(AppIcon, null, Modifier.size(36.dp))
+                Spacer(Modifier.width(12.dp))
+                Text("ResuenApp · ${t(S.version, APP_VERSION)}", color = Neon.Text, fontSize = 13.sp)
+            }
         }
     }
 }
 
 @Composable
 private fun SettingsCard(title: String, content: @Composable () -> Unit) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        modifier = Modifier.fillMaxWidth().width(720.dp),
+    Column(
+        Modifier.widthIn(max = 760.dp).fillMaxWidth()
+            .glass(RoundedCornerShape(12.dp), Neon.Card.copy(alpha = 0.6f))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            content()
-        }
+        SectionLabel(title, color = Neon.Cyan)
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Neon.Border))
+        content()
     }
 }
 
 @Composable
 private fun LanguageOption(label: String, selected: Boolean, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).selectable(selected = selected, onClick = onClick, role = Role.RadioButton).padding(vertical = 2.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton).padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RadioButton(selected = selected, onClick = null)
+        RadioButton(
+            selected = selected, onClick = null,
+            colors = RadioButtonDefaults.colors(selectedColor = Neon.Cyan, unselectedColor = Neon.Faint),
+        )
         Spacer(Modifier.width(8.dp))
-        Text(label)
+        Text(label, color = if (selected) Neon.TextStrong else Neon.Text, fontSize = 13.sp)
     }
 }

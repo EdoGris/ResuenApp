@@ -24,13 +24,21 @@ enum class ThemeMode(@StringRes val labelRes: Int) {
     SYSTEM(R.string.settings_theme_system),
     DARK(R.string.settings_theme_dark),
     LIGHT(R.string.settings_theme_light),
+    /** Oscuro con las superficies azul noche de la versión de escritorio ("Fusión Neón"). */
+    NIGHT(R.string.settings_theme_night),
 }
 
 /**
  * Color de acento de la app. Todo el diseño (pestañas, elemento seleccionado, carpetas,
  * íconos, controles y, opcionalmente, los textos) se deriva de su tono.
  */
-enum class AccentColor(@StringRes val labelRes: Int, val hue: Float, val saturation: Float) {
+enum class AccentColor(
+    @StringRes val labelRes: Int,
+    val hue: Float,
+    val saturation: Float,
+    /** Color exacto de la paleta neón: en tema oscuro se usa tal cual como color principal. */
+    private val exact: Long? = null,
+) {
     BLUE(R.string.settings_accent_blue, 220f, 0.95f),
     TEAL(R.string.settings_accent_teal, 178f, 0.85f),
     GREEN(R.string.settings_accent_green, 145f, 0.75f),
@@ -39,10 +47,29 @@ enum class AccentColor(@StringRes val labelRes: Int, val hue: Float, val saturat
     RED(R.string.settings_accent_red, 355f, 0.85f),
     PINK(R.string.settings_accent_pink, 330f, 0.85f),
     PURPLE(R.string.settings_accent_purple, 268f, 0.80f),
+
+    // Paleta neón de la versión de escritorio (mismos colores que en Windows).
+    NEON_CYAN(R.string.settings_accent_neon_cyan, 182.6f, 0.82f, 0xFF14C4CC),
+    NEON_TEAL(R.string.settings_accent_neon_teal, 169.1f, 0.71f, 0xFF22C7A9),
+    NEON_AMBER(R.string.settings_accent_neon_amber, 43.3f, 1.00f, 0xFFFFB800),
+    NEON_BLUE(R.string.settings_accent_neon_blue, 206.6f, 0.90f, 0xFF2196F3),
+    NEON_PINK(R.string.settings_accent_neon_pink, 339.6f, 0.82f, 0xFFE91E63),
     ;
 
+    /** Color principal en tema oscuro. */
+    fun primaryDark(): Color = exact?.let { Color(it) } ?: darkPrimary(hue, saturation)
+
     /** Color de muestra para el selector. */
-    fun swatch(dark: Boolean): Color = if (dark) darkPrimary(hue, saturation) else lightPrimary(hue, saturation)
+    fun swatch(dark: Boolean): Color = if (dark) primaryDark() else lightPrimary(hue, saturation)
+}
+
+/** Superficies del tema "Noche": las mismas de la app de Windows. */
+private object Night {
+    val background = Color(0xFF0A0D14)
+    val surface = Color(0xFF121722)
+    val card = Color(0xFF1A202C)
+    val border = Color(0xFF1F283B)
+    val hover = Color(0xFF2A354D)
 }
 
 private fun hsl(h: Float, s: Float, l: Float) = Color.hsl(((h % 360f) + 360f) % 360f, s.coerceIn(0f, 1f), l.coerceIn(0f, 1f))
@@ -75,7 +102,7 @@ private fun darkScheme(accent: AccentColor, tintedText: Boolean): ColorScheme {
     val h = accent.hue
     val s = accent.saturation
     return darkColorScheme(
-        primary = darkPrimary(h, s),
+        primary = accent.primaryDark(),
         onPrimary = vivid(h, s, 0.10f, maxLum = 0.03f),
         primaryContainer = vivid(h, s * 0.9f, 0.30f, maxLum = 0.04f),
         onPrimaryContainer = vivid(h, s, 0.90f, minLum = 0.75f),
@@ -146,11 +173,25 @@ private fun ColorScheme.withTintedText(h: Float, dark: Boolean): ColorScheme =
         onSurfaceVariant = hsl(h, 0.20f, 0.38f),
     )
 
+/** Tema oscuro con las superficies azul noche de la paleta neón. */
+private fun ColorScheme.night(): ColorScheme = copy(
+    background = Night.background,
+    surface = Night.background,
+    surfaceVariant = Night.card,
+    surfaceContainerLowest = Night.background,
+    surfaceContainerLow = Night.surface,
+    surfaceContainer = Night.card,
+    surfaceContainerHigh = Color(0xFF222A3C),
+    surfaceContainerHighest = Night.hover,
+    outline = Color(0xFF3A4766),
+    outlineVariant = Night.border,
+)
+
 /** true si el tema efectivo es oscuro. */
 @Composable
 fun ThemeMode.isDark(): Boolean = when (this) {
     ThemeMode.SYSTEM -> isSystemInDarkTheme()
-    ThemeMode.DARK -> true
+    ThemeMode.DARK, ThemeMode.NIGHT -> true
     ThemeMode.LIGHT -> false
 }
 
@@ -174,7 +215,7 @@ fun LosslessTheme(
         }
         dark -> darkScheme(accent, tintedText)
         else -> lightScheme(accent, tintedText)
-    }
+    }.let { if (mode == ThemeMode.NIGHT) it.night() else it }
     val typography = remember(font) { appTypography(font) }
     // El tamaño escala todo el texto en "sp", también el que no usa la tipografía del tema
     // (letras, insignias), y se suma al tamaño de fuente del sistema. En "Normal" se deja la
