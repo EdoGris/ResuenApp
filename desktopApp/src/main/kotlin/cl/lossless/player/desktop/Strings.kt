@@ -182,4 +182,14 @@ object S {
     val textNormal = Str("Normal", "Normal", "Normal", "Normal")
     val textLarge = Str("Grande", "Large", "Grand", "Grande")
     val textXLarge = Str("Muy grande", "Extra large", "Très grand", "Muito grande")
+
+    // Mini reproductor
+    val miniPlayer = Str("Mini reproductor", "Mini player", "Mini lecteur", "Mini player")
+    val fullView = Str("Vista completa", "Full view", "Vue complète", "Visualização completa")
+    val alwaysOnTop = Str(
+        "Siempre encima de las demás ventanas",
+        "Always on top of other windows",
+        "Toujours au-dessus des autres fenêtres",
+        "Sempre acima das outras janelas",
+    )
 }

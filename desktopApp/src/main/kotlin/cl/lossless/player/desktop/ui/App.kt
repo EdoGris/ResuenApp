@@ -86,19 +86,19 @@ private fun String.searchKey(): String =
     Normalizer.normalize(lowercase(), Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
 
 @Composable
-fun App(player: Player, searchFocus: FocusRequester) {
+fun App(player: Player, searchFocus: FocusRequester, onMiniPlayer: () -> Unit) {
     var language by remember { mutableStateOf(AppSettings.language) }
     CompositionLocalProvider(LocalLang provides (language ?: Lang.system())) {
         NeonTheme {
             Box(Modifier.fillMaxSize().background(Neon.Night)) {
-                Library(player, searchFocus, language) { language = it; AppSettings.language = it }
+                Library(player, searchFocus, language, onMiniPlayer) { language = it; AppSettings.language = it }
             }
         }
     }
 }
 
 @Composable
-private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?, onLanguage: (Lang?) -> Unit) {
+private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?, onMiniPlayer: () -> Unit, onLanguage: (Lang?) -> Unit) {
     val scope = rememberCoroutineScope()
     var tracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var scanning by remember { mutableStateOf<Int?>(null) }
@@ -281,7 +281,7 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
                 )
             }
         }
-        PlayerBar(player, state, position, panelOpen = panelOpen && state.current != null) { panelOpen = !panelOpen }
+        PlayerBar(player, state, position, panelOpen = panelOpen && state.current != null, onMiniPlayer = onMiniPlayer) { panelOpen = !panelOpen }
     }
 }
 

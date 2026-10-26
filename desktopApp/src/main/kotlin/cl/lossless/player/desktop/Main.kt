@@ -1,6 +1,11 @@
 package cl.lossless.player.desktop
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.key.Key
@@ -11,11 +16,16 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import cl.lossless.player.desktop.ui.App
 import cl.lossless.player.desktop.ui.AppIcon
+import cl.lossless.player.desktop.ui.MiniPlayer
+import cl.lossless.player.desktop.ui.NeonTheme
+import cl.lossless.player.desktop.ui.miniPlayerSize
 import cl.lossless.player.lyrics.LrcParser
+import java.awt.GraphicsEnvironment
 import java.io.DataOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -24,7 +34,7 @@ import kotlin.math.sin
 import javax.swing.UIManager
 import kotlin.system.exitProcess
 
-const val APP_VERSION = "1.1.0"
+const val APP_VERSION = "1.2.0"
 
 fun main(args: Array<String>) {
     if (args.firstOrNull() == "--self-test") {
@@ -35,11 +45,23 @@ fun main(args: Array<String>) {
     val player = Player()
     application {
         val searchFocus = remember { FocusRequester() }
+        var mini by remember { mutableStateOf(false) }
+        var miniOnTop by remember { mutableStateOf(AppSettings.miniOnTop) }
+        val miniState = rememberWindowState(size = miniPlayerSize(), position = miniStartPosition())
+
+        fun showFull() {
+            AppSettings.miniPosition = (miniState.position as? WindowPosition.Absolute)?.let { it.x.value to it.y.value }
+            mini = false
+        }
+
+        // La ventana completa solo se oculta mientras el mini reproductor está abierto, así la
+        // biblioteca, la búsqueda y la pestaña abierta siguen igual al volver.
         Window(
             onCloseRequest = {
                 player.shutdown()
                 exitApplication()
             },
+            visible = !mini,
             title = "ResuenApp",
             icon = BitmapPainter(AppIcon),
             state = rememberWindowState(width = 1360.dp, height = 860.dp),
@@ -53,9 +75,57 @@ fun main(args: Array<String>) {
                 }
             },
         ) {
-            App(player, searchFocus)
+            App(player, searchFocus, onMiniPlayer = {
+                miniState.size = miniPlayerSize()
+                mini = true
+            })
+        }
+
+        if (mini) {
+            Window(
+                // Cerrar el mini reproductor (Alt+F4) vuelve a la vista completa, no sale de la app.
+                onCloseRequest = ::showFull,
+                title = "ResuenApp",
+                icon = BitmapPainter(AppIcon),
+                state = miniState,
+                undecorated = true,
+                transparent = true,
+                resizable = false,
+                alwaysOnTop = miniOnTop,
+                onPreviewKeyEvent = { e ->
+                    if (e.type == KeyEventType.KeyDown && e.key == Key.Escape) { showFull(); true } else false
+                },
+            ) {
+                CompositionLocalProvider(LocalLang provides (AppSettings.language ?: Lang.system())) {
+                    NeonTheme {
+                        MiniPlayer(
+                            player,
+                            pinned = miniOnTop,
+                            onPin = { miniOnTop = !miniOnTop; AppSettings.miniOnTop = miniOnTop },
+                            onExpand = ::showFull,
+                        )
+                    }
+                }
+            }
         }
     }
+}
+
+/** Donde se dejó el mini reproductor, si sigue dentro de alguna pantalla; si no, abajo a la derecha. */
+private fun miniStartPosition(): WindowPosition {
+    val env = GraphicsEnvironment.getLocalGraphicsEnvironment()
+    AppSettings.miniPosition?.let { (x, y) ->
+        val visible = runCatching {
+            env.screenDevices.any { it.defaultConfiguration.bounds.contains(x.toInt() + 40, y.toInt() + 20) }
+        }.getOrDefault(false)
+        if (visible) return WindowPosition(x.dp, y.dp)
+    }
+    val area = runCatching { env.maximumWindowBounds }.getOrNull() ?: return WindowPosition(Alignment.BottomEnd)
+    val size = miniPlayerSize()
+    return WindowPosition(
+        (area.x + area.width - size.width.value - 24).dp,
+        (area.y + area.height - size.height.value - 24).dp,
+    )
 }
 
 /**

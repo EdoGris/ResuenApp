@@ -40,6 +40,7 @@ import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PictureInPictureAlt
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
@@ -295,7 +296,7 @@ private fun QueueList(state: PlayerState, onPlay: (Int) -> Unit) {
 }
 
 @Composable
-private fun SmallIconButton(icon: ImageVector, description: String, tint: Color = Neon.Muted, size: Dp = 18.dp, onClick: () -> Unit) {
+internal fun SmallIconButton(icon: ImageVector, description: String, tint: Color = Neon.Muted, size: Dp = 18.dp, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
     Box(
@@ -364,7 +365,7 @@ fun NeonSlider(
 
 /** Barra inferior: pista actual, controles con barra de progreso, salida, volumen y panel. */
 @Composable
-fun PlayerBar(player: Player, state: PlayerState, positionMs: Long, panelOpen: Boolean, onTogglePanel: () -> Unit) {
+fun PlayerBar(player: Player, state: PlayerState, positionMs: Long, panelOpen: Boolean, onMiniPlayer: () -> Unit, onTogglePanel: () -> Unit) {
     val track = state.current
     val duration = state.durationMs.coerceAtLeast(1)
     var dragging by remember { mutableStateOf<Float?>(null) }
@@ -478,6 +479,7 @@ fun PlayerBar(player: Player, state: PlayerState, positionMs: Long, panelOpen: B
             Spacer(Modifier.width(10.dp))
             Box(Modifier.width(1.dp).height(24.dp).background(Neon.Border))
             Spacer(Modifier.width(6.dp))
+            SmallIconButton(Icons.Rounded.PictureInPictureAlt, t(S.miniPlayer), onClick = onMiniPlayer)
             SmallIconButton(
                 Icons.Rounded.ViewSidebar, t(S.togglePanel),
                 tint = if (panelOpen) Neon.Accent else Neon.Muted,
