@@ -37,7 +37,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.automirrored.rounded.Notes
+import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PictureInPictureAlt
@@ -58,7 +62,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -93,13 +96,13 @@ fun RightPanel(
 ) {
     var queueTab by remember { mutableStateOf(false) }
     Row(modifier) {
-        Box(Modifier.width(1.dp).fillMaxHeight().background(Neon.Border))
         Column(Modifier.fillMaxSize().background(Neon.Surface.copy(alpha = 0.75f)).padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 PanelTab(t(S.nowPlaying), selected = !queueTab) { queueTab = false }
                 Spacer(Modifier.width(8.dp))
                 PanelTab(t(S.queue, state.queue.size), selected = queueTab) { queueTab = true }
                 Spacer(Modifier.weight(1f))
+                SmallIconButton(Icons.Rounded.SwapHoriz, t(S.swapSide)) { Appearance.setPanelLeft(!Appearance.panelLeft) }
                 SmallIconButton(Icons.Rounded.Close, t(S.togglePanel), onClick = onClose)
             }
             Spacer(Modifier.height(12.dp))
@@ -131,36 +134,53 @@ private fun PanelTab(label: String, selected: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun NowPlayingContent(track: Track, positionMs: Long, onSeek: (Long) -> Unit) {
-    var lyrics by remember(track.path) { mutableStateOf<LyricsResult?>(null) }
-    LaunchedEffect(track.path) {
+    val lyricsVersion = DesktopLyrics.version
+    var lyrics by remember(track.path, lyricsVersion) { mutableStateOf<LyricsResult?>(null) }
+    LaunchedEffect(track.path, lyricsVersion) {
         lyrics = withContext(Dispatchers.IO) { DesktopLyrics.load(track) }
     }
-    Column(Modifier.fillMaxSize().padding(top = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        CoverImage(
-            track, size = 224.dp, px = 512, corner = 16.dp,
-            modifier = Modifier.glow(Neon.Accent.copy(alpha = 0.6f), 22.dp, RoundedCornerShape(16.dp)),
-        )
-        Spacer(Modifier.height(16.dp))
-        Text(
-            track.title, color = Neon.TextStrong, fontSize = 16.sp, fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            track.artist.ifBlank { t(S.unknownArtist) }, color = Neon.Muted, fontSize = 12.sp,
-            textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis,
-        )
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            NeonBadge(track.codecLabel, color = Neon.Accent, emphasized = true)
-            track.specsLabel?.let { NeonBadge(it, color = Neon.Text) }
-        }
-        Spacer(Modifier.height(16.dp))
-        LyricsCard(lyrics, positionMs, onSeek, Modifier.weight(1f).fillMaxWidth())
+    val actions = LocalTrackActions.current
+    // La carátula crece con el ancho del panel (se ajusta arrastrando su borde), sin pasar
+    // de la mitad del alto para dejar sitio a la letra.
+    BoxWithConstraints(Modifier.fillMaxSize().padding(top = 16.dp)) {
+        val cover = minOf(maxWidth, maxHeight * 0.5f).coerceAtLeast(120.dp)
+        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box {
+                CoverImage(
+                    track, size = cover, px = if (cover > 300.dp) 1000 else 512, corner = 16.dp,
+                    modifier = Modifier.glow(Neon.Accent.copy(alpha = 0.6f), 22.dp, RoundedCornerShape(16.dp)),
+                )
+                if (actions != null) {
+                    Row(
+                        Modifier.align(Alignment.BottomEnd).padding(8.dp).clip(RoundedCornerShape(8.dp))
+                            .background(Neon.Night.copy(alpha = 0.7f)),
+                    ) {
+                        SmallIconButton(Icons.Rounded.Edit, t(S.editTags), tint = Neon.Text, size = 15.dp) { actions.editTags(listOf(track)) }
+                        SmallIconButton(Icons.Rounded.AddPhotoAlternate, t(S.searchCover), tint = Neon.Text, size = 15.dp) { actions.findCover(track) }
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                track.title, color = Neon.TextStrong, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                track.artist.ifBlank { t(S.unknownArtist) }, color = Neon.Muted, fontSize = 12.sp,
+                textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                NeonBadge(track.codecLabel, color = Neon.Accent, emphasized = true)
+                track.specsLabel?.let { NeonBadge(it, color = Neon.Text) }
+            }
+            Spacer(Modifier.height(16.dp))
+            LyricsCard(lyrics, positionMs, onSeek, Modifier.weight(1f).fillMaxWidth(), onSearch = actions?.let { a -> { a.findLyrics(track) } })
     }
 }
 
 @Composable
-private fun LyricsCard(result: LyricsResult?, positionMs: Long, onSeek: (Long) -> Unit, modifier: Modifier) {
+private fun LyricsCard(result: LyricsResult?, positionMs: Long, onSeek: (Long) -> Unit, modifier: Modifier, onSearch: (() -> Unit)?) {
     val found = (result as? LyricsResult.Found)?.lyrics
     Column(modifier.glass(RoundedCornerShape(12.dp), Neon.Card.copy(alpha = 0.6f)).padding(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -170,6 +190,7 @@ private fun LyricsCard(result: LyricsResult?, positionMs: Long, onSeek: (Long) -
             if (found != null) {
                 Text(sourceLabel(found.source).uppercase(), color = Neon.Accent, fontFamily = Mono, fontSize = 10.sp, maxLines = 1)
             }
+            if (onSearch != null) SmallIconButton(Icons.Rounded.Search, t(S.searchLyrics), size = 14.dp, onClick = onSearch)
         }
         Spacer(Modifier.height(8.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(Neon.Border))
@@ -221,18 +242,22 @@ private fun SyncedLyrics(lyrics: Lyrics, positionMs: Long, onSeek: (Long) -> Uni
                     else -> Neon.Faint
                 },
             )
-            val scale by animateFloatAsState(if (active) 1.05f else 1f)
+            // La línea activa crece con el tamaño de letra y no con un escalado: así el texto se
+            // vuelve a acomodar al ancho del panel y nunca queda cortado en los bordes, con
+            // cualquier tipo de letra o tamaño de texto.
+            val size by animateFloatAsState(if (active) 14f else 13f)
             Text(
                 line.text.ifBlank { "♪" },
                 color = color,
-                fontSize = 13.sp,
+                fontSize = size.sp,
+                lineHeight = (size * 1.45f).sp,
                 fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
                 textAlign = TextAlign.Center,
+                softWrap = true,
                 modifier = Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(6.dp))
                     .clickable { onSeek(line.timeMs) }
-                    .padding(vertical = 5.dp)
-                    .scale(scale),
+                    .padding(horizontal = 4.dp, vertical = 5.dp),
             )
         }
     }

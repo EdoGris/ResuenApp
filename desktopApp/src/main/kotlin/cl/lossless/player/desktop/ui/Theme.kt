@@ -173,7 +173,21 @@ object Appearance {
     var textSize by mutableStateOf(TextSize.entries.firstOrNull { it.name == AppSettings.textSize } ?: TextSize.NORMAL)
         private set
 
+    /** Panel de carátula y letra: a la izquierda de la lista en vez de a la derecha, y su ancho. */
+    var panelLeft by mutableStateOf(AppSettings.panelLeft)
+        private set
+    var panelWidth by mutableStateOf(AppSettings.panelWidth.coerceIn(PANEL_MIN, PANEL_MAX))
+        private set
+
     val palette: Palette by derivedStateOf { Palette.of(theme, accent) }
+
+    fun setPanelLeft(left: Boolean) { panelLeft = left; AppSettings.panelLeft = left }
+    /** Mientras se arrastra el borde; [savePanelWidth] lo guarda al soltar. */
+    fun resizePanel(width: Float) { panelWidth = width.coerceIn(PANEL_MIN, PANEL_MAX) }
+    fun savePanelWidth() { AppSettings.panelWidth = panelWidth }
+
+    const val PANEL_MIN = 280f
+    const val PANEL_MAX = 760f
 
     fun set(theme: ThemeMode) { this.theme = theme; AppSettings.theme = theme.name }
     fun set(accent: Accent) { this.accent = accent; AppSettings.accent = accent.name }

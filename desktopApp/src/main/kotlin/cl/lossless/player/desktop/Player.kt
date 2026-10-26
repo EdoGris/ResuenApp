@@ -42,6 +42,7 @@ class Player {
     val state: StateFlow<PlayerState> = _state.asStateFlow()
 
     @Volatile private var session: Session? = null
+    @Volatile private var thread: Thread? = null
     @Volatile var volume: Float = AppSettings.volume
         private set
 
@@ -91,6 +92,35 @@ class Player {
         session?.applyVolume(volume)
     }
 
+    /**
+     * Corre [block] con los archivos [paths] cerrados: si uno es el que suena, detiene la salida,
+     * espera a que FFmpeg lo suelte (Windows no deja reescribir un archivo abierto) y luego
+     * retoma en el mismo punto, en pausa si lo estaba. Bloqueante.
+     */
+    fun <T> withFilesReleased(paths: Set<String>, block: () -> T): T {
+        val s = session
+        val current = _state.value.current
+        if (s == null || current == null || current.path !in paths) return block()
+        val position = s.positionMs()
+        val paused = s.paused
+        s.stop()
+        thread?.join(2_000)
+        try {
+            return block()
+        } finally {
+            if (session === s) {
+                startCurrent()
+                session?.let { it.seekToMs = position; it.paused = paused }
+                if (paused) _state.update { it.copy(playing = false) }
+            }
+        }
+    }
+
+    /** Cambia en la cola las pistas cuyas etiquetas se editaron, sin cortar la reproducción. */
+    fun replaceTracks(updated: Map<String, Track>) {
+        _state.update { st -> st.copy(queue = st.queue.map { updated[it.path] ?: it }) }
+    }
+
     fun shutdown() {
         session?.stop()
         session = null
@@ -102,7 +132,7 @@ class Player {
         val s = Session(track)
         session = s
         _state.update { it.copy(playing = true, durationMs = track.durationMs, outputFormat = null) }
-        Thread({ s.run() }, "resuenapp-audio").apply { isDaemon = true; start() }
+        thread = Thread({ s.run() }, "resuenapp-audio").apply { isDaemon = true; start() }
     }
 
     private fun onEnded(s: Session) {

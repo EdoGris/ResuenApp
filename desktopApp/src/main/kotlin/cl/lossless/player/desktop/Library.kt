@@ -141,6 +141,13 @@ object AppSettings {
         get() = prefs.get("text_size", null)
         set(value) = prefs.put("text_size", value.orEmpty())
 
+    var panelLeft: Boolean
+        get() = prefs.getBoolean("panel_left", false)
+        set(value) = prefs.putBoolean("panel_left", value)
+    var panelWidth: Float
+        get() = prefs.getFloat("panel_width", 320f)
+        set(value) = prefs.putFloat("panel_width", value)
+
     // Mini reproductor: si queda encima de las demás ventanas y dónde se dejó (null = esquina inferior derecha).
     var miniOnTop: Boolean
         get() = prefs.getBoolean("mini_on_top", true)
@@ -175,7 +182,7 @@ object LibraryScanner {
         (0 until array.length()).map { Track.fromJson(array.getJSONObject(it)) }
     }.getOrDefault(emptyList())
 
-    private fun saveCache(tracks: List<Track>) {
+    fun saveCache(tracks: List<Track>) {
         runCatching {
             val array = JSONArray()
             tracks.forEach { array.put(it.toJson()) }

@@ -1,5 +1,8 @@
 package cl.lossless.player.desktop
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import cl.lossless.player.lyrics.ChannelSource
@@ -41,12 +44,43 @@ object DesktopLyrics {
     private val memory = ConcurrentHashMap<String, LyricsResult>()
     private val cacheDir get() = File(AppDirs.data, "lyrics").apply { mkdirs() }
 
+    /** Sube cada vez que el usuario elige una letra a mano, para que el panel la vuelva a cargar. */
+    var version by mutableIntStateOf(0)
+        private set
+
     /** Bloqueante: llamar desde un hilo de E/S. */
     fun load(track: Track): LyricsResult {
         memory[track.path]?.let { return it }
-        val result = readSidecar(track) ?: readEmbedded(track) ?: readCached(track) ?: fetchOnline(track)
+        val result = readManual(track) ?: readSidecar(track) ?: readEmbedded(track) ?: readCached(track) ?: fetchOnline(track)
         if (result != LyricsResult.Offline) memory[track.path] = result
         return result
+    }
+
+    /** Búsqueda a mano en LRCLIB con el título y el artista que escriba el usuario. Bloqueante. */
+    @Throws(IOException::class)
+    fun search(title: String, artist: String): List<LrcLibClient.Record> =
+        client.search(title.trim(), artist.trim()).filter { it.hasLyrics }
+
+    /** Guarda la letra elegida a mano; pasa por delante de .lrc, etiquetas y LRCLIB. */
+    fun setManual(track: Track, record: LrcLibClient.Record) {
+        val text = record.syncedLyrics?.takeIf { it.isNotBlank() } ?: record.plainLyrics.orEmpty()
+        runCatching { manualFile(track).writeText(text) }
+        memory.remove(track.path)
+        version++
+    }
+
+    /** Olvida lo cargado de una pista (por ejemplo, tras editar sus etiquetas). */
+    fun forget(paths: Collection<String>) {
+        paths.forEach(memory::remove)
+    }
+
+    private fun manualFile(track: Track): File =
+        File(File(cacheDir, "manual").apply { mkdirs() }, Integer.toHexString(track.path.hashCode()) + ".lrc")
+
+    private fun readManual(track: Track): LyricsResult? {
+        val f = manualFile(track)
+        if (!f.isFile) return null
+        return runCatching { LrcParser.toLyrics(f.readText(), LyricsSource.LRCLIB) }.getOrNull()?.let { LyricsResult.Found(it) }
     }
 
     private fun readSidecar(track: Track): LyricsResult? {
@@ -137,6 +171,16 @@ object Covers {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ImageBitmap?>?) = size > MAX_ENTRIES
     }
     private val folderNames = listOf("cover", "folder", "front", "album", "albumart")
+
+    /** Sube al cambiar una carátula, para que las imágenes en pantalla se vuelvan a leer. */
+    var version by mutableIntStateOf(0)
+        private set
+
+    /** Olvida todas las carátulas leídas (tras guardar una nueva en los archivos). */
+    fun invalidate() {
+        synchronized(cache) { cache.clear() }
+        version++
+    }
 
     fun cached(key: String, size: Int): ImageBitmap? = synchronized(cache) { cache["$key@$size"] }
     fun isCached(key: String, size: Int): Boolean = synchronized(cache) { cache.containsKey("$key@$size") }

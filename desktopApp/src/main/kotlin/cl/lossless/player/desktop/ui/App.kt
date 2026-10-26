@@ -4,6 +4,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -54,12 +57,17 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cl.lossless.player.desktop.APP_VERSION
+import cl.lossless.player.desktop.DesktopLyrics
 import cl.lossless.player.desktop.AppSettings
 import cl.lossless.player.desktop.IsMac
 import cl.lossless.player.desktop.Lang
@@ -75,6 +83,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.awt.Cursor
 import java.awt.FileDialog
 import java.io.File
 import java.text.Normalizer
@@ -109,6 +118,7 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
     var openArtist by remember { mutableStateOf<String?>(null) }
     var openFolder by remember { mutableStateOf<String?>(null) }
     var panelOpen by remember { mutableStateOf(true) }
+    var dialog by remember { mutableStateOf<TrackDialog?>(null) }
 
     fun rescan() {
         if (scanning != null) return
@@ -192,96 +202,160 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
         openAlbum = null; openArtist = null; openFolder = null
     }
 
-    Column(Modifier.fillMaxSize()) {
-        TitleBar(
-            query = query,
-            onQuery = {
-                query = it
-                if (tab == Tab.SETTINGS) tab = Tab.SONGS
-            },
-            searchFocus = searchFocus,
-            outputFormat = state.outputFormat,
+    val actions = remember {
+        TrackActions(
+            editTags = { dialog = TrackDialog.EditTags(it) },
+            // La carátula es del álbum: se guarda en todas sus pistas.
+            findCover = { t -> dialog = TrackDialog.FindCover(tracks.filter { it.albumKey == t.albumKey }.ifEmpty { listOf(t) }) },
+            findLyrics = { dialog = TrackDialog.FindLyrics(it) },
         )
-        Row(Modifier.weight(1f).fillMaxWidth()) {
-            Sidebar(
-                selected = tab,
-                trackCount = filtered.size,
-                onSelect = ::select,
-            )
+    }
 
-            Column(Modifier.weight(1f).fillMaxHeight().background(Neon.Night)) {
-                scanning?.let { n ->
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp)) {
-                        Text(t(S.scanning, n), fontFamily = Mono, fontSize = 11.sp, color = Neon.Muted)
-                        LinearProgressIndicator(
-                            Modifier.fillMaxWidth().padding(top = 6.dp).height(2.dp),
-                            color = Neon.Accent,
-                            trackColor = Neon.Border,
-                        )
-                    }
-                }
-                Box(Modifier.weight(1f).fillMaxWidth()) {
-                    val current = state.current?.path
-                    when {
-                        tab == Tab.SETTINGS -> SettingsScreen(
-                            folders = folders,
-                            language = language,
-                            outputFormat = state.outputFormat,
-                            onAdd = ::addFolder,
-                            onRemove = ::removeFolder,
-                            onRescan = ::rescan,
-                            onLanguage = onLanguage,
-                        )
-                        folders.isEmpty() && tracks.isEmpty() -> EmptyLibrary(onAdd = ::addFolder)
-                        tab == Tab.SONGS -> TrackTable(
-                            filtered,
-                            currentPath = current,
-                            playing = state.playing,
-                            header = { SongsHeader(folders, filtered) { player.playQueue(filtered, 0) } },
-                        ) { player.playQueue(filtered, it) }
-                        tab == Tab.ALBUMS -> {
-                            val album = openAlbum?.let { key -> albums.firstOrNull { it.key == key } }
-                            if (album != null) {
-                                AlbumDetail(album, current, state.playing, onBack = { openAlbum = null }) { player.playQueue(album.tracks, it) }
-                            } else {
-                                AlbumGrid(albums) { openAlbum = it.key }
-                            }
-                        }
-                        tab == Tab.ARTISTS -> {
-                            val artist = openArtist?.let { name -> artists.firstOrNull { it.name == name } }
-                            if (artist != null) {
-                                ArtistDetail(artist, current, state.playing, onBack = { openArtist = null }) { player.playQueue(artist.tracks, it) }
-                            } else {
-                                ArtistGrid(artists) { openArtist = it.name }
-                            }
-                        }
-                        else -> {
-                            val folder = openFolder?.let { path -> folderGroups.firstOrNull { it.first == path } }
-                            if (folder != null) {
-                                val list = remember(folder) { folder.second.sortedWith(compareBy({ it.discNumber }, { it.trackNumber }, { it.file.name.lowercase() })) }
-                                FolderDetail(folder.first, list, current, state.playing, onBack = { openFolder = null }) { player.playQueue(list, it) }
-                            } else {
-                                FolderList(folderGroups) { openFolder = it }
-                            }
-                        }
-                    }
-                }
-            }
+    fun onTagsSaved(updated: List<Track>) {
+        val byPath = updated.associateBy { it.path }
+        tracks = tracks.map { byPath[it.path] ?: it }.sortedForLibrary()
+        player.replaceTracks(byPath)
+        DesktopLyrics.forget(byPath.keys)
+        // Si el álbum abierto cambió de nombre, se sigue mostrando con el nombre nuevo.
+        if (openAlbum != null && tracks.none { it.albumKey == openAlbum }) openAlbum = updated.firstOrNull()?.albumKey
+        val snapshot = tracks
+        scope.launch(Dispatchers.IO) { LibraryScanner.saveCache(snapshot) }
+    }
 
-            val track = state.current
-            if (track != null && panelOpen) {
-                RightPanel(
-                    track = track,
-                    state = state,
-                    positionMs = position,
-                    onSeek = player::seek,
-                    onPlayQueueItem = { player.playQueue(state.queue, it) },
-                    onClose = { panelOpen = false },
-                    modifier = Modifier.width(320.dp).fillMaxHeight(),
+    val track = state.current
+    val showPanel = track != null && panelOpen
+    val density = LocalDensity.current
+
+    @Composable
+    fun Panel() {
+        if (track == null) return
+        val left = Appearance.panelLeft
+        if (!left) PanelResizeHandle(density) { dx -> Appearance.resizePanel(Appearance.panelWidth - dx) }
+        RightPanel(
+            track = track,
+            state = state,
+            positionMs = position,
+            onSeek = player::seek,
+            onPlayQueueItem = { player.playQueue(state.queue, it) },
+            onClose = { panelOpen = false },
+            modifier = Modifier.width(Appearance.panelWidth.dp).fillMaxHeight(),
+        )
+        if (left) PanelResizeHandle(density) { dx -> Appearance.resizePanel(Appearance.panelWidth + dx) }
+    }
+
+    CompositionLocalProvider(LocalTrackActions provides actions) {
+        Box(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize()) {
+                TitleBar(
+                    query = query,
+                    onQuery = {
+                        query = it
+                        if (tab == Tab.SETTINGS) tab = Tab.SONGS
+                    },
+                    searchFocus = searchFocus,
+                    outputFormat = state.outputFormat,
                 )
+                Row(Modifier.weight(1f).fillMaxWidth()) {
+                    Sidebar(
+                        selected = tab,
+                        trackCount = filtered.size,
+                        onSelect = ::select,
+                    )
+                    if (showPanel && Appearance.panelLeft) Panel()
+
+                    Column(Modifier.weight(1f).fillMaxHeight().background(Neon.Night)) {
+                        scanning?.let { n ->
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp)) {
+                                Text(t(S.scanning, n), fontFamily = Mono, fontSize = 11.sp, color = Neon.Muted)
+                                LinearProgressIndicator(
+                                    Modifier.fillMaxWidth().padding(top = 6.dp).height(2.dp),
+                                    color = Neon.Accent,
+                                    trackColor = Neon.Border,
+                                )
+                            }
+                        }
+                        Box(Modifier.weight(1f).fillMaxWidth()) {
+                            val current = state.current?.path
+                            when {
+                                tab == Tab.SETTINGS -> SettingsScreen(
+                                    folders = folders,
+                                    language = language,
+                                    outputFormat = state.outputFormat,
+                                    onAdd = ::addFolder,
+                                    onRemove = ::removeFolder,
+                                    onRescan = ::rescan,
+                                    onLanguage = onLanguage,
+                                )
+                                folders.isEmpty() && tracks.isEmpty() -> EmptyLibrary(onAdd = ::addFolder)
+                                tab == Tab.SONGS -> TrackTable(
+                                    filtered,
+                                    currentPath = current,
+                                    playing = state.playing,
+                                    header = { SongsHeader(folders, filtered) { player.playQueue(filtered, 0) } },
+                                ) { player.playQueue(filtered, it) }
+                                tab == Tab.ALBUMS -> {
+                                    val album = openAlbum?.let { key -> albums.firstOrNull { it.key == key } }
+                                    if (album != null) {
+                                        AlbumDetail(album, current, state.playing, onBack = { openAlbum = null }) { player.playQueue(album.tracks, it) }
+                                    } else {
+                                        AlbumGrid(albums) { openAlbum = it.key }
+                                    }
+                                }
+                                tab == Tab.ARTISTS -> {
+                                    val artist = openArtist?.let { name -> artists.firstOrNull { it.name == name } }
+                                    if (artist != null) {
+                                        ArtistDetail(artist, current, state.playing, onBack = { openArtist = null }) { player.playQueue(artist.tracks, it) }
+                                    } else {
+                                        ArtistGrid(artists) { openArtist = it.name }
+                                    }
+                                }
+                                else -> {
+                                    val folder = openFolder?.let { path -> folderGroups.firstOrNull { it.first == path } }
+                                    if (folder != null) {
+                                        val list = remember(folder) { folder.second.sortedWith(compareBy({ it.discNumber }, { it.trackNumber }, { it.file.name.lowercase() })) }
+                                        FolderDetail(folder.first, list, current, state.playing, onBack = { openFolder = null }) { player.playQueue(list, it) }
+                                    } else {
+                                        FolderList(folderGroups) { openFolder = it }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (showPanel && !Appearance.panelLeft) Panel()
+                }
+                PlayerBar(player, state, position, panelOpen = panelOpen && state.current != null, onMiniPlayer = onMiniPlayer) { panelOpen = !panelOpen }
             }
+            dialog?.let { d -> TrackDialogHost(d, player, onDismiss = { dialog = null }, onUpdated = ::onTagsSaved) }
         }
-        PlayerBar(player, state, position, panelOpen = panelOpen && state.current != null, onMiniPlayer = onMiniPlayer) { panelOpen = !panelOpen }
+    }
+}
+
+/**
+ * Borde del panel de reproducción: una línea de 1 dp con una zona de 7 dp que se arrastra para
+ * cambiar el ancho del panel ([onDrag] recibe el desplazamiento horizontal en dp).
+ */
+@Composable
+private fun PanelResizeHandle(density: Density, onDrag: (Float) -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    val hovered by interaction.collectIsHoveredAsState()
+    var dragging by remember { mutableStateOf(false) }
+    Box(
+        Modifier.width(7.dp).fillMaxHeight()
+            .hoverable(interaction)
+            .pointerHoverIcon(PointerIcon(Cursor(Cursor.E_RESIZE_CURSOR)))
+            .draggable(
+                orientation = Orientation.Horizontal,
+                state = rememberDraggableState { px -> onDrag(with(density) { px.toDp().value }) },
+                onDragStarted = { dragging = true },
+                onDragStopped = { dragging = false; Appearance.savePanelWidth() },
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier.width(if (hovered || dragging) 2.dp else 1.dp).fillMaxHeight()
+                .background(if (hovered || dragging) Neon.Accent.copy(alpha = 0.7f) else Neon.Border),
+        )
     }
 }
 
