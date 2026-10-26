@@ -40,7 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.WindowDraggableArea
+import androidx.compose.foundation.window.WindowDraggableArea
 import androidx.compose.ui.window.WindowScope
 import cl.lossless.player.desktop.Player
 import cl.lossless.player.desktop.S
