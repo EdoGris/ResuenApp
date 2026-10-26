@@ -63,6 +63,7 @@ Los tipos de letra que se eligen en Ajustes → Apariencia están incluidos en
 - Nunito — Copyright 2014 The Nunito Project Authors (https://github.com/googlefonts/nunito)
 - Montserrat — Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat)
 - Poppins — Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins)
+- Bricolage Grotesque — Copyright 2022 The Bricolage Grotesque Project Authors (https://github.com/ateliertriay/bricolage); instancias estáticas de Google Fonts
 
 ```
 SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007

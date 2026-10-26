@@ -7,8 +7,14 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      RELEASES_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+      DEBUG_KEYSTORE_B64: ${{ secrets.DEBUG_KEYSTORE_B64 }}
     steps:
+      # Historial completo: la versión es 1.2.<cantidad de commits>.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:
@@ -21,6 +27,15 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # La build experimental se firma con la llave de depuración. Con la de Eduardo (secreto
+      # DEBUG_KEYSTORE_B64, su ~/.android/debug.keystore en base64) el APK del CI se instala
+      # encima del que compila él, y el actualizador de la app puede reemplazarlo.
+      - name: Llave de firma
+        if: env.DEBUG_KEYSTORE_B64 != ''
+        run: |
+          mkdir -p ~/.android
+          echo "$DEBUG_KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
+
       - name: Tests y APK
         run: |
           chmod +x gradlew
@@ -31,11 +46,33 @@ jobs:
           name: ResuenApp-debug
           path: app/build/outputs/apk/debug/app-debug.apk
 
+      - name: Número de compilación
+        id: build
+        run: |
+          n=$(git rev-list --count HEAD)
+          echo "number=$n" >> "$GITHUB_OUTPUT"
+          cp app/build/outputs/apk/experimental/app-experimental.apk "ResuenApp-exp-1.2.$n.apk"
+
       # Build "experimental" (paquete .exp): se instala junto a la app estable sin reemplazarla.
       - uses: actions/upload-artifact@v4
         with:
           name: ResuenApp-experimental
           path: app/build/outputs/apk/experimental/app-experimental.apk
+
+      # Cada push a experimental se publica en el repo público de instaladores, de donde la app
+      # se actualiza sola. Necesita el secreto RELEASES_TOKEN (permiso Contents: write en ese repo).
+      # Solo con la llave de Eduardo: un APK firmado con otra no se podría instalar encima.
+      - name: Publicar versión
+        if: github.ref == 'refs/heads/experimental' && env.RELEASES_TOKEN != '' && env.DEBUG_KEYSTORE_B64 != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: EdoGris/ResuenApp-releases
+          token: ${{ secrets.RELEASES_TOKEN }}
+          tag_name: exp-1.2.${{ steps.build.outputs.number }}
+          name: ResuenApp 1.2.${{ steps.build.outputs.number }} (experimental)
+          prerelease: true
+          body: ${{ github.event.head_commit.message }}
+          files: ResuenApp-exp-1.2.${{ steps.build.outputs.number }}.apk
 
   # Servidor de alineación de letras: tests con el pipeline simulado (sin bajar los modelos).
   aligner:

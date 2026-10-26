@@ -77,12 +77,11 @@ enum class AppFont(val brandName: String?, private val file: String?) {
     NUNITO("Nunito", "nunito"),
     MONTSERRAT("Montserrat", "montserrat"),
     POPPINS("Poppins", "poppins"),
-    SERIF("Serif", null),
+    BRICOLAGE("Bricolage Grotesque", "bricolage_grotesque"),
     ;
 
     val family: FontFamily by lazy {
         when {
-            this == SERIF -> FontFamily.Serif
             file == null -> FontFamily.Default
             else -> FontFamily(
                 listOf("regular" to FontWeight.Normal, "medium" to FontWeight.Medium, "semibold" to FontWeight.SemiBold, "bold" to FontWeight.Bold)
@@ -168,7 +167,8 @@ object Appearance {
         private set
     var accent by mutableStateOf(Accent.entries.firstOrNull { it.name == AppSettings.accent } ?: Accent.NEON_CYAN)
         private set
-    var font by mutableStateOf(AppFont.entries.firstOrNull { it.name == AppSettings.font } ?: AppFont.INTER)
+    // Bricolage Grotesque ocupa el lugar de la antigua opción "SERIF".
+    var font by mutableStateOf(AppFont.entries.firstOrNull { it.name == AppSettings.font?.replace("SERIF", "BRICOLAGE") } ?: AppFont.INTER)
         private set
     var textSize by mutableStateOf(TextSize.entries.firstOrNull { it.name == AppSettings.textSize } ?: TextSize.NORMAL)
         private set

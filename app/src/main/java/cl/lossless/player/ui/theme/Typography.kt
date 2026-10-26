@@ -23,7 +23,7 @@ enum class AppFont(private val brandName: String?, @StringRes private val labelR
     NUNITO("Nunito"),
     MONTSERRAT("Montserrat"),
     POPPINS("Poppins"),
-    SERIF("Serif"),
+    BRICOLAGE("Bricolage Grotesque"),
     ;
 
     /** Nombre para mostrar: el de la familia o, si es genérico, traducido. */
@@ -40,7 +40,7 @@ enum class AppFont(private val brandName: String?, @StringRes private val labelR
             NUNITO -> nunito
             MONTSERRAT -> montserrat
             POPPINS -> poppins
-            SERIF -> FontFamily.Serif
+            BRICOLAGE -> bricolage
         }
 }
 
@@ -65,6 +65,10 @@ private val openSans = family(R.font.open_sans_regular, R.font.open_sans_medium,
 private val nunito = family(R.font.nunito_regular, R.font.nunito_medium, R.font.nunito_semibold, R.font.nunito_bold)
 private val montserrat = family(R.font.montserrat_regular, R.font.montserrat_medium, R.font.montserrat_semibold, R.font.montserrat_bold)
 private val poppins = family(R.font.poppins_regular, R.font.poppins_medium, R.font.poppins_semibold, R.font.poppins_bold)
+private val bricolage = family(
+    R.font.bricolage_grotesque_regular, R.font.bricolage_grotesque_medium,
+    R.font.bricolage_grotesque_semibold, R.font.bricolage_grotesque_bold,
+)
 
 /** Tipografía de Material 3 con la familia elegida (el tamaño se aplica aparte, en la densidad). */
 fun appTypography(font: AppFont): Typography {

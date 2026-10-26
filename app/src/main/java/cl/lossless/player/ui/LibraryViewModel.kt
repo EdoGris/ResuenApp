@@ -123,7 +123,8 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
             dynamicColor = prefs.dynamicColor,
             accent = AccentColor.entries.firstOrNull { it.name == prefs.accentColor } ?: AccentColor.BLUE,
             tintedText = prefs.tintedText,
-            font = AppFont.entries.firstOrNull { it.name == prefs.appFont } ?: AppFont.SYSTEM,
+            // Bricolage Grotesque ocupa el lugar de la antigua opción "SERIF".
+            font = AppFont.entries.firstOrNull { it.name == prefs.appFont.let { f -> if (f == "SERIF") "BRICOLAGE" else f } } ?: AppFont.SYSTEM,
             textSize = TextSize.entries.firstOrNull { it.name == prefs.textSize } ?: TextSize.NORMAL,
             swipeToSkip = prefs.swipeToSkip,
             folderSort = FolderSort.entries.firstOrNull { it.name == prefs.folderSort } ?: FolderSort.NAME_ASC,

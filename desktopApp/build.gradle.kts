@@ -13,6 +13,24 @@ kotlin { jvmToolchain(17) }
 
 val javacpp = "1.5.11"
 
+// Versión 1.2.N con N = cantidad de commits (igual que la app Android): cada instalador que
+// publica el CI es más nuevo que el anterior, y el actualizador de la app lo compara así.
+val buildNumber: Int = providers.environmentVariable("RESUENAPP_BUILD").orNull?.toIntOrNull()
+    ?: runCatching {
+        providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }.standardOutput.asText.get().trim().toInt()
+    }.getOrDefault(0)
+val appVersion = "1.2.$buildNumber"
+
+// La app lee su versión de este recurso (APP_VERSION en Main.kt).
+val generateVersion by tasks.registering {
+    val out = layout.buildDirectory.dir("generated/version")
+    val version = appVersion
+    inputs.property("version", version)
+    outputs.dir(out)
+    doLast { out.get().file("resuenapp-version.txt").asFile.writeText(version) }
+}
+sourceSets { main { resources.srcDir(generateVersion) } }
+
 // Cada instalador lleva solo las librerías nativas de FFmpeg de la máquina que lo compila
 // (jpackage no puede empaquetar para otro sistema): windows-x86_64, macosx-arm64 o macosx-x86_64.
 val hostOs = System.getProperty("os.name").lowercase()
@@ -58,7 +76,7 @@ compose.desktop {
             // En CI la .dmg final la arma installer/macos/make-dmg.sh (fondo e ícono del volumen).
             targetFormats(TargetFormat.Msi, TargetFormat.Dmg)
             packageName = "ResuenApp"
-            packageVersion = "1.2.0"
+            packageVersion = appVersion
             description = "Reproductor de música sin pérdida"
             vendor = "EdoGris"
             includeAllModules = true
