@@ -34,7 +34,10 @@ import kotlin.math.sin
 import javax.swing.UIManager
 import kotlin.system.exitProcess
 
-const val APP_VERSION = "1.2.0"
+/** "1.2.N", generada al compilar (ver generateVersion en build.gradle.kts). */
+val APP_VERSION: String by lazy {
+    Player::class.java.classLoader.getResourceAsStream("resuenapp-version.txt")?.use { it.readBytes().decodeToString().trim() } ?: "1.2.0"
+}
 
 fun main(args: Array<String>) {
     if (args.firstOrNull() == "--self-test") {

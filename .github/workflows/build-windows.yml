@@ -7,8 +7,13 @@ on:
 jobs:
   msi:
     runs-on: windows-latest
+    env:
+      RELEASES_TOKEN: ${{ secrets.RELEASES_TOKEN }}
     steps:
+      # Historial completo: la versión es 1.2.<cantidad de commits>.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:
@@ -16,6 +21,11 @@ jobs:
           java-version: 17
 
       - uses: gradle/actions/setup-gradle@v4
+
+      - name: Número de compilación
+        id: build
+        shell: bash
+        run: echo "number=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Instalador MSI
         run: ./gradlew :shared:jvmTest :desktopApp:createDistributable :desktopApp:packageMsi
@@ -63,3 +73,17 @@ jobs:
           path: |
             desktopApp/build/compose/binaries/main/setup/*.exe
             desktopApp/build/compose/binaries/main/msi/*.msi
+
+      # Cada push a experimental se publica en el repo público de instaladores, de donde la app
+      # se actualiza sola. Necesita el secreto RELEASES_TOKEN (permiso Contents: write en ese repo).
+      - name: Publicar versión
+        if: github.ref == 'refs/heads/experimental' && env.RELEASES_TOKEN != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: EdoGris/ResuenApp-releases
+          token: ${{ secrets.RELEASES_TOKEN }}
+          tag_name: exp-1.2.${{ steps.build.outputs.number }}
+          name: ResuenApp 1.2.${{ steps.build.outputs.number }} (experimental)
+          prerelease: true
+          body: ${{ github.event.head_commit.message }}
+          files: desktopApp/build/compose/binaries/main/setup/*.exe

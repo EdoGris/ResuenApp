@@ -229,4 +229,14 @@ object S {
         "Toujours au-dessus des autres fenêtres",
         "Sempre acima das outras janelas",
     )
+
+    // Actualizaciones
+    val updateCheck = Str("Buscar actualizaciones", "Check for updates", "Rechercher des mises à jour", "Procurar atualizações")
+    val updateChecking = Str("Buscando versiones nuevas…", "Checking for new versions…", "Recherche de nouvelles versions…", "Procurando versões novas…")
+    val updateUpToDate = Str("Tienes la versión más reciente", "You have the latest version", "Vous avez la dernière version", "Você tem a versão mais recente")
+    val updateAvailable = Str("Versión %1\$s disponible", "Version %1\$s available", "Version %1\$s disponible", "Versão %1\$s disponível")
+    val updatePill = Str("Actualizar a %1\$s", "Update to %1\$s", "Mettre à jour vers %1\$s", "Atualizar para %1\$s")
+    val updateInstall = Str("Descargar e instalar", "Download and install", "Télécharger et installer", "Baixar e instalar")
+    val updateDownloading = Str("Descargando… %1\$d %%", "Downloading… %1\$d %%", "Téléchargement… %1\$d %%", "Baixando… %1\$d %%")
+    val updateFailed = Str("No se pudo actualizar: %1\$s", "Update failed: %1\$s", "Échec de la mise à jour : %1\$s", "Não foi possível atualizar: %1\$s")
 }

@@ -171,4 +171,16 @@
     <string name="settings_section_language">Idioma</string>
     <string name="settings_language_hint">Elige el idioma de la app o usa el del sistema.</string>
     <string name="settings_language_system">Sistema</string>
+    <string name="settings_section_updates">Actualizaciones</string>
+    <string name="update_check">Buscar actualizaciones</string>
+    <string name="update_checking">Buscando…</string>
+    <string name="update_up_to_date">Tienes la última versión</string>
+    <string name="update_available">Versión %1$s disponible</string>
+    <string name="update_install">Actualizar</string>
+    <string name="update_downloading">Descargando… %1$d %%</string>
+    <string name="update_permission">Permite instalar apps desde ResuenApp y vuelve a tocar Actualizar.</string>
+    <string name="update_failed">No se pudo buscar: %1$s</string>
+    <string name="update_dialog_title">Nueva versión disponible</string>
+    <string name="update_dialog_body">Está disponible la versión %1$s. Se descarga y se instala encima, sin perder tu biblioteca ni tus ajustes.</string>
+    <string name="update_later">Más tarde</string>
 </resources>

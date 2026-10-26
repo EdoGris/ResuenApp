@@ -90,6 +90,7 @@ import cl.lossless.player.desktop.S
 import cl.lossless.player.desktop.Track
 import cl.lossless.player.desktop.khz
 import cl.lossless.player.desktop.t
+import cl.lossless.player.update.AvailableUpdate
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -612,6 +613,8 @@ fun SettingsScreen(
     onRemove: (String) -> Unit,
     onRescan: () -> Unit,
     onLanguage: (Lang?) -> Unit,
+    onCheckUpdate: () -> Unit,
+    onInstallUpdate: (AvailableUpdate) -> Unit,
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -655,6 +658,7 @@ fun SettingsScreen(
                 Spacer(Modifier.width(12.dp))
                 Text("ResuenApp · ${t(S.version, APP_VERSION)}", color = Neon.Text, fontSize = 13.sp)
             }
+            UpdateSettings(onCheckUpdate, onInstallUpdate)
         }
     }
 }

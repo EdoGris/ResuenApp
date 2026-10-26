@@ -17,6 +17,7 @@ import cl.lossless.player.playback.PlaybackService
 import cl.lossless.player.ui.LibraryViewModel
 import cl.lossless.player.ui.LosslessApp
 import cl.lossless.player.ui.theme.LosslessTheme
+import cl.lossless.player.update.UpdatePrompt
 import com.google.common.util.concurrent.ListenableFuture
 
 class MainActivity : ComponentActivity() {
@@ -47,6 +48,7 @@ class MainActivity : ComponentActivity() {
                     vm = vm,
                     openNowPlayingSignal = openNowPlaying.intValue,
                 )
+                UpdatePrompt()
             }
         }
     }

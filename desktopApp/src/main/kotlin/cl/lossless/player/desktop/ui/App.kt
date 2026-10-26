@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cl.lossless.player.desktop.APP_VERSION
 import cl.lossless.player.desktop.DesktopLyrics
+import cl.lossless.player.desktop.DesktopUpdater
 import cl.lossless.player.desktop.AppSettings
 import cl.lossless.player.desktop.IsMac
 import cl.lossless.player.desktop.Lang
@@ -79,6 +80,7 @@ import cl.lossless.player.desktop.Track
 import cl.lossless.player.desktop.sortedForLibrary
 import cl.lossless.player.desktop.t
 import cl.lossless.player.desktop.toAlbums
+import cl.lossless.player.update.AvailableUpdate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -135,6 +137,12 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
     LaunchedEffect(Unit) {
         tracks = withContext(Dispatchers.IO) { LibraryScanner.loadCache() }.sortedForLibrary()
         if (folders.isNotEmpty()) rescan()
+    }
+
+    // Busca una versión nueva al abrir; si la hay, aparece el aviso en la barra superior.
+    LaunchedEffect(Unit) { DesktopUpdater.check(quiet = true) }
+    fun installUpdate(update: AvailableUpdate) {
+        scope.launch { DesktopUpdater.install(update, player) }
     }
 
     val chooseTitle = t(S.chooseFolder)
@@ -254,6 +262,7 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
                     },
                     searchFocus = searchFocus,
                     outputFormat = state.outputFormat,
+                    onUpdate = ::installUpdate,
                 )
                 Row(Modifier.weight(1f).fillMaxWidth()) {
                     Sidebar(
@@ -285,6 +294,8 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
                                     onRemove = ::removeFolder,
                                     onRescan = ::rescan,
                                     onLanguage = onLanguage,
+                                    onCheckUpdate = { scope.launch { DesktopUpdater.check() } },
+                                    onInstallUpdate = ::installUpdate,
                                 )
                                 folders.isEmpty() && tracks.isEmpty() -> EmptyLibrary(onAdd = ::addFolder)
                                 tab == Tab.SONGS -> TrackTable(
@@ -361,7 +372,13 @@ private fun PanelResizeHandle(density: Density, onDrag: (Float) -> Unit) {
 
 /** Barra superior: logo, versión, búsqueda global (Ctrl+F / ⌘F) y estado de la salida de audio. */
 @Composable
-private fun TitleBar(query: String, onQuery: (String) -> Unit, searchFocus: FocusRequester, outputFormat: String?) {
+private fun TitleBar(
+    query: String,
+    onQuery: (String) -> Unit,
+    searchFocus: FocusRequester,
+    outputFormat: String?,
+    onUpdate: (AvailableUpdate) -> Unit,
+) {
     Row(
         Modifier.fillMaxWidth().height(48.dp).background(Neon.Night).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -376,7 +393,8 @@ private fun TitleBar(query: String, onQuery: (String) -> Unit, searchFocus: Focu
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
             SearchField(query, onQuery, searchFocus, Modifier.widthIn(max = 460.dp).fillMaxWidth())
         }
-        Row(Modifier.width(228.dp), horizontalArrangement = Arrangement.End) {
+        Row(Modifier.width(228.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
+            UpdatePill(onUpdate)
             if (outputFormat != null) {
                 val shape = RoundedCornerShape(50)
                 Row(
