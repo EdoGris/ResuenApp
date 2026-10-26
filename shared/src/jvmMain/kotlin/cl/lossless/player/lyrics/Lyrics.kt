@@ -17,7 +17,7 @@ data class LyricLine(val timeMs: Long, val text: String, val words: List<LyricWo
 }
 
 /** De dónde salió la letra. El texto visible lo da cada app (en Android, `LyricsSource.labelRes`). */
-enum class LyricsSource { SIDECAR, EMBEDDED, LRCLIB, USER, ALIGNED }
+enum class LyricsSource { SIDECAR, EMBEDDED, LRCLIB, LYRICS_OVH, USER, ALIGNED }
 
 /**
  * Letra de una pista: sincronizada ([synced]) cuando hay marcas de tiempo; si no, solo texto

@@ -39,7 +39,8 @@ SOFTWARE.
 ## LRCLIB
 
 Las letras en línea provienen de [LRCLIB](https://lrclib.net), una base de datos
-comunitaria y gratuita de letras.
+comunitaria y gratuita de letras. Si LRCLIB no tiene la canción, la app consulta
+[Lyrics.ovh](https://lyrics.ovh), una API comunitaria gratuita que solo entrega texto plano.
 
 ## Servidor de alineación (`aligner/`)
 
