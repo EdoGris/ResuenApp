@@ -12,6 +12,7 @@ data class AudioSpec(val mime: String, val sampleRate: Int, val channelCount: In
         MediaFormat.MIMETYPE_AUDIO_MPEG -> context.getString(R.string.player_codec_lossy, "MP3")
         MediaFormat.MIMETYPE_AUDIO_FLAC -> context.getString(R.string.player_codec_lossless, "FLAC")
         "audio/alac" -> context.getString(R.string.player_codec_lossless, "ALAC")
+        MediaFormat.MIMETYPE_AUDIO_RAW -> context.getString(R.string.player_codec_lossless, "WAV")
         MediaFormat.MIMETYPE_AUDIO_AAC -> context.getString(R.string.player_codec_lossy, "AAC")
         else -> mime
     }
