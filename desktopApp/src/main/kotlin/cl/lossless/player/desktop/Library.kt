@@ -95,15 +95,22 @@ fun List<Track>.sortedForLibrary(): List<Track> =
     sortedWith(compareBy({ it.albumArtist.ifBlank { it.artist }.lowercase() }, { it.album.lowercase() },
         { it.discNumber }, { it.trackNumber }, { it.title.lowercase() }))
 
-/** Carpeta donde la app guarda su índice y cachés (%APPDATA%\ResuenApp en Windows). */
+/**
+ * Carpeta donde la app guarda su índice y cachés: %APPDATA%\ResuenApp en Windows,
+ * ~/Library/Application Support/ResuenApp en macOS.
+ */
 object AppDirs {
     val data: File by lazy {
-        val base = System.getenv("APPDATA")?.let(::File) ?: File(System.getProperty("user.home"), ".config")
+        val home = System.getProperty("user.home")
+        val base = when {
+            IsMac -> File(home, "Library/Application Support")
+            else -> System.getenv("APPDATA")?.let(::File) ?: File(home, ".config")
+        }
         File(base, "ResuenApp").apply { mkdirs() }
     }
 }
 
-/** Ajustes guardados en el registro de Windows (java.util.prefs). */
+/** Ajustes guardados con java.util.prefs (registro en Windows, .plist en macOS). */
 object AppSettings {
     private val prefs: Preferences = Preferences.userRoot().node("cl/lossless/resuenapp")
 

@@ -25,7 +25,10 @@ Media3 / ExoPlayer, MediaCodec, MediaStore y AudioManager.
   teléfono y cliente del servidor de alineación (`AlignmentClient.kt`).
 - `shared/`: lógica sin dependencias de Android (parser LRC, LRCLIB, alineación, búsqueda de
   carátulas, filtros del ecualizador, detección de voz). La usa la app Android y la usará la
-  futura versión para Windows. Sus tests corren con `./gradlew :shared:jvmTest`.
+  versión de escritorio. Sus tests corren con `./gradlew :shared:jvmTest`.
+- `desktopApp/`: versión de escritorio para Windows (.msi, workflow *Compilar Windows*) y
+  macOS (.dmg para Apple Silicon e Intel, workflow *Compilar macOS*; ver
+  [docs/macos.md](docs/macos.md) para abrirla sin firma de Apple).
 - `aligner/`: servidor opcional (Python, FastAPI + WhisperX) que calcula los tiempos exactos
   de cada palabra de una letra sin marcas. Ver [aligner/README.md](aligner/README.md).
 
