@@ -92,4 +92,17 @@
         <item quantity="many">%d titres ajoutés à la file de synchronisation des paroles</item>
         <item quantity="other">%d titres ajoutés à la file de synchronisation des paroles</item>
     </plurals>
+
+    <!-- Búsqueda y orden -->
+    <string name="library_search_albums">Rechercher des albums</string>
+    <string name="library_search_folders">Rechercher des dossiers</string>
+    <string name="library_search_folders_tracks">Rechercher des dossiers et des titres</string>
+    <string name="library_search_clear">Effacer la recherche</string>
+    <string name="library_search_no_results">Aucun résultat pour « %1$s »</string>
+    <string name="library_sort">Trier les dossiers</string>
+    <string name="library_sort_name_asc">Nom (A-Z)</string>
+    <string name="library_sort_name_desc">Nom (Z-A)</string>
+    <string name="library_sort_newest">Modifiés récemment</string>
+    <string name="library_sort_oldest">Modifiés il y a longtemps</string>
+    <string name="library_sort_most_tracks">Plus de titres</string>
 </resources>

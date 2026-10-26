@@ -92,4 +92,17 @@
         <item quantity="many">%d canciones en la cola de sincronización de letras</item>
         <item quantity="other">%d canciones en la cola de sincronización de letras</item>
     </plurals>
+
+    <!-- Búsqueda y orden -->
+    <string name="library_search_albums">Buscar álbumes</string>
+    <string name="library_search_folders">Buscar carpetas</string>
+    <string name="library_search_folders_tracks">Buscar carpetas y canciones</string>
+    <string name="library_search_clear">Borrar búsqueda</string>
+    <string name="library_search_no_results">Sin resultados para «%1$s»</string>
+    <string name="library_sort">Ordenar carpetas</string>
+    <string name="library_sort_name_asc">Nombre (A-Z)</string>
+    <string name="library_sort_name_desc">Nombre (Z-A)</string>
+    <string name="library_sort_newest">Modificadas recientemente</string>
+    <string name="library_sort_oldest">Modificadas hace más tiempo</string>
+    <string name="library_sort_most_tracks">Más canciones</string>
 </resources>
