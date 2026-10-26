@@ -57,6 +57,7 @@ import cl.lossless.player.library.Track
 import cl.lossless.player.playback.PlaybackStatus
 import cl.lossless.player.library.FolderExclusions
 import cl.lossless.player.playback.eq.EqPresets
+import cl.lossless.player.playback.eq.nameRes
 import cl.lossless.player.ui.screens.ExcludedFoldersScreen
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost

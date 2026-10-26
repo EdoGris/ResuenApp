@@ -133,7 +133,7 @@ class LyricsRepository(
         val key = "estimate:${track.uri}#${plain.hashCode()}"
         (withContext(Dispatchers.IO) { cache.get(key) } as? LyricsCache.Entry.Found)?.let { return it.lyrics }
 
-        val segments = withContext(Dispatchers.Default) { VocalActivity.analyze(context, track.uri) }.orEmpty()
+        val segments = withContext(Dispatchers.Default) { VocalAnalyzer.analyze(context, track.uri) }.orEmpty()
         val synced = LyricsAligner.align(lines, segments, track.durationMs)
         val result = lyrics.copy(synced = synced, estimated = true)
         withContext(Dispatchers.IO) { cache.putFound(key, result) }
@@ -289,7 +289,8 @@ class LyricsRepository(
         LrcParser.parse(syncedLyrics)?.let { lines ->
             return Lyrics(lines, plainLyrics ?: lines.joinToString("\n") { it.text }, LyricsSource.LRCLIB, instrumental)
         }
-        if (!plainLyrics.isNullOrBlank()) return Lyrics(null, plainLyrics.trim(), LyricsSource.LRCLIB, instrumental)
+        val plain = plainLyrics
+        if (!plain.isNullOrBlank()) return Lyrics(null, plain.trim(), LyricsSource.LRCLIB, instrumental)
         return if (instrumental) Lyrics(null, null, LyricsSource.LRCLIB, instrumental = true) else null
     }
 
