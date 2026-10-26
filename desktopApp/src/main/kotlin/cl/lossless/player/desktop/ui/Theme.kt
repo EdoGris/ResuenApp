@@ -181,7 +181,7 @@ object Appearance {
 
     val palette: Palette by derivedStateOf { Palette.of(theme, accent) }
 
-    fun setPanelLeft(left: Boolean) { panelLeft = left; AppSettings.panelLeft = left }
+    fun placePanel(left: Boolean) { panelLeft = left; AppSettings.panelLeft = left }
     /** Mientras se arrastra el borde; [savePanelWidth] lo guarda al soltar. */
     fun resizePanel(width: Float) { panelWidth = width.coerceIn(PANEL_MIN, PANEL_MAX) }
     fun savePanelWidth() { AppSettings.panelWidth = panelWidth }

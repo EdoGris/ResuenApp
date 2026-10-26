@@ -102,7 +102,7 @@ fun RightPanel(
                 Spacer(Modifier.width(8.dp))
                 PanelTab(t(S.queue, state.queue.size), selected = queueTab) { queueTab = true }
                 Spacer(Modifier.weight(1f))
-                SmallIconButton(Icons.Rounded.SwapHoriz, t(S.swapSide)) { Appearance.setPanelLeft(!Appearance.panelLeft) }
+                SmallIconButton(Icons.Rounded.SwapHoriz, t(S.swapSide)) { Appearance.placePanel(!Appearance.panelLeft) }
                 SmallIconButton(Icons.Rounded.Close, t(S.togglePanel), onClick = onClose)
             }
             Spacer(Modifier.height(12.dp))
@@ -176,6 +176,7 @@ private fun NowPlayingContent(track: Track, positionMs: Long, onSeek: (Long) -> 
             }
             Spacer(Modifier.height(16.dp))
             LyricsCard(lyrics, positionMs, onSeek, Modifier.weight(1f).fillMaxWidth(), onSearch = actions?.let { a -> { a.findLyrics(track) } })
+        }
     }
 }
 

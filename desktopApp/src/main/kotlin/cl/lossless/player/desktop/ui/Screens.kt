@@ -705,8 +705,8 @@ private fun AppearanceCard() {
 
         SubLabel(t(S.panelSide))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Pill(t(S.sideRight), selected = !Appearance.panelLeft) { Appearance.setPanelLeft(false) }
-            Pill(t(S.sideLeft), selected = Appearance.panelLeft) { Appearance.setPanelLeft(true) }
+            Pill(t(S.sideRight), selected = !Appearance.panelLeft) { Appearance.placePanel(false) }
+            Pill(t(S.sideLeft), selected = Appearance.panelLeft) { Appearance.placePanel(true) }
         }
     }
 }
