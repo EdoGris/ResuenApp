@@ -90,4 +90,17 @@
         <item quantity="one">%d song added to the lyrics sync queue</item>
         <item quantity="other">%d songs added to the lyrics sync queue</item>
     </plurals>
+
+    <!-- Búsqueda y orden -->
+    <string name="library_search_albums">Search albums</string>
+    <string name="library_search_folders">Search folders</string>
+    <string name="library_search_folders_tracks">Search folders and songs</string>
+    <string name="library_search_clear">Clear search</string>
+    <string name="library_search_no_results">No results for “%1$s”</string>
+    <string name="library_sort">Sort folders</string>
+    <string name="library_sort_name_asc">Name (A-Z)</string>
+    <string name="library_sort_name_desc">Name (Z-A)</string>
+    <string name="library_sort_newest">Recently modified</string>
+    <string name="library_sort_oldest">Least recently modified</string>
+    <string name="library_sort_most_tracks">Most songs</string>
 </resources>

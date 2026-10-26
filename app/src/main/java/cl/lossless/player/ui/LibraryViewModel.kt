@@ -18,6 +18,7 @@ import cl.lossless.player.sync.SyncQueue
 import cl.lossless.player.sync.SyncRequest
 import cl.lossless.player.library.AlbumGroup
 import cl.lossless.player.library.FolderExclusions
+import cl.lossless.player.library.FolderSort
 import cl.lossless.player.library.folderSegments
 import cl.lossless.player.library.LibraryLocation
 import cl.lossless.player.library.LibraryPrefs
@@ -80,6 +81,7 @@ data class LibraryUiState(
     val font: AppFont = AppFont.SYSTEM,
     val textSize: TextSize = TextSize.NORMAL,
     val swipeToSkip: Boolean = true,
+    val folderSort: FolderSort = FolderSort.NAME_ASC,
     val mediaKeysSkip: Boolean = true,
     val networkMode: NetworkMode = NetworkMode.WIFI,
     val syncQueue: SyncQueueSummary = SyncQueueSummary(),
@@ -124,6 +126,7 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
             font = AppFont.entries.firstOrNull { it.name == prefs.appFont } ?: AppFont.SYSTEM,
             textSize = TextSize.entries.firstOrNull { it.name == prefs.textSize } ?: TextSize.NORMAL,
             swipeToSkip = prefs.swipeToSkip,
+            folderSort = FolderSort.entries.firstOrNull { it.name == prefs.folderSort } ?: FolderSort.NAME_ASC,
             mediaKeysSkip = playbackPrefs.mediaKeysSkip,
             networkMode = queue.networkMode.value,
         )
@@ -318,6 +321,11 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
     fun setSwipeToSkip(value: Boolean) {
         prefs.swipeToSkip = value
         _ui.update { it.copy(swipeToSkip = value) }
+    }
+
+    fun setFolderSort(sort: FolderSort) {
+        prefs.folderSort = sort.name
+        _ui.update { it.copy(folderSort = sort) }
     }
 
     /** Carátulas locales (caché, carpeta, incrustadas): se resuelven en segundo plano por lotes. */

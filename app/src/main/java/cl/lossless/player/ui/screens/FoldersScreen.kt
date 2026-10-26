@@ -20,6 +20,7 @@ import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,12 +36,18 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import cl.lossless.player.R
+import cl.lossless.player.library.FolderEntry
+import cl.lossless.player.library.FolderSort
+import cl.lossless.player.library.LibrarySearch
 import cl.lossless.player.library.Track
 import cl.lossless.player.library.folderDisplayPath
 import cl.lossless.player.library.folderNode
+import cl.lossless.player.library.sortedFolders
 import cl.lossless.player.library.volumeLabel
 import cl.lossless.player.ui.components.EmptyState
+import cl.lossless.player.ui.components.FolderSortButton
 import cl.lossless.player.ui.components.ScreenHeader
+import cl.lossless.player.ui.components.SearchField
 import cl.lossless.player.ui.components.TrackActions
 import cl.lossless.player.ui.components.TrackCard
 import cl.lossless.player.ui.components.albumTrackNumber
@@ -52,15 +59,33 @@ fun FoldersScreen(
     actions: TrackActions,
     onPickFolder: () -> Unit,
     onExcludeFolder: (List<String>) -> Unit,
+    folderSort: FolderSort,
+    onFolderSort: (FolderSort) -> Unit,
 ) {
     // Ruta actual como "primary/Music/Rock" (vacía = raíz con los volúmenes)
     var path by rememberSaveable { mutableStateOf("") }
     val segments = remember(path) { path.split('/').filter { it.isNotEmpty() } }
     val node = remember(tracks, segments) { tracks.folderNode(segments) }
+    val subfolders = remember(node, folderSort) {
+        node.subfolders.sortedFolders(folderSort, { it.name }, { it.trackCount }, { it.lastModified })
+    }
 
-    fun open(newSegments: List<String>) { path = newSegments.joinToString("/") }
+    // Búsqueda dentro de la carpeta actual y todas sus subcarpetas
+    var query by rememberSaveable { mutableStateOf("") }
+    val folderMatches = remember(tracks, segments, query, folderSort) {
+        LibrarySearch.folders(tracks, segments, query)
+            .sortedFolders(folderSort, { it.name }, { it.trackCount }, { it.lastModified })
+    }
+    val trackMatches = remember(tracks, segments, query) { LibrarySearch.tracks(tracks, segments, query) }
+
+    fun open(newSegments: List<String>) {
+        path = newSegments.joinToString("/")
+        query = ""
+    }
 
     BackHandler(enabled = segments.isNotEmpty()) { open(segments.dropLast(1)) }
+    // Atrás primero cierra la búsqueda
+    BackHandler(enabled = query.isNotEmpty()) { query = "" }
 
     // Si la carpeta actual se omitió (o ya no existe), subir hasta una que tenga música.
     if (segments.isNotEmpty() && node.subfolders.isEmpty() && node.tracks.isEmpty()) {
@@ -73,6 +98,7 @@ fun FoldersScreen(
             trailingText = folderDisplayPath(segments),
             onBack = if (segments.isEmpty()) null else ({ open(segments.dropLast(1)) }),
             actions = {
+                FolderSortButton(folderSort, onFolderSort)
                 IconButton(onClick = onPickFolder) {
                     Icon(Icons.Rounded.CreateNewFolder, contentDescription = stringResource(R.string.settings_folders_pick_cd))
                 }
@@ -90,12 +116,30 @@ fun FoldersScreen(
             return@Column
         }
 
+        SearchField(
+            query = query,
+            onQueryChange = { query = it },
+            placeholder = stringResource(R.string.library_search_folders_tracks),
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+
+        if (query.isNotBlank()) {
+            SearchResults(
+                query = query,
+                folders = folderMatches,
+                tracks = trackMatches,
+                actions = actions,
+                onOpen = { open(it) },
+            )
+            return@Column
+        }
+
         LazyColumn(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
-            items(node.subfolders, key = { "dir:" + it.name }) { entry ->
+            items(subfolders, key = { "dir:" + it.name }) { entry ->
                 FolderCard(
                     name = if (segments.isEmpty()) volumeLabel(entry.name) else entry.name,
                     path = null,
@@ -133,4 +177,55 @@ fun FoldersScreen(
             }
         }
     }
+}
+
+@Composable
+private fun SearchResults(
+    query: String,
+    folders: List<FolderEntry>,
+    tracks: List<Track>,
+    actions: TrackActions,
+    onOpen: (List<String>) -> Unit,
+) {
+    if (folders.isEmpty() && tracks.isEmpty()) {
+        NoResults(query)
+        return
+    }
+    LazyColumn(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        if (folders.isNotEmpty()) {
+            item(key = "folders-header") { SectionLabel(stringResource(R.string.library_folders)) }
+            items(folders, key = { "dir:" + it.segments.joinToString("/") }) { entry ->
+                FolderCard(
+                    name = entry.name,
+                    path = folderDisplayPath(entry.segments),
+                    detail = pluralStringResource(R.plurals.settings_tracks_count, entry.trackCount, entry.trackCount),
+                ) { onOpen(entry.segments) }
+            }
+        }
+        if (tracks.isNotEmpty()) {
+            item(key = "tracks-header") { SectionLabel(stringResource(R.string.library_tab_tracks)) }
+            itemsIndexed(tracks, key = { i, t -> "track:${t.uri}#$i" }) { i, track ->
+                TrackCard(
+                    track = track,
+                    number = "%02d".format(i + 1),
+                    actions = actions,
+                    onClick = { actions.play(tracks, i) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 4.dp),
+    )
 }

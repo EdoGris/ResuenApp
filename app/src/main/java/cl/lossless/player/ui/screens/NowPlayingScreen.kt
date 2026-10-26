@@ -78,6 +78,7 @@ import cl.lossless.player.playback.PlaybackStatus
 import cl.lossless.player.ui.components.FormatBadge
 import cl.lossless.player.ui.components.LargeCover
 import cl.lossless.player.ui.components.formatDuration
+import cl.lossless.player.ui.components.swipeDownToDismiss
 import cl.lossless.player.ui.components.swipeToSkip
 import cl.lossless.player.ui.player.PlayerActions
 import cl.lossless.player.ui.player.PlayerUiState
@@ -113,7 +114,7 @@ fun NowPlayingScreen(
         if (showLyrics) onLoadLyrics(false)
     }
 
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    Surface(Modifier.fillMaxSize().swipeDownToDismiss(onCollapse), color = MaterialTheme.colorScheme.background) {
         Column(
             Modifier.fillMaxSize().systemBarsPadding().padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
