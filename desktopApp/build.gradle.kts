@@ -57,7 +57,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Dmg)
             packageName = "ResuenApp"
-            packageVersion = "1.1.0"
+            packageVersion = "1.2.0"
             description = "Reproductor de música sin pérdida"
             vendor = "EdoGris"
             includeAllModules = true

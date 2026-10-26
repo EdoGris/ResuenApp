@@ -5,6 +5,8 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ContextMenuArea
+import androidx.compose.foundation.ContextMenuItem
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -43,8 +45,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MusicNote
@@ -125,8 +129,9 @@ val Track.specsLabel: String?
 @Composable
 fun CoverImage(track: Track?, size: Dp, px: Int, modifier: Modifier = Modifier, corner: Dp = 8.dp) {
     val key = track?.albumKey
-    var image by remember(key, px) { mutableStateOf<ImageBitmap?>(key?.let { Covers.cached(it, px) }) }
-    LaunchedEffect(key, px) {
+    val version = Covers.version
+    var image by remember(key, px, version) { mutableStateOf<ImageBitmap?>(key?.let { Covers.cached(it, px) }) }
+    LaunchedEffect(key, px, version) {
         if (track != null && image == null && !Covers.isCached(track.albumKey, px)) {
             image = withContext(coverDispatcher) { Covers.load(track, px) }
         }
@@ -311,16 +316,37 @@ fun TrackTable(
         }
         itemsIndexed(tracks, key = { _, it -> it.path }) { i, track ->
             val number = if (useTrackNumbers && track.trackNumber > 0) track.trackNumber else i + 1
-            TrackRow(
-                track,
-                number = number,
-                current = track.path == currentPath,
-                playing = playing,
-                showAlbum = showAlbum,
-                last = i == tracks.lastIndex,
-            ) { onPlay(i) }
+            TrackContextMenu(track) {
+                TrackRow(
+                    track,
+                    number = number,
+                    current = track.path == currentPath,
+                    playing = playing,
+                    showAlbum = showAlbum,
+                    last = i == tracks.lastIndex,
+                ) { onPlay(i) }
+            }
         }
     }
+}
+
+/** Clic derecho sobre una pista: editar etiquetas, buscar carátula o letra. */
+@Composable
+private fun TrackContextMenu(track: Track, content: @Composable () -> Unit) {
+    val actions = LocalTrackActions.current ?: return content()
+    val edit = t(S.editTags)
+    val cover = t(S.searchCover)
+    val lyrics = t(S.searchLyrics)
+    ContextMenuArea(
+        items = {
+            listOf(
+                ContextMenuItem(edit) { actions.editTags(listOf(track)) },
+                ContextMenuItem(cover) { actions.findCover(track) },
+                ContextMenuItem(lyrics) { actions.findLyrics(track) },
+            )
+        },
+        content = content,
+    )
 }
 
 @Composable
@@ -462,7 +488,13 @@ fun AlbumDetail(album: Album, currentPath: String?, playing: Boolean, onBack: ()
                 Text(album.artist.ifBlank { t(S.unknownArtist) }, color = Neon.Muted, fontSize = 13.sp)
                 Text(summaryOf(album.tracks), color = Neon.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
                 Spacer(Modifier.height(14.dp))
-                PrimaryButton(Icons.Rounded.PlayArrow, t(S.playAll)) { onPlay(0) }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    PrimaryButton(Icons.Rounded.PlayArrow, t(S.playAll)) { onPlay(0) }
+                    LocalTrackActions.current?.let { actions ->
+                        GhostButton(Icons.Rounded.Edit, t(S.editAlbum)) { actions.editTags(album.tracks) }
+                        GhostButton(Icons.Rounded.AddPhotoAlternate, t(S.searchCover).removeSuffix("…")) { actions.findCover(album.tracks.first()) }
+                    }
+                }
             }
         }
     }, onPlay = onPlay)
@@ -542,7 +574,7 @@ fun FolderList(folders: List<Pair<String, List<Track>>>, onOpen: (String) -> Uni
                     .padding(horizontal = 12.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Rounded.Folder, null, tint = Neon.Amber, modifier = Modifier.size(18.dp))
+                Icon(Icons.Rounded.Folder, null, tint = Neon.Accent, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
@@ -590,7 +622,7 @@ fun SettingsScreen(
         SettingsCard(t(S.libraryFolders)) {
             folders.forEach { path ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Folder, null, tint = Neon.Amber, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Rounded.Folder, null, tint = Neon.Accent, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(12.dp))
                     Text(path, Modifier.weight(1f), color = Neon.Text, fontFamily = Mono, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     IconButton(onClick = { onRemove(path) }) { Icon(Icons.Rounded.Delete, t(S.removeFolder), tint = Neon.Muted) }
@@ -613,7 +645,7 @@ fun SettingsScreen(
 
         SettingsCard(t(S.output)) {
             Text(t(S.outputShared), color = Neon.Text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-            if (outputFormat != null) Text(outputFormat, color = Neon.Teal, fontFamily = Mono, fontSize = 12.sp)
+            if (outputFormat != null) Text(outputFormat, color = Neon.Accent, fontFamily = Mono, fontSize = 12.sp)
             Text(t(S.outputNote), color = Neon.Muted, fontSize = 12.sp)
         }
 
@@ -669,6 +701,12 @@ private fun AppearanceCard() {
             TextSize.entries.forEach { size ->
                 Pill(t(size.label), selected = Appearance.textSize == size) { Appearance.set(size) }
             }
+        }
+
+        SubLabel(t(S.panelSide))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Pill(t(S.sideRight), selected = !Appearance.panelLeft) { Appearance.placePanel(false) }
+            Pill(t(S.sideLeft), selected = Appearance.panelLeft) { Appearance.placePanel(true) }
         }
     }
 }

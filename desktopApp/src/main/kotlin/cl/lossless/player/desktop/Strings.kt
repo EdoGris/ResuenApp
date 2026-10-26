@@ -182,4 +182,51 @@ object S {
     val textNormal = Str("Normal", "Normal", "Normal", "Normal")
     val textLarge = Str("Grande", "Large", "Grand", "Grande")
     val textXLarge = Str("Muy grande", "Extra large", "Très grand", "Muito grande")
+
+    // Etiquetas, carátulas y letras
+    val editTags = Str("Editar etiquetas…", "Edit tags…", "Modifier les étiquettes…", "Editar tags…")
+    val editAlbum = Str("Editar álbum", "Edit album", "Modifier l'album", "Editar álbum")
+    val searchCover = Str("Buscar carátula…", "Find cover…", "Chercher une pochette…", "Buscar capa…")
+    val searchLyrics = Str("Buscar letra…", "Find lyrics…", "Chercher les paroles…", "Buscar letra…")
+    val fieldTitle = Str("Título", "Title", "Titre", "Título")
+    val fieldArtist = Str("Artista", "Artist", "Artiste", "Artista")
+    val fieldAlbum = Str("Álbum", "Album", "Album", "Álbum")
+    val fieldAlbumArtist = Str("Artista del álbum", "Album artist", "Artiste de l'album", "Artista do álbum")
+    val fieldYear = Str("Año", "Year", "Année", "Ano")
+    val fieldGenre = Str("Género", "Genre", "Genre", "Gênero")
+    val fieldTrack = Str("N.º de pista", "Track no.", "N° de piste", "N.º da faixa")
+    val fieldDisc = Str("Disco", "Disc", "Disque", "Disco")
+    val mixedValues = Str("Varios valores (se mantienen)", "Multiple values (kept)", "Valeurs multiples (conservées)", "Vários valores (mantidos)")
+    val save = Str("Guardar", "Save", "Enregistrer", "Salvar")
+    val cancel = Str("Cancelar", "Cancel", "Annuler", "Cancelar")
+    val saving = Str("Guardando…", "Saving…", "Enregistrement…", "Salvando…")
+    val saveError = Str("No se pudo guardar: %1\$s", "Couldn't save: %1\$s", "Enregistrement impossible : %1\$s", "Não foi possível salvar: %1\$s")
+    val searching = Str("Buscando…", "Searching…", "Recherche…", "Procurando…")
+    val offline = Str("Sin conexión a internet", "No internet connection", "Pas de connexion Internet", "Sem conexão com a internet")
+    val coverFromFile = Str("Desde un archivo…", "From a file…", "Depuis un fichier…", "De um arquivo…")
+    val chooseImage = Str("Elige una imagen", "Choose an image", "Choisissez une image", "Escolha uma imagem")
+    val coverTarget = Str(
+        "Se guardará dentro de %1\$d archivos",
+        "It will be saved inside %1\$d files",
+        "Elle sera enregistrée dans %1\$d fichiers",
+        "Será salva dentro de %1\$d arquivos",
+    )
+    val lyricsPlain = Str("Solo texto", "Plain text", "Texte seul", "Só texto")
+    val useThis = Str("Usar", "Use", "Utiliser", "Usar")
+
+    // Panel de carátula y letra
+    val panelSide = Str("Panel de reproducción", "Now playing panel", "Panneau de lecture", "Painel de reprodução")
+    val sideRight = Str("A la derecha", "On the right", "À droite", "À direita")
+    val sideLeft = Str("A la izquierda", "On the left", "À gauche", "À esquerda")
+    val swapSide = Str("Cambiar de lado", "Switch side", "Changer de côté", "Trocar de lado")
+
+    // Mini reproductor
+    val miniPlayer = Str("Mini reproductor", "Mini player", "Mini lecteur", "Mini player")
+    val fullView = Str("Vista completa", "Full view", "Vue complète", "Visualização completa")
+    val alwaysOnTop = Str(
+        "Siempre encima de las demás ventanas",
+        "Always on top of other windows",
+        "Toujours au-dessus des autres fenêtres",
+        "Sempre acima das outras janelas",
+    )
 }

@@ -140,6 +140,28 @@ object AppSettings {
     var textSize: String?
         get() = prefs.get("text_size", null)
         set(value) = prefs.put("text_size", value.orEmpty())
+
+    var panelLeft: Boolean
+        get() = prefs.getBoolean("panel_left", false)
+        set(value) = prefs.putBoolean("panel_left", value)
+    var panelWidth: Float
+        get() = prefs.getFloat("panel_width", 320f)
+        set(value) = prefs.putFloat("panel_width", value)
+
+    // Mini reproductor: si queda encima de las demás ventanas y dónde se dejó (null = esquina inferior derecha).
+    var miniOnTop: Boolean
+        get() = prefs.getBoolean("mini_on_top", true)
+        set(value) = prefs.putBoolean("mini_on_top", value)
+    var miniPosition: Pair<Float, Float>?
+        get() {
+            val x = prefs.getFloat("mini_x", Float.NaN)
+            val y = prefs.getFloat("mini_y", Float.NaN)
+            return if (x.isNaN() || y.isNaN()) null else x to y
+        }
+        set(value) {
+            if (value == null) { prefs.remove("mini_x"); prefs.remove("mini_y") }
+            else { prefs.putFloat("mini_x", value.first); prefs.putFloat("mini_y", value.second) }
+        }
 }
 
 /** Lee las carpetas elegidas y sus etiquetas. Reutiliza lo ya leído si el archivo no cambió. */
@@ -160,7 +182,7 @@ object LibraryScanner {
         (0 until array.length()).map { Track.fromJson(array.getJSONObject(it)) }
     }.getOrDefault(emptyList())
 
-    private fun saveCache(tracks: List<Track>) {
+    fun saveCache(tracks: List<Track>) {
         runCatching {
             val array = JSONArray()
             tracks.forEach { array.put(it.toJson()) }
