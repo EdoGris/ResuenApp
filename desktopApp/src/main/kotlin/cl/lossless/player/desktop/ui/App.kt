@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cl.lossless.player.desktop.APP_VERSION
 import cl.lossless.player.desktop.AppSettings
+import cl.lossless.player.desktop.IsMac
 import cl.lossless.player.desktop.Lang
 import cl.lossless.player.desktop.LibraryScanner
 import cl.lossless.player.desktop.LocalLang
@@ -74,6 +75,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.awt.FileDialog
+import java.io.File
 import java.text.Normalizer
 import javax.swing.JFileChooser
 
@@ -125,13 +128,25 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
     }
 
     val chooseTitle = t(S.chooseFolder)
-    fun addFolder() {
+    fun pickFolder(): String? {
+        if (IsMac) {
+            // En macOS el selector nativo (Finder) solo elige carpetas con esta propiedad.
+            System.setProperty("apple.awt.fileDialogForDirectories", "true")
+            val dialog = FileDialog(null as java.awt.Frame?, chooseTitle, FileDialog.LOAD)
+            dialog.isVisible = true
+            System.setProperty("apple.awt.fileDialogForDirectories", "false")
+            return dialog.file?.let { File(dialog.directory, it).path }
+        }
         val chooser = JFileChooser().apply {
             dialogTitle = chooseTitle
             fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
         }
-        if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-            val path = chooser.selectedFile.path
+        return if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) chooser.selectedFile.path else null
+    }
+
+    fun addFolder() {
+        val path = pickFolder()
+        if (path != null) {
             if (path !in folders) {
                 folders += path
                 AppSettings.folders = folders.toList()
@@ -270,7 +285,7 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
     }
 }
 
-/** Barra superior: logo, versión, búsqueda global (Ctrl+F) y estado de la salida de audio. */
+/** Barra superior: logo, versión, búsqueda global (Ctrl+F / ⌘F) y estado de la salida de audio. */
 @Composable
 private fun TitleBar(query: String, onQuery: (String) -> Unit, searchFocus: FocusRequester, outputFormat: String?) {
     Row(
@@ -335,7 +350,7 @@ private fun SearchField(query: String, onQuery: (String) -> Unit, focus: FocusRe
                 modifier = Modifier.size(15.dp).clip(RoundedCornerShape(50)).clickable { onQuery("") },
             )
         } else {
-            NeonBadge("Ctrl+F", color = Neon.Faint)
+            NeonBadge(if (IsMac) "⌘F" else "Ctrl+F", color = Neon.Faint)
         }
     }
 }

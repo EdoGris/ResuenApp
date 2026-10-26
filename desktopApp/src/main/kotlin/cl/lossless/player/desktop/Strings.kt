@@ -73,13 +73,23 @@ object S {
     val chooseFolder = Str("Elige una carpeta de música", "Choose a music folder", "Choisissez un dossier de musique", "Escolha uma pasta de música")
 
     val output = Str("Salida de audio", "Audio output", "Sortie audio", "Saída de áudio")
-    val outputShared = Str(
+    val outputShared = if (IsMac) Str(
+        "Core Audio de macOS (modo compartido)",
+        "macOS Core Audio (shared mode)",
+        "Core Audio de macOS (mode partagé)",
+        "Core Audio do macOS (modo compartilhado)",
+    ) else Str(
         "Mezclador de Windows (modo compartido)",
         "Windows mixer (shared mode)",
         "Mélangeur Windows (mode partagé)",
         "Mixer do Windows (modo compartilhado)",
     )
-    val outputNote = Str(
+    val outputNote = if (IsMac) Str(
+        "Esta versión decodifica sin pérdida, pero macOS puede remuestrear si la frecuencia del archivo no coincide con la de la salida (Configuración de Audio MIDI).",
+        "This version decodes losslessly, but macOS may resample if the file's sample rate doesn't match the output's (Audio MIDI Setup).",
+        "Cette version décode sans perte, mais macOS peut rééchantillonner si la fréquence du fichier ne correspond pas à celle de la sortie (Configuration audio et MIDI).",
+        "Esta versão decodifica sem perdas, mas o macOS pode reamostrar se a frequência do arquivo não coincidir com a da saída (Configuração de Áudio e MIDI).",
+    ) else Str(
         "Esta primera versión decodifica sin pérdida, pero Windows puede remuestrear. El modo bit-perfect (WASAPI exclusivo) llegará en una próxima versión.",
         "This first version decodes losslessly, but Windows may resample. Bit-perfect mode (WASAPI exclusive) is coming in a later version.",
         "Cette première version décode sans perte, mais Windows peut rééchantillonner. Le mode bit-perfect (WASAPI exclusif) arrivera dans une prochaine version.",
@@ -141,7 +151,8 @@ object S {
     val lyricsSynced = Str("Letra sincronizada", "Synced lyrics", "Paroles synchronisées", "Letra sincronizada")
     val togglePanel = Str("Panel lateral", "Side panel", "Panneau latéral", "Painel lateral")
     val mute = Str("Silenciar", "Mute", "Couper le son", "Silenciar")
-    val outputDevice = Str("Windows · modo compartido", "Windows · shared mode", "Windows · mode partagé", "Windows · modo compartilhado")
+    val outputDevice = if (IsMac) Str("macOS · modo compartido", "macOS · shared mode", "macOS · mode partagé", "macOS · modo compartilhado")
+        else Str("Windows · modo compartido", "Windows · shared mode", "Windows · mode partagé", "Windows · modo compartilhado")
     val outputIdle = Str("Salida en espera", "Output idle", "Sortie en attente", "Saída em espera")
 
     // Apariencia (los mismos nombres que en Android)

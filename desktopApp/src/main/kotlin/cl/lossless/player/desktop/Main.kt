@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
@@ -29,7 +30,7 @@ fun main(args: Array<String>) {
     if (args.firstOrNull() == "--self-test") {
         exitProcess(selfTest(args.getOrNull(1)?.let(::File)))
     }
-    // Diálogos de Swing (elegir carpeta) con el aspecto nativo de Windows.
+    // Diálogos de Swing (elegir carpeta) con el aspecto nativo del sistema.
     runCatching { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()) }
     val player = Player()
     application {
@@ -42,9 +43,9 @@ fun main(args: Array<String>) {
             title = "ResuenApp",
             icon = BitmapPainter(AppIcon),
             state = rememberWindowState(width = 1360.dp, height = 860.dp),
-            // Ctrl+F lleva a la búsqueda, como en la maqueta.
+            // Ctrl+F (⌘F en macOS) lleva a la búsqueda, como en la maqueta.
             onPreviewKeyEvent = { e ->
-                if (e.type == KeyEventType.KeyDown && e.isCtrlPressed && e.key == Key.F) {
+                if (e.type == KeyEventType.KeyDown && (if (IsMac) e.isMetaPressed else e.isCtrlPressed) && e.key == Key.F) {
                     runCatching { searchFocus.requestFocus() }
                     true
                 } else {

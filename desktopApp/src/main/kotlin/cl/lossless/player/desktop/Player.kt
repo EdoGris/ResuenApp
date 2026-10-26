@@ -211,7 +211,7 @@ class Player {
             (g.lengthInTime / 1000).takeIf { it > 0 } ?: track.durationMs
     }
 
-    /** Abre la salida en 24 bits si el archivo lo es y Windows lo acepta; si no, en 16. */
+    /** Abre la salida en 24 bits si el archivo lo es y el sistema lo acepta; si no, en 16. */
     private fun openLine(rate: Int, channels: Int, sourceBits: Int): Pair<SourceDataLine, Int> {
         val depths = if (sourceBits > 16) listOf(24, 16) else listOf(16)
         var last: Exception? = null
