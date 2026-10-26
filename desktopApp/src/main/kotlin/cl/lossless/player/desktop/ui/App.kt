@@ -28,6 +28,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MusicNote
@@ -91,7 +92,7 @@ import java.io.File
 import java.text.Normalizer
 import javax.swing.JFileChooser
 
-private enum class Tab { SONGS, ALBUMS, ARTISTS, FOLDERS, SETTINGS }
+private enum class Tab { SONGS, ALBUMS, ARTISTS, FOLDERS, DRIVE, SETTINGS }
 
 private fun String.searchKey(): String =
     Normalizer.normalize(lowercase(), Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
@@ -258,7 +259,7 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
                     query = query,
                     onQuery = {
                         query = it
-                        if (tab == Tab.SETTINGS) tab = Tab.SONGS
+                        if (tab == Tab.SETTINGS || tab == Tab.DRIVE) tab = Tab.SONGS
                     },
                     searchFocus = searchFocus,
                     outputFormat = state.outputFormat,
@@ -297,6 +298,7 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
                                     onCheckUpdate = { scope.launch { DesktopUpdater.check() } },
                                     onInstallUpdate = ::installUpdate,
                                 )
+                                tab == Tab.DRIVE -> DriveScreen(player, current, state.playing)
                                 folders.isEmpty() && tracks.isEmpty() -> EmptyLibrary(onAdd = ::addFolder)
                                 tab == Tab.SONGS -> TrackTable(
                                     filtered,
@@ -458,6 +460,7 @@ private fun Sidebar(selected: Tab, trackCount: Int, onSelect: (Tab) -> Unit) {
         NavItem(Icons.Rounded.Album, t(S.albums), selected == Tab.ALBUMS) { onSelect(Tab.ALBUMS) }
         NavItem(Icons.Rounded.Mic, t(S.artists), selected == Tab.ARTISTS) { onSelect(Tab.ARTISTS) }
         NavItem(Icons.Rounded.Folder, t(S.folders), selected == Tab.FOLDERS) { onSelect(Tab.FOLDERS) }
+        NavItem(Icons.Rounded.Cloud, t(S.drive), selected == Tab.DRIVE) { onSelect(Tab.DRIVE) }
         Spacer(Modifier.weight(1f))
         Box(Modifier.fillMaxWidth().height(1.dp).background(Neon.Border))
         Spacer(Modifier.height(8.dp))
