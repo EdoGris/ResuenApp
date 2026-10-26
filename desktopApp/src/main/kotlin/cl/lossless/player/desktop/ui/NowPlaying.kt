@@ -434,7 +434,7 @@ fun PlayerBar(player: Player, state: PlayerState, positionMs: Long, panelOpen: B
         }
 
         // Controles y progreso
-        Column(Modifier.weight(2f).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.weight(1.7f).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 SmallIconButton(Icons.Rounded.SkipPrevious, t(S.previous), tint = Neon.Text, size = 20.dp) { if (track != null) player.previous() }
                 val shape = CircleShape
@@ -471,18 +471,29 @@ fun PlayerBar(player: Player, state: PlayerState, positionMs: Long, panelOpen: B
             }
         }
 
-        // Salida, volumen y panel lateral
-        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
-            Column(
-                Modifier.glass(RoundedCornerShape(8.dp), Neon.Card).padding(horizontal = 10.dp, vertical = 4.dp),
-                horizontalAlignment = Alignment.End,
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Memory, null, tint = Neon.Accent, modifier = Modifier.size(12.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(t(S.outputDevice), color = Neon.Accent, fontFamily = Mono, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        // Salida, volumen y panel lateral. Los botones (mini reproductor, panel) van siempre
+        // completos: si falta ancho se achica la tarjeta de salida, que se oculta si no cabe.
+        Row(Modifier.weight(1.3f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
+            BoxWithConstraints(Modifier.weight(1f, fill = false)) {
+                if (maxWidth >= 110.dp) {
+                    Column(
+                        Modifier.glass(RoundedCornerShape(8.dp), Neon.Card).padding(horizontal = 10.dp, vertical = 4.dp),
+                        horizontalAlignment = Alignment.End,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Memory, null, tint = Neon.Accent, modifier = Modifier.size(12.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                t(S.outputDevice), color = Neon.Accent, fontFamily = Mono, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        Text(
+                            state.outputFormat ?: t(S.outputIdle), color = Neon.Muted, fontFamily = Mono, fontSize = 10.sp,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
-                Text(state.outputFormat ?: t(S.outputIdle), color = Neon.Muted, fontFamily = Mono, fontSize = 10.sp, maxLines = 1)
             }
             Spacer(Modifier.width(14.dp))
             SmallIconButton(
