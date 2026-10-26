@@ -77,6 +77,7 @@ import cl.lossless.player.desktop.LocalLang
 import cl.lossless.player.desktop.Player
 import cl.lossless.player.desktop.S
 import cl.lossless.player.desktop.Track
+import cl.lossless.player.desktop.albumKeysByPath
 import cl.lossless.player.desktop.sortedForLibrary
 import cl.lossless.player.desktop.t
 import cl.lossless.player.desktop.toAlbums
@@ -121,6 +122,7 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
     var openFolder by remember { mutableStateOf<String?>(null) }
     var panelOpen by remember { mutableStateOf(true) }
     var dialog by remember { mutableStateOf<TrackDialog?>(null) }
+    val selection = remember { TrackSelection() }
 
     fun rescan() {
         if (scanning != null) return
@@ -130,6 +132,7 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
                 LibraryScanner.scan(folders.toList(), tracks) { n -> scanning = n }
             }
             tracks = result.sortedForLibrary()
+            selection.clear()
             scanning = null
         }
     }
@@ -208,13 +211,21 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
     fun select(target: Tab) {
         tab = target
         openAlbum = null; openArtist = null; openFolder = null
+        selection.clear()
     }
 
     val actions = remember {
         TrackActions(
             editTags = { dialog = TrackDialog.EditTags(it) },
-            // La carátula es del álbum: se guarda en todas sus pistas.
-            findCover = { t -> dialog = TrackDialog.FindCover(tracks.filter { it.albumKey == t.albumKey }.ifEmpty { listOf(t) }) },
+            editSelection = {
+                val chosen = tracks.filter { it.path in selection.paths }
+                if (chosen.isNotEmpty()) dialog = TrackDialog.EditTags(chosen)
+            },
+            // La carátula es del álbum (aunque esté repartido en varias carpetas): se guarda en todas sus pistas.
+            findCover = { t ->
+                val keys = tracks.albumKeysByPath()
+                dialog = TrackDialog.FindCover(tracks.filter { keys[it.path] == keys[t.path] }.ifEmpty { listOf(t) })
+            },
             findLyrics = { dialog = TrackDialog.FindLyrics(it) },
         )
     }
@@ -224,8 +235,12 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
         tracks = tracks.map { byPath[it.path] ?: it }.sortedForLibrary()
         player.replaceTracks(byPath)
         DesktopLyrics.forget(byPath.keys)
+        selection.clear()
         // Si el álbum abierto cambió de nombre, se sigue mostrando con el nombre nuevo.
-        if (openAlbum != null && tracks.none { it.albumKey == openAlbum }) openAlbum = updated.firstOrNull()?.albumKey
+        if (openAlbum != null) {
+            val keys = tracks.albumKeysByPath()
+            if (openAlbum !in keys.values) openAlbum = updated.firstOrNull()?.let { keys[it.path] }
+        }
         val snapshot = tracks
         scope.launch(Dispatchers.IO) { LibraryScanner.saveCache(snapshot) }
     }
@@ -251,7 +266,7 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
         if (left) PanelResizeHandle(density) { dx -> Appearance.resizePanel(Appearance.panelWidth + dx) }
     }
 
-    CompositionLocalProvider(LocalTrackActions provides actions) {
+    CompositionLocalProvider(LocalTrackActions provides actions, LocalTrackSelection provides selection) {
         Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize()) {
                 TitleBar(

@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -47,6 +48,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Folder
@@ -68,11 +70,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isCtrlPressed
+import androidx.compose.ui.input.pointer.isMetaPressed
+import androidx.compose.ui.input.pointer.isShiftPressed
+import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
@@ -85,9 +93,11 @@ import androidx.compose.ui.unit.sp
 import cl.lossless.player.desktop.APP_VERSION
 import cl.lossless.player.desktop.Album
 import cl.lossless.player.desktop.Covers
+import cl.lossless.player.desktop.IsMac
 import cl.lossless.player.desktop.Lang
 import cl.lossless.player.desktop.S
 import cl.lossless.player.desktop.Track
+import cl.lossless.player.desktop.albumKeysByPath
 import cl.lossless.player.desktop.khz
 import cl.lossless.player.desktop.t
 import cl.lossless.player.update.AvailableUpdate
@@ -271,13 +281,23 @@ fun SongsHeader(folders: List<String>, tracks: List<Track>, onPlayAll: () -> Uni
         summary = summaryOf(tracks),
         action = { if (tracks.isNotEmpty()) PrimaryButton(Icons.Rounded.PlayArrow, t(S.playAll), onPlayAll) },
     )
+    if (tracks.isNotEmpty() && LocalTrackSelection.current?.active == false) {
+        Text(
+            t(S.selectHint, if (IsMac) "⌘" else "Ctrl"), color = Neon.Faint, fontSize = 11.sp,
+            modifier = Modifier.padding(start = 2.dp, bottom = 10.dp).offset(y = (-10).dp),
+        )
+    }
 }
 
 private val ColNumber = 48.dp
 private val ColFormat = 150.dp
 private val ColDuration = 64.dp
 
-/** Tabla de pistas en un panel translúcido: #, título con carátula, artista, álbum, formato y duración. */
+/**
+ * Tabla de pistas en un panel translúcido: #, título con carátula, artista, álbum, formato y duración.
+ * Con Ctrl/⌘ + clic, Mayús + clic o el cuadro del número se marcan varias; mientras haya alguna
+ * marcada, un clic marca o desmarca en lugar de reproducir y abajo aparece la barra de acciones.
+ */
 @Composable
 fun TrackTable(
     tracks: List<Track>,
@@ -288,63 +308,120 @@ fun TrackTable(
     header: (@Composable () -> Unit)? = null,
     onPlay: (Int) -> Unit,
 ) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(24.dp)) {
-        if (header != null) item { header() }
-        if (tracks.isEmpty()) {
+    val selection = LocalTrackSelection.current
+    val selecting = selection?.active == true
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 24.dp, top = 24.dp, end = 24.dp, bottom = if (selecting) 96.dp else 24.dp),
+        ) {
+            if (header != null) item { header() }
+            if (tracks.isEmpty()) {
+                item {
+                    Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
+                        Text(t(S.noResults), color = Neon.Muted)
+                    }
+                }
+                return@LazyColumn
+            }
             item {
-                Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                    Text(t(S.noResults), color = Neon.Muted)
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                        .background(Neon.Surface)
+                        .border(1.dp, Neon.Border, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    HeaderCell("#", Modifier.width(ColNumber), TextAlign.Center)
+                    HeaderCell(t(S.colTitle), Modifier.weight(1.6f))
+                    HeaderCell(t(S.colArtist), Modifier.weight(1f))
+                    if (showAlbum) HeaderCell(t(S.colAlbum), Modifier.weight(1f))
+                    HeaderCell(t(S.colFormat), Modifier.width(ColFormat), TextAlign.Center)
+                    HeaderCell(t(S.colDuration), Modifier.width(ColDuration), TextAlign.End)
                 }
             }
-            return@LazyColumn
-        }
-        item {
-            Row(
-                Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                    .background(Neon.Surface)
-                    .border(1.dp, Neon.Border, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                HeaderCell("#", Modifier.width(ColNumber), TextAlign.Center)
-                HeaderCell(t(S.colTitle), Modifier.weight(1.6f))
-                HeaderCell(t(S.colArtist), Modifier.weight(1f))
-                if (showAlbum) HeaderCell(t(S.colAlbum), Modifier.weight(1f))
-                HeaderCell(t(S.colFormat), Modifier.width(ColFormat), TextAlign.Center)
-                HeaderCell(t(S.colDuration), Modifier.width(ColDuration), TextAlign.End)
+            itemsIndexed(tracks, key = { _, it -> it.path }) { i, track ->
+                val number = if (useTrackNumbers && track.trackNumber > 0) track.trackNumber else i + 1
+                TrackContextMenu(track) {
+                    TrackRow(
+                        track,
+                        number = number,
+                        current = track.path == currentPath,
+                        playing = playing,
+                        showAlbum = showAlbum,
+                        last = i == tracks.lastIndex,
+                        selected = selection != null && track.path in selection.paths,
+                        selecting = selecting,
+                        selectable = selection != null,
+                        onToggle = { range -> if (range) selection?.extendTo(track.path, tracks) else selection?.toggle(track.path) },
+                    ) { onPlay(i) }
+                }
             }
         }
-        itemsIndexed(tracks, key = { _, it -> it.path }) { i, track ->
-            val number = if (useTrackNumbers && track.trackNumber > 0) track.trackNumber else i + 1
-            TrackContextMenu(track) {
-                TrackRow(
-                    track,
-                    number = number,
-                    current = track.path == currentPath,
-                    playing = playing,
-                    showAlbum = showAlbum,
-                    last = i == tracks.lastIndex,
-                ) { onPlay(i) }
-            }
+        if (selection != null && selecting) {
+            SelectionBar(selection, tracks, Modifier.align(Alignment.BottomCenter).padding(bottom = 20.dp))
         }
     }
 }
 
-/** Clic derecho sobre una pista: editar etiquetas, buscar carátula o letra. */
+/** Barra flotante con la cantidad de pistas marcadas y qué hacer con ellas. */
+@Composable
+private fun SelectionBar(selection: TrackSelection, tracks: List<Track>, modifier: Modifier) {
+    val actions = LocalTrackActions.current
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        modifier.glow(Neon.Accent.copy(alpha = 0.35f), 18.dp, shape).glass(shape, Neon.Surface)
+            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(Icons.Rounded.Check, null, tint = Neon.Accent, modifier = Modifier.size(16.dp))
+        Text(t(S.selectedCount, selection.paths.size), color = Neon.TextStrong, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.width(6.dp))
+        if (!selection.paths.containsAll(tracks.map { it.path })) {
+            GhostButton(null, t(S.selectAll)) { selection.selectAll(tracks) }
+        }
+        if (actions != null) PrimaryButton(Icons.Rounded.Edit, t(S.editSelected), actions.editSelection)
+        SmallIconButton(Icons.Rounded.Close, t(S.clearSelection), onClick = selection::clear)
+    }
+}
+
+/** El cuadro que marca una pista, en la columna del número. */
+@Composable
+private fun SelectBox(selected: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(4.dp)
+    Box(
+        Modifier.size(18.dp).clip(shape)
+            .background(if (selected) Neon.Accent else Neon.Card)
+            .border(1.dp, if (selected) Neon.Accent else Neon.Muted, shape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) Icon(Icons.Rounded.Check, null, tint = Neon.OnAccent, modifier = Modifier.size(14.dp))
+    }
+}
+
+/** Clic derecho sobre una pista: editar etiquetas (de ella o de las marcadas), buscar carátula o letra. */
 @Composable
 private fun TrackContextMenu(track: Track, content: @Composable () -> Unit) {
     val actions = LocalTrackActions.current ?: return content()
+    val selection = LocalTrackSelection.current
     val edit = t(S.editTags)
+    val editMany = selection?.let { t(S.editSelectedTags, it.paths.size) }
+    val select = t(S.select)
     val cover = t(S.searchCover)
     val lyrics = t(S.searchLyrics)
     ContextMenuArea(
         items = {
-            listOf(
-                ContextMenuItem(edit) { actions.editTags(listOf(track)) },
-                ContextMenuItem(cover) { actions.findCover(track) },
-                ContextMenuItem(lyrics) { actions.findLyrics(track) },
-            )
+            val inSelection = selection != null && track.path in selection.paths && selection.paths.size > 1
+            buildList {
+                if (inSelection && editMany != null) add(ContextMenuItem(editMany) { actions.editSelection() })
+                else add(ContextMenuItem(edit) { actions.editTags(listOf(track)) })
+                if (selection != null && track.path !in selection.paths) add(ContextMenuItem(select) { selection.toggle(track.path) })
+                add(ContextMenuItem(cover) { actions.findCover(track) })
+                add(ContextMenuItem(lyrics) { actions.findLyrics(track) })
+            }
         },
         content = content,
     )
@@ -358,10 +435,25 @@ private fun HeaderCell(text: String, modifier: Modifier, align: TextAlign = Text
     )
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun TrackRow(track: Track, number: Int, current: Boolean, playing: Boolean, showAlbum: Boolean, last: Boolean, onClick: () -> Unit) {
+private fun TrackRow(
+    track: Track,
+    number: Int,
+    current: Boolean,
+    playing: Boolean,
+    showAlbum: Boolean,
+    last: Boolean,
+    selected: Boolean,
+    selecting: Boolean,
+    selectable: Boolean,
+    onToggle: (range: Boolean) -> Unit,
+    onClick: () -> Unit,
+) {
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
+    // Teclas apretadas al presionar el botón; el clic llega al soltarlo.
+    val keys = remember { BooleanArray(2) }
     val shape = if (last) RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp) else RoundedCornerShape(0.dp)
     Box(
         Modifier.fillMaxWidth().clip(shape)
@@ -372,21 +464,40 @@ private fun TrackRow(track: Track, number: Int, current: Boolean, playing: Boole
             Modifier.fillMaxWidth()
                 .background(
                     when {
+                        selected -> Neon.Accent.copy(alpha = 0.16f)
                         current -> Neon.Accent.copy(alpha = 0.10f)
                         hovered -> Neon.Hover.copy(alpha = 0.8f)
                         else -> Color.Transparent
                     },
                 )
                 .hoverable(interaction)
-                .clickable(onClick = onClick)
+                .onPointerEvent(PointerEventType.Press) { e ->
+                    val m = e.keyboardModifiers
+                    keys[0] = if (IsMac) m.isMetaPressed else m.isCtrlPressed
+                    keys[1] = m.isShiftPressed
+                }
+                .clickable {
+                    val (toggle, range) = keys[0] to keys[1]
+                    keys.fill(false)
+                    when {
+                        !selectable -> onClick()
+                        range -> onToggle(true)
+                        toggle || selecting -> onToggle(false)
+                        else -> onClick()
+                    }
+                }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.width(ColNumber), contentAlignment = Alignment.Center) {
-                if (current) {
-                    PlayingBars(active = playing)
-                } else {
-                    Text(
+                when {
+                    selectable && (selecting || hovered) -> SelectBox(selected) {
+                        val range = keys[1]
+                        keys.fill(false)
+                        onToggle(range)
+                    }
+                    current -> PlayingBars(active = playing)
+                    else -> Text(
                         "%02d".format(number), fontFamily = Mono, fontSize = 12.sp,
                         color = if (hovered) Neon.Accent else Neon.Faint,
                     )
@@ -504,13 +615,15 @@ fun AlbumDetail(album: Album, currentPath: String?, playing: Boolean, onBack: ()
 /** Un artista (el del álbum si existe) con todas sus pistas. */
 data class Artist(val name: String, val tracks: List<Track>, val albumCount: Int)
 
-fun List<Track>.toArtists(unknown: String): List<Artist> =
-    groupBy { it.albumArtist.ifBlank { it.artist }.trim().ifBlank { unknown } }
+fun List<Track>.toArtists(unknown: String): List<Artist> {
+    val albumKeys = albumKeysByPath()
+    return groupBy { it.albumArtist.ifBlank { it.artist }.trim().ifBlank { unknown } }
         .map { (name, list) ->
             val sorted = list.sortedWith(compareBy({ it.album.lowercase() }, { it.discNumber }, { it.trackNumber }, { it.title.lowercase() }))
-            Artist(name, sorted, list.map { it.albumKey }.distinct().size)
+            Artist(name, sorted, list.map { albumKeys[it.path] }.distinct().size)
         }
         .sortedBy { it.name.lowercase() }
+}
 
 @Composable
 fun ArtistGrid(artists: List<Artist>, onOpen: (Artist) -> Unit) {

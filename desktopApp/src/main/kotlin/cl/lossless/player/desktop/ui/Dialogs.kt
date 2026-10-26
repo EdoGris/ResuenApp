@@ -99,11 +99,51 @@ sealed interface TrackDialog {
 /** Acciones sobre pistas que ofrecen el menú contextual, el detalle de álbum y el panel. */
 class TrackActions(
     val editTags: (List<Track>) -> Unit,
+    /** Abre el editor con todas las pistas marcadas, también las que la búsqueda oculta. */
+    val editSelection: () -> Unit,
     val findCover: (Track) -> Unit,
     val findLyrics: (Track) -> Unit,
 )
 
 val LocalTrackActions = staticCompositionLocalOf<TrackActions?> { null }
+
+/**
+ * Pistas marcadas en las listas (por ruta) para editar sus etiquetas juntas, aunque estén en
+ * carpetas distintas. Se mantiene al buscar, así se pueden juntar canciones de varias búsquedas.
+ */
+class TrackSelection {
+    var paths by mutableStateOf<Set<String>>(emptySet())
+        private set
+
+    /** Última pista marcada o desmarcada: Mayús + clic marca todo lo que hay entre ella y la nueva. */
+    private var anchor: String? = null
+
+    val active: Boolean get() = paths.isNotEmpty()
+
+    fun toggle(path: String) {
+        paths = if (path in paths) paths - path else paths + path
+        anchor = path
+    }
+
+    fun extendTo(path: String, list: List<Track>) {
+        val from = list.indexOfFirst { it.path == anchor }
+        val to = list.indexOfFirst { it.path == path }
+        if (from < 0 || to < 0) return toggle(path)
+        paths = paths + list.subList(minOf(from, to), maxOf(from, to) + 1).map { it.path }
+        anchor = path
+    }
+
+    fun selectAll(list: List<Track>) {
+        paths = paths + list.map { it.path }
+    }
+
+    fun clear() {
+        paths = emptySet()
+        anchor = null
+    }
+}
+
+val LocalTrackSelection = staticCompositionLocalOf<TrackSelection?> { null }
 
 /**
  * Muestra [dialog] sobre la ventana. [onUpdated] recibe las pistas releídas tras guardar
@@ -193,6 +233,10 @@ private fun ColumnScope.TagEditorDialog(tracks: List<Track>, player: Player, onD
     if (!loaded) {
         Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) { Spinner() }
         return
+    }
+    val folderCount = remember(tracks) { tracks.map { it.folder }.distinct().size }
+    if (folderCount > 1) {
+        Text(t(S.mergeHint, folderCount), color = Neon.Muted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 12.dp))
     }
     Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         fields.chunked(2).forEach { pair ->

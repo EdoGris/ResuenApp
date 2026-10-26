@@ -1,5 +1,6 @@
 package cl.lossless.player.desktop
 
+import cl.lossless.player.library.AlbumGrouping
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import org.jaudiotagger.tag.Tag
@@ -33,7 +34,10 @@ data class Track(
     val file: File get() = File(path)
     val folder: String get() = file.parent.orEmpty()
     val folderName: String get() = file.parentFile?.name.orEmpty()
+    /** Carpeta + álbum: identifica la carátula. El álbum que se muestra lo decide [albumKeysByPath]. */
     val albumKey: String get() = "$folder|${album.trim().lowercase()}"
+
+    val groupingFields: AlbumGrouping.Fields get() = AlbumGrouping.Fields(folder, album, albumArtist, artist)
 
     /** "FLAC 24/96" para mostrar junto a la pista. */
     val formatLabel: String
@@ -76,10 +80,16 @@ fun khz(rate: Int): String {
 /** Un álbum dentro de una carpeta, como AlbumGroup en Android. */
 data class Album(val key: String, val title: String, val artist: String, val tracks: List<Track>)
 
+/** Clave del álbum de cada pista; une las de carpetas distintas con el mismo álbum y artista. */
+fun List<Track>.albumKeysByPath(): Map<String, String> {
+    val keys = AlbumGrouping.keys(this) { it.groupingFields }
+    return indices.associate { this[it].path to keys[it] }
+}
+
 fun List<Track>.toAlbums(variousArtists: String): List<Album> =
-    groupBy { it.albumKey }.map { (key, tracks) ->
+    AlbumGrouping.group(this) { it.groupingFields }.map { (key, tracks) ->
         val first = tracks.first()
-        val artists = tracks.map { it.albumArtist.ifBlank { it.artist } }.filter { it.isNotBlank() }.distinct()
+        val artists = tracks.map { it.albumArtist.ifBlank { it.artist }.trim() }.filter { it.isNotBlank() }.distinctBy { it.lowercase() }
         Album(
             key = key,
             title = first.album.ifBlank { first.folderName },
