@@ -46,7 +46,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Msi)
             packageName = "ResuenApp"
-            packageVersion = "1.0.0"
+            packageVersion = "1.1.0"
             description = "Reproductor de música sin pérdida"
             vendor = "EdoGris"
             includeAllModules = true
@@ -57,6 +57,8 @@ compose.desktop {
                 shortcut = true
                 dirChooser = true
                 perUserInstall = true
+                // Mismo ícono que la app Android (icons/resuenapp.svg es la fuente).
+                iconFile.set(project.file("icons/resuenapp.ico"))
                 // Fijo: permite que una versión nueva del .msi reemplace a la anterior.
                 upgradeUuid = "6f1c2a8e-3b4d-4c5e-9f60-7a8b9c0d1e2f"
             }

@@ -65,6 +65,7 @@
     <string name="settings_theme_system">Système</string>
     <string name="settings_theme_dark">Sombre</string>
     <string name="settings_theme_light">Clair</string>
+    <string name="settings_theme_night">Nuit</string>
     <string name="settings_accent_blue">Bleu</string>
     <string name="settings_accent_teal">Turquoise</string>
     <string name="settings_accent_green">Émeraude</string>
@@ -73,6 +74,11 @@
     <string name="settings_accent_red">Rouge</string>
     <string name="settings_accent_pink">Rose</string>
     <string name="settings_accent_purple">Violet</string>
+    <string name="settings_accent_neon_cyan">Cyan néon</string>
+    <string name="settings_accent_neon_teal">Turquoise néon</string>
+    <string name="settings_accent_neon_amber">Ambre néon</string>
+    <string name="settings_accent_neon_blue">Bleu néon</string>
+    <string name="settings_accent_neon_pink">Rose néon</string>
     <string name="settings_font_system">Système</string>
     <string name="settings_text_size_small">Petit</string>
     <string name="settings_text_size_normal">Normal</string>

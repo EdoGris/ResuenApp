@@ -111,4 +111,64 @@ object S {
     val sourceSidecar = Str("archivo .lrc", ".lrc file", "fichier .lrc", "arquivo .lrc")
     val sourceEmbedded = Str("etiquetas del archivo", "file tags", "étiquettes du fichier", "tags do arquivo")
     val sourceLrclib = Str("LRCLIB", "LRCLIB", "LRCLIB", "LRCLIB")
+
+    // Rediseño "Fusión Neón"
+    val library = Str("Biblioteca", "Library", "Bibliothèque", "Biblioteca")
+    val artists = Str("Artistas", "Artists", "Artistes", "Artistas")
+    val allTracks = Str("Todas las canciones", "All songs", "Tous les titres", "Todas as músicas")
+    val searchHint = Str(
+        "Buscar canciones, álbumes, artistas, FLAC…",
+        "Search songs, albums, artists, FLAC…",
+        "Rechercher titres, albums, artistes, FLAC…",
+        "Pesquisar músicas, álbuns, artistas, FLAC…",
+    )
+    val librarySummary = Str(
+        "%1\$d archivos · %2\$s · %3\$d en alta resolución",
+        "%1\$d files · %2\$s · %3\$d hi-res",
+        "%1\$d fichiers · %2\$s · %3\$d haute résolution",
+        "%1\$d arquivos · %2\$s · %3\$d em alta resolução",
+    )
+    val folderCount = Str("%1\$d carpetas", "%1\$d folders", "%1\$d dossiers", "%1\$d pastas")
+    val albumCount = Str("%1\$d álbumes", "%1\$d albums", "%1\$d albums", "%1\$d álbuns")
+    val colTitle = Str("Título", "Title", "Titre", "Título")
+    val colArtist = Str("Artista", "Artist", "Artiste", "Artista")
+    val colAlbum = Str("Álbum", "Album", "Album", "Álbum")
+    val colFormat = Str("Formato", "Format", "Format", "Formato")
+    val colDuration = Str("Duración", "Duration", "Durée", "Duração")
+    val nowPlaying = Str("Reproduciendo", "Now playing", "En lecture", "Tocando agora")
+    val queue = Str("Cola (%1\$d)", "Queue (%1\$d)", "File (%1\$d)", "Fila (%1\$d)")
+    val upNext = Str("A continuación", "Up next", "À suivre", "A seguir")
+    val lyricsSynced = Str("Letra sincronizada", "Synced lyrics", "Paroles synchronisées", "Letra sincronizada")
+    val togglePanel = Str("Panel lateral", "Side panel", "Panneau latéral", "Painel lateral")
+    val mute = Str("Silenciar", "Mute", "Couper le son", "Silenciar")
+    val outputDevice = Str("Windows · modo compartido", "Windows · shared mode", "Windows · mode partagé", "Windows · modo compartilhado")
+    val outputIdle = Str("Salida en espera", "Output idle", "Sortie en attente", "Saída em espera")
+
+    // Apariencia (los mismos nombres que en Android)
+    val appearance = Str("Apariencia", "Appearance", "Apparence", "Aparência")
+    val theme = Str("Tema", "Theme", "Thème", "Tema")
+    val themeNight = Str("Noche", "Night", "Nuit", "Noite")
+    val themeDark = Str("Oscuro", "Dark", "Sombre", "Escuro")
+    val themeLight = Str("Claro", "Light", "Clair", "Claro")
+    val accentColor = Str("Color de acento · %1\$s", "Accent color · %1\$s", "Couleur d'accent · %1\$s", "Cor de destaque · %1\$s")
+    val accentNeonCyan = Str("Cian neón", "Neon cyan", "Cyan néon", "Ciano neon")
+    val accentNeonTeal = Str("Turquesa neón", "Neon teal", "Turquoise néon", "Turquesa neon")
+    val accentNeonAmber = Str("Ámbar neón", "Neon amber", "Ambre néon", "Âmbar neon")
+    val accentNeonBlue = Str("Azul neón", "Neon blue", "Bleu néon", "Azul neon")
+    val accentNeonPink = Str("Rosa neón", "Neon pink", "Rose néon", "Rosa neon")
+    val accentBlue = Str("Azul", "Blue", "Bleu", "Azul")
+    val accentTeal = Str("Turquesa", "Teal", "Turquoise", "Turquesa")
+    val accentGreen = Str("Esmeralda", "Emerald", "Émeraude", "Esmeralda")
+    val accentAmber = Str("Ámbar", "Amber", "Ambre", "Âmbar")
+    val accentOrange = Str("Naranja", "Orange", "Orange", "Laranja")
+    val accentRed = Str("Rojo", "Red", "Rouge", "Vermelho")
+    val accentPink = Str("Rosa", "Pink", "Rose", "Rosa")
+    val accentPurple = Str("Violeta", "Violet", "Violet", "Violeta")
+    val font = Str("Tipo de letra · %1\$s", "Font · %1\$s", "Police · %1\$s", "Fonte · %1\$s")
+    val fontSystem = Str("Sistema", "System", "Système", "Sistema")
+    val textSize = Str("Tamaño del texto", "Text size", "Taille du texte", "Tamanho do texto")
+    val textSmall = Str("Pequeño", "Small", "Petit", "Pequeno")
+    val textNormal = Str("Normal", "Normal", "Normal", "Normal")
+    val textLarge = Str("Grande", "Large", "Grand", "Grande")
+    val textXLarge = Str("Muy grande", "Extra large", "Très grand", "Muito grande")
 }

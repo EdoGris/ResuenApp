@@ -20,6 +20,32 @@ jobs:
       - name: Instalador MSI
         run: ./gradlew :shared:jvmTest :desktopApp:createDistributable :desktopApp:packageMsi
 
+      # Ícono de ResuenApp en el asistente de instalación (banner y panel de bienvenida).
+      - name: Imágenes del instalador
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem desktopApp/build/compose/binaries/main/msi/*.msi | Select-Object -First 1
+          ./desktopApp/installer/brand-msi.ps1 -Msi $msi.FullName
+
+      # ResuenApp-Setup.exe: el .msi dentro de un instalador WiX (Burn) que sí muestra el ícono de
+      # la app en la barra de título. Usa el WiX que descarga el plugin de Compose.
+      - name: Instalador con ícono (Setup.exe)
+        shell: pwsh
+        run: |
+          $candle = Get-ChildItem -Path build, desktopApp/build -Recurse -Filter candle.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -eq $candle) { throw "No se encontró WiX (candle.exe)" }
+          $wix = $candle.DirectoryName
+          $msi = (Get-ChildItem desktopApp/build/compose/binaries/main/msi/*.msi | Select-Object -First 1).FullName
+          $version = [regex]::Match((Split-Path $msi -Leaf), '\d+\.\d+\.\d+').Value
+          $dir = (Resolve-Path desktopApp/installer).Path
+          $out = "desktopApp/build/compose/binaries/main/setup"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          & "$wix\candle.exe" -nologo -ext WixBalExtension "-dVersion=$version" "-dMsi=$msi" "-dInstallerDir=$dir" -out "$out\bundle.wixobj" "$dir\bundle.wxs"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          & "$wix\light.exe" -nologo -ext WixBalExtension -out "$out\ResuenApp-$version-Setup.exe" "$out\bundle.wixobj"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Get-ChildItem $out\*.exe
+
       # Abre el ejecutable ya empaquetado en modo de prueba: comprueba que FFmpeg y la lectura
       # de etiquetas funcionan dentro del instalador (sin salida de audio, el servidor no tiene).
       - name: Prueba del ejecutable
@@ -34,4 +60,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ResuenApp-Windows
-          path: desktopApp/build/compose/binaries/main/msi/*.msi
+          path: |
+            desktopApp/build/compose/binaries/main/setup/*.exe
+            desktopApp/build/compose/binaries/main/msi/*.msi

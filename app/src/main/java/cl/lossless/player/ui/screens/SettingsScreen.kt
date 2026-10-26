@@ -208,7 +208,8 @@ fun SettingsScreen(
                         selected = state.themeMode == mode,
                         onClick = { onThemeMode(mode) },
                         shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
-                    ) { Text(stringResource(mode.labelRes)) }
+                        icon = {},
+                    ) { Text(stringResource(mode.labelRes), maxLines = 1, softWrap = false) }
                 }
             }
             Text(
