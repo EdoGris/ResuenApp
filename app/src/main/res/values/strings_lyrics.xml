@@ -5,6 +5,7 @@
     <string name="lyrics_source_sidecar">Archivo .lrc</string>
     <string name="lyrics_source_embedded">Etiquetas del archivo</string>
     <string name="lyrics_source_lrclib">LRCLIB</string>
+    <string name="lyrics_source_lyrics_ovh">Lyrics.ovh</string>
     <string name="lyrics_source_user">Sincronizada por ti</string>
     <string name="lyrics_source_aligned">Alineación automática (WhisperX)</string>
 
@@ -17,7 +18,7 @@
     <string name="lyrics_not_found_body_server_error">El servidor de letras está saturado o con problemas. Prueba de nuevo en un rato.</string>
     <string name="lyrics_not_found_body_offline">No se pudo consultar LRCLIB. Revisa tu conexión.</string>
     <string name="lyrics_not_found_body_online_disabled">No hay letra en el archivo. Activa la búsqueda en internet en Ajustes → Letras, o agrega un .lrc junto a la canción.</string>
-    <string name="lyrics_not_found_body">No hay letra en el archivo ni en LRCLIB. Puedes agregar un archivo .lrc con el mismo nombre que la canción, en su carpeta.</string>
+    <string name="lyrics_not_found_body">No hay letra en el archivo ni en internet (LRCLIB, Lyrics.ovh). Puedes agregar un archivo .lrc con el mismo nombre que la canción, en su carpeta.</string>
     <string name="lyrics_search_again">Buscar de nuevo</string>
     <string name="lyrics_no_track_title">Sin letra</string>
     <string name="lyrics_no_track_body">No hay ninguna pista en reproducción.</string>

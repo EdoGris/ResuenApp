@@ -4,6 +4,7 @@
     <string name="lyrics_source_sidecar">.lrc file</string>
     <string name="lyrics_source_embedded">File tags</string>
     <string name="lyrics_source_lrclib">LRCLIB</string>
+    <string name="lyrics_source_lyrics_ovh">Lyrics.ovh</string>
     <string name="lyrics_source_user">Synced by you</string>
     <string name="lyrics_source_aligned">Automatic alignment (WhisperX)</string>
 
@@ -15,7 +16,7 @@
     <string name="lyrics_not_found_body_server_error">The lyrics server is overloaded or having problems. Try again in a while.</string>
     <string name="lyrics_not_found_body_offline">Couldn\'t reach LRCLIB. Check your connection.</string>
     <string name="lyrics_not_found_body_online_disabled">The file has no lyrics. Turn on online search in Settings → Lyrics, or add an .lrc file next to the song.</string>
-    <string name="lyrics_not_found_body">No lyrics in the file or on LRCLIB. You can add an .lrc file with the same name as the song, in its folder.</string>
+    <string name="lyrics_not_found_body">No lyrics in the file or online (LRCLIB, Lyrics.ovh). You can add an .lrc file with the same name as the song, in its folder.</string>
     <string name="lyrics_search_again">Search again</string>
     <string name="lyrics_no_track_title">No lyrics</string>
     <string name="lyrics_no_track_body">Nothing is playing.</string>
