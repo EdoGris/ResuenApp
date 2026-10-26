@@ -76,11 +76,11 @@ import cl.lossless.player.desktop.Player
 import cl.lossless.player.desktop.S
 import cl.lossless.player.desktop.Str
 import cl.lossless.player.desktop.TagEditor
-import cl.lossless.player.desktop.TagField
 import cl.lossless.player.desktop.Track
 import cl.lossless.player.desktop.t
 import cl.lossless.player.lyrics.LrcLibClient
 import cl.lossless.player.lyrics.TrackMetadataCleaner
+import cl.lossless.player.tags.TagField
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

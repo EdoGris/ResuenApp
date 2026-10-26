@@ -43,6 +43,7 @@ import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -72,8 +73,10 @@ import cl.lossless.player.ui.components.FolderSortButton
 import cl.lossless.player.ui.components.SearchField
 import cl.lossless.player.ui.components.ScreenHeader
 import cl.lossless.player.ui.components.SegmentedTabs
+import cl.lossless.player.ui.components.SelectionBar
 import cl.lossless.player.ui.components.TrackActions
 import cl.lossless.player.ui.components.TrackList
+import cl.lossless.player.ui.components.TrackSelection
 import cl.lossless.player.ui.components.albumTrackNumber
 import cl.lossless.player.ui.components.formatDuration
 
@@ -100,8 +103,13 @@ fun LibraryScreen(
     onExcludeFolder: (List<String>) -> Unit,
     onSyncLyrics: (List<Track>) -> Unit,
     onFolderSort: (FolderSort) -> Unit,
+    onEditTags: (List<Track>) -> Unit,
 ) {
     var tab by rememberSaveable { mutableIntStateOf(LibraryTab.TRACKS.ordinal) }
+    // Canciones marcadas para asignarles álbum y artista; se vacía al recargar la biblioteca.
+    val selection = remember { TrackSelection() }
+    LaunchedEffect(state.tracks) { selection.clear() }
+    val editSelected = { onEditTags(state.tracks.filter { it in selection }) }
     var query by rememberSaveable { mutableStateOf("") }
     BackHandler(enabled = query.isNotEmpty()) { query = "" }
     var openAlbumKey by rememberSaveable { mutableStateOf<String?>(null) }
@@ -132,7 +140,10 @@ fun LibraryScreen(
             onBack = { openAlbumKey = null },
             onEditCover = { onEditCover(album) },
             onSyncLyrics = { onSyncLyrics(album.tracks) },
+            selection = selection,
+            onEditSelected = editSelected,
         )
+        BackHandler(enabled = selection.active) { selection.clear() }
         return
     }
     folders.firstOrNull { it.key == openFolderKey }?.let { folder ->
@@ -146,7 +157,10 @@ fun LibraryScreen(
             onBack = { openFolderKey = null },
             onEditCover = null,
             onSyncLyrics = { onSyncLyrics(folder.tracks) },
+            selection = selection,
+            onEditSelected = editSelected,
         )
+        BackHandler(enabled = selection.active) { selection.clear() }
         return
     }
 
@@ -163,7 +177,7 @@ fun LibraryScreen(
                 stringResource(R.string.library_folders),
             ),
             selected = tab,
-            onSelect = { if (it != tab) query = ""; tab = it },
+            onSelect = { if (it != tab) { query = ""; selection.clear() }; tab = it },
         )
         when {
             state.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
@@ -177,7 +191,23 @@ fun LibraryScreen(
                 onSecondary = onRescan,
             )
             else -> when (LibraryTab.entries[tab]) {
-                LibraryTab.TRACKS -> TrackList(state.tracks, actions, Modifier.fillMaxSize())
+                LibraryTab.TRACKS -> Column(Modifier.fillMaxSize()) {
+                    BackHandler(enabled = selection.active) { selection.clear() }
+                    if (selection.active) SelectionBar(selection, state.tracks, onEdit = editSelected)
+                    TrackList(
+                        state.tracks, actions, Modifier.fillMaxSize(),
+                        selection = selection,
+                        header = {
+                            if (!selection.active) item(key = "select-hint") {
+                                Text(
+                                    stringResource(R.string.library_select_hint),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        },
+                    )
+                }
                 LibraryTab.ALBUMS -> Column(Modifier.fillMaxSize()) {
                     SearchField(
                         query = query,
@@ -354,14 +384,18 @@ private fun CollectionDetail(
     onBack: () -> Unit,
     onEditCover: (() -> Unit)?,
     onSyncLyrics: (() -> Unit)? = null,
+    selection: TrackSelection? = null,
+    onEditSelected: () -> Unit = {},
 ) {
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(title = "", onBack = onBack)
+        if (selection != null && selection.active) SelectionBar(selection, tracks, onEdit = onEditSelected)
         TrackList(
             tracks = tracks,
             actions = actions,
             number = ::albumTrackNumber,
             modifier = Modifier.fillMaxSize(),
+            selection = selection,
             header = {
                 item(key = "header") {
                     CollectionHeader(title, subtitle, tracks, cover, onEditCover,

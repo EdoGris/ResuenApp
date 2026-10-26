@@ -1,6 +1,7 @@
 package cl.lossless.player.ui
 
 import android.app.Application
+import android.content.IntentSender
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.annotation.StringRes
@@ -23,8 +24,10 @@ import cl.lossless.player.library.folderSegments
 import cl.lossless.player.library.LibraryLocation
 import cl.lossless.player.library.LibraryPrefs
 import cl.lossless.player.library.MusicRepository
+import cl.lossless.player.library.TagWriter
 import cl.lossless.player.library.Track
 import cl.lossless.player.library.albumKey
+import cl.lossless.player.tags.TagField
 import cl.lossless.player.library.toAlbumGroups
 import cl.lossless.player.ui.theme.AccentColor
 import cl.lossless.player.ui.theme.AppFont
@@ -38,6 +41,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 data class CoverDialogState(
     val album: AlbumGroup,
@@ -45,6 +49,13 @@ data class CoverDialogState(
     val saving: Boolean = false,
     val candidates: List<CoverCandidate> = emptyList(),
     val message: String? = null,
+)
+
+/** Editor de etiquetas abierto para varias canciones (ver [LibraryViewModel.openTagEditor]). */
+data class TagEditState(
+    val tracks: List<Track>,
+    val saving: Boolean = false,
+    val error: String? = null,
 )
 
 /** Resumen de la cola de sincronización para Ajustes. */
@@ -69,11 +80,16 @@ data class LibraryUiState(
     val allTracks: List<Track> = emptyList(),
     val excludedFolders: Set<String> = emptySet(),
     val tracksById: Map<String, Track> = emptyMap(),
+    /** URI de cada pista → clave de su álbum ([AlbumGroup.key]), que puede abarcar varias carpetas. */
+    val albumKeys: Map<String, String> = emptyMap(),
     val covers: Map<String, CoverRef> = emptyMap(),
     val saveCoversInFolder: Boolean = true,
     val coverTaskStatus: String? = null,
     val coverTaskRunning: Boolean = false,
     val dialog: CoverDialogState? = null,
+    val tagEdit: TagEditState? = null,
+    /** Autorización del sistema que hay que pedir para escribir las etiquetas (se consume al lanzarla). */
+    val tagWriteConsent: IntentSender? = null,
     val themeMode: ThemeMode = ThemeMode.DARK,
     val dynamicColor: Boolean = false,
     val accent: AccentColor = AccentColor.BLUE,
@@ -88,7 +104,7 @@ data class LibraryUiState(
     /** Aviso puntual para mostrar al usuario (se consume al mostrarse). */
     val userMessage: String? = null,
 ) {
-    fun coverFor(track: Track): CoverRef? = covers[track.albumKey]
+    fun coverFor(track: Track): CoverRef? = covers[albumKeys[track.uri.toString()] ?: track.albumKey]
 }
 
 class LibraryViewModel(app: Application) : AndroidViewModel(app) {
@@ -99,6 +115,7 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
     private val coverStore = CoverStore(app)
     private val playbackPrefs = PlaybackPrefs(app)
     private val queue = SyncQueue.get(app)
+    private val tagWriter by lazy { TagWriter(app) }
 
     private fun str(@StringRes id: Int, vararg args: Any): String =
         getApplication<Application>().getString(id, *args)
@@ -242,6 +259,7 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
                     albums = albums,
                     tracks = tracks,
                     tracksById = tracks.associateBy { t -> t.uri.toString() },
+                    albumKeys = albums.flatMap { a -> a.tracks.map { t -> t.uri.toString() to a.key } }.toMap(),
                     loading = false,
                 )
             }
@@ -433,6 +451,78 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+
+    // ---------- Etiquetas de varias canciones ----------
+
+    /** Cambios a escribir mientras el sistema pide la autorización. */
+    private var pendingTagChanges: Map<TagField, String>? = null
+
+    fun openTagEditor(tracks: List<Track>) {
+        if (tracks.isNotEmpty()) _ui.update { it.copy(tagEdit = TagEditState(tracks)) }
+    }
+
+    fun closeTagEditor() {
+        if (_ui.value.tagEdit?.saving == true && pendingTagChanges == null) return
+        pendingTagChanges = null
+        _ui.update { it.copy(tagEdit = null, tagWriteConsent = null) }
+    }
+
+    /** Escribe [changes] (solo los campos tocados; vacío = borrar) en todas las pistas del editor. */
+    fun saveTags(changes: Map<TagField, String>) {
+        val edit = _ui.value.tagEdit ?: return
+        if (edit.saving) return
+        if (changes.isEmpty()) return closeTagEditor()
+        val location = _ui.value.location
+        val needConsent = edit.tracks.map { tagWriter.targetFor(it, location) }.filter(tagWriter::needsConsent)
+        if (needConsent.isEmpty()) return writeTags(edit, changes)
+        pendingTagChanges = changes
+        val request = runCatching { tagWriter.consentRequest(needConsent).intentSender }
+        _ui.update {
+            it.copy(
+                tagEdit = edit.copy(saving = request.isSuccess, error = request.exceptionOrNull()?.let(::describeError)),
+                tagWriteConsent = request.getOrNull(),
+            )
+        }
+    }
+
+    /** Respuesta del diálogo del sistema que autoriza modificar las canciones. */
+    fun onTagWriteConsent(granted: Boolean) {
+        val edit = _ui.value.tagEdit
+        val changes = pendingTagChanges
+        pendingTagChanges = null
+        _ui.update { it.copy(tagWriteConsent = null) }
+        if (edit == null || changes == null) return
+        if (granted) writeTags(edit, changes)
+        else _ui.update { it.copy(tagEdit = edit.copy(saving = false)) }
+    }
+
+    private fun writeTags(edit: TagEditState, changes: Map<TagField, String>) {
+        _ui.update { it.copy(tagEdit = edit.copy(saving = true, error = null)) }
+        viewModelScope.launch {
+            val location = _ui.value.location
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    for (track in edit.tracks) tagWriter.write(track, tagWriter.targetFor(track, location), changes)
+                }
+            }
+            // También se relee lo que alcanzó a escribirse antes de un error.
+            withContext(Dispatchers.IO) { withTimeoutOrNull(20_000) { tagWriter.rescan(edit.tracks) } }
+            result.onSuccess {
+                val n = edit.tracks.size
+                _ui.update {
+                    it.copy(
+                        tagEdit = null,
+                        userMessage = getApplication<Application>().resources.getQuantityString(R.plurals.library_tags_saved, n, n),
+                    )
+                }
+            }.onFailure { e ->
+                _ui.update { it.copy(tagEdit = edit.copy(saving = false, error = describeError(e))) }
+            }
+            reload()
+        }
+    }
+
+    private fun describeError(e: Throwable) = e.message ?: e.javaClass.simpleName
 
     fun consumeUserMessage() = _ui.update { it.copy(userMessage = null) }
 
