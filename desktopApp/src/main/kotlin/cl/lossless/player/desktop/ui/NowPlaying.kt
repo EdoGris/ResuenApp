@@ -478,9 +478,9 @@ fun PlayerBar(player: Player, state: PlayerState, positionMs: Long, panelOpen: B
                 horizontalAlignment = Alignment.End,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Memory, null, tint = Neon.Teal, modifier = Modifier.size(12.dp))
+                    Icon(Icons.Rounded.Memory, null, tint = Neon.Accent, modifier = Modifier.size(12.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text(t(S.outputDevice), color = Neon.Teal, fontFamily = Mono, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Text(t(S.outputDevice), color = Neon.Accent, fontFamily = Mono, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                 }
                 Text(state.outputFormat ?: t(S.outputIdle), color = Neon.Muted, fontFamily = Mono, fontSize = 10.sp, maxLines = 1)
             }

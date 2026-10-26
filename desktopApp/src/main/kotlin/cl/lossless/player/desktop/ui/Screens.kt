@@ -574,7 +574,7 @@ fun FolderList(folders: List<Pair<String, List<Track>>>, onOpen: (String) -> Uni
                     .padding(horizontal = 12.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Rounded.Folder, null, tint = Neon.Amber, modifier = Modifier.size(18.dp))
+                Icon(Icons.Rounded.Folder, null, tint = Neon.Accent, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
@@ -622,7 +622,7 @@ fun SettingsScreen(
         SettingsCard(t(S.libraryFolders)) {
             folders.forEach { path ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Folder, null, tint = Neon.Amber, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Rounded.Folder, null, tint = Neon.Accent, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(12.dp))
                     Text(path, Modifier.weight(1f), color = Neon.Text, fontFamily = Mono, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     IconButton(onClick = { onRemove(path) }) { Icon(Icons.Rounded.Delete, t(S.removeFolder), tint = Neon.Muted) }
@@ -645,7 +645,7 @@ fun SettingsScreen(
 
         SettingsCard(t(S.output)) {
             Text(t(S.outputShared), color = Neon.Text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-            if (outputFormat != null) Text(outputFormat, color = Neon.Teal, fontFamily = Mono, fontSize = 12.sp)
+            if (outputFormat != null) Text(outputFormat, color = Neon.Accent, fontFamily = Mono, fontSize = 12.sp)
             Text(t(S.outputNote), color = Neon.Muted, fontSize = 12.sp)
         }
 

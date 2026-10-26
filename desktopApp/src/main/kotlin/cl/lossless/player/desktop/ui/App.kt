@@ -380,13 +380,13 @@ private fun TitleBar(query: String, onQuery: (String) -> Unit, searchFocus: Focu
             if (outputFormat != null) {
                 val shape = RoundedCornerShape(50)
                 Row(
-                    Modifier.clip(shape).background(Neon.Amber.copy(alpha = 0.10f)).border(1.dp, Neon.Amber.copy(alpha = 0.30f), shape)
+                    Modifier.clip(shape).background(Neon.Accent.copy(alpha = 0.10f)).border(1.dp, Neon.Accent.copy(alpha = 0.30f), shape)
                         .padding(horizontal = 8.dp, vertical = 3.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Rounded.Bolt, null, tint = Neon.Amber, modifier = Modifier.size(12.dp))
+                    Icon(Icons.Rounded.Bolt, null, tint = Neon.Accent, modifier = Modifier.size(12.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text(outputFormat.uppercase(), color = Neon.Amber, fontFamily = Mono, fontSize = 10.sp, maxLines = 1)
+                    Text(outputFormat.uppercase(), color = Neon.Accent, fontFamily = Mono, fontSize = 10.sp, maxLines = 1)
                 }
             }
         }
@@ -435,7 +435,7 @@ private fun Sidebar(selected: Tab, trackCount: Int, onSelect: (Tab) -> Unit) {
     Column(
         Modifier.width(240.dp).fillMaxHeight().background(Neon.Surface.copy(alpha = 0.75f)).padding(10.dp),
     ) {
-        SectionLabel(t(S.library), Modifier.padding(start = 12.dp, bottom = 8.dp, top = 6.dp))
+        SectionLabel(t(S.library), Modifier.padding(start = 12.dp, bottom = 8.dp, top = 6.dp), color = Neon.Accent)
         NavItem(Icons.Rounded.MusicNote, t(S.songs), selected == Tab.SONGS, badge = "$trackCount") { onSelect(Tab.SONGS) }
         NavItem(Icons.Rounded.Album, t(S.albums), selected == Tab.ALBUMS) { onSelect(Tab.ALBUMS) }
         NavItem(Icons.Rounded.Mic, t(S.artists), selected == Tab.ARTISTS) { onSelect(Tab.ARTISTS) }
@@ -473,7 +473,8 @@ private fun NavItem(icon: ImageVector, label: String, selected: Boolean, badge: 
             .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, null, tint = color, modifier = Modifier.size(17.dp))
+        // El ícono siempre lleva el color de acento; el texto se ilumina al elegirlo o pasar el mouse.
+        Icon(icon, null, tint = if (selected || hovered) color else Neon.Accent.copy(alpha = 0.75f), modifier = Modifier.size(17.dp))
         Spacer(Modifier.width(12.dp))
         Text(label, color = color, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
         if (badge != null) Text(badge, color = color.copy(alpha = 0.6f), fontFamily = Mono, fontSize = 10.sp)
