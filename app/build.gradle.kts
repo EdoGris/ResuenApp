@@ -18,8 +18,8 @@ android {
 
     buildTypes {
         release { isMinifyEnabled = false }
-        // Instalable junto a la app normal: otro paquete, otro nombre e ícono propio
-        // (recursos en src/experimental). Datos y ajustes quedan separados de la app estable.
+        // Instalable junto a la app normal: otro paquete y otro nombre (src/experimental); el
+        // ícono es el mismo de la app de Windows. Datos y ajustes quedan separados de la estable.
         create("experimental") {
             initWith(getByName("debug"))
             applicationIdSuffix = ".exp"

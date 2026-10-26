@@ -65,6 +65,7 @@
     <string name="settings_theme_system">Sistema</string>
     <string name="settings_theme_dark">Escuro</string>
     <string name="settings_theme_light">Claro</string>
+    <string name="settings_theme_night">Noite</string>
     <string name="settings_accent_blue">Azul</string>
     <string name="settings_accent_teal">Turquesa</string>
     <string name="settings_accent_green">Esmeralda</string>
@@ -73,6 +74,11 @@
     <string name="settings_accent_red">Vermelho</string>
     <string name="settings_accent_pink">Rosa</string>
     <string name="settings_accent_purple">Violeta</string>
+    <string name="settings_accent_neon_cyan">Ciano neon</string>
+    <string name="settings_accent_neon_teal">Turquesa neon</string>
+    <string name="settings_accent_neon_amber">Âmbar neon</string>
+    <string name="settings_accent_neon_blue">Azul neon</string>
+    <string name="settings_accent_neon_pink">Rosa neon</string>
     <string name="settings_font_system">Sistema</string>
     <string name="settings_text_size_small">Pequeno</string>
     <string name="settings_text_size_normal">Normal</string>
