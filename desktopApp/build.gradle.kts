@@ -55,6 +55,7 @@ compose.desktop {
         jvmArgs += listOf("-Dfile.encoding=UTF-8")
 
         nativeDistributions {
+            // En CI la .dmg final la arma installer/macos/make-dmg.sh (fondo e ícono del volumen).
             targetFormats(TargetFormat.Msi, TargetFormat.Dmg)
             packageName = "ResuenApp"
             packageVersion = "1.1.0"
