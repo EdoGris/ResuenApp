@@ -11,7 +11,13 @@ data class FolderNode(
     val tracks: List<Track>,
 )
 
-data class FolderEntry(val name: String, val segments: List<String>, val trackCount: Int)
+data class FolderEntry(
+    val name: String,
+    val segments: List<String>,
+    val trackCount: Int,
+    /** Modificación más reciente entre sus pistas (incluye subcarpetas). */
+    val lastModified: Long = 0L,
+)
 
 /** Ruta de la carpeta de la pista como segmentos: ["primary", "Music", "Rock"]. */
 val Track.folderSegments: List<String>
@@ -29,7 +35,9 @@ fun List<Track>.folderNode(segments: List<String>): FolderNode {
     val (direct, deeper) = inside.partition { (_, s) -> s.size == segments.size }
     val subfolders = deeper
         .groupBy { (_, s) -> s[segments.size] }
-        .map { (name, items) -> FolderEntry(name, segments + name, items.size) }
+        .map { (name, items) ->
+            FolderEntry(name, segments + name, items.size, items.maxOf { it.first.dateModified })
+        }
         .sortedBy { it.name.lowercase() }
     return FolderNode(
         segments = segments,

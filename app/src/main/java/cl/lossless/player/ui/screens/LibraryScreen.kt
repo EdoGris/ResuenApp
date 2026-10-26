@@ -59,12 +59,17 @@ import androidx.compose.ui.unit.dp
 import cl.lossless.player.R
 import cl.lossless.player.covers.CoverRef
 import cl.lossless.player.library.AlbumGroup
+import cl.lossless.player.library.FolderSort
+import cl.lossless.player.library.LibrarySearch
 import cl.lossless.player.library.Track
 import cl.lossless.player.library.folderDisplayPath
 import cl.lossless.player.library.folderSegments
+import cl.lossless.player.library.sortedFolders
 import cl.lossless.player.ui.LibraryUiState
 import cl.lossless.player.ui.components.CoverImage
 import cl.lossless.player.ui.components.EmptyState
+import cl.lossless.player.ui.components.FolderSortButton
+import cl.lossless.player.ui.components.SearchField
 import cl.lossless.player.ui.components.ScreenHeader
 import cl.lossless.player.ui.components.SegmentedTabs
 import cl.lossless.player.ui.components.TrackActions
@@ -81,7 +86,9 @@ private data class FolderGroup(
     val path: String,
     val segments: List<String>,
     val tracks: List<Track>,
-)
+) {
+    val lastModified: Long = tracks.maxOf { it.dateModified }
+}
 
 @Composable
 fun LibraryScreen(
@@ -92,8 +99,11 @@ fun LibraryScreen(
     onEditCover: (AlbumGroup) -> Unit,
     onExcludeFolder: (List<String>) -> Unit,
     onSyncLyrics: (List<Track>) -> Unit,
+    onFolderSort: (FolderSort) -> Unit,
 ) {
     var tab by rememberSaveable { mutableIntStateOf(LibraryTab.TRACKS.ordinal) }
+    var query by rememberSaveable { mutableStateOf("") }
+    BackHandler(enabled = query.isNotEmpty()) { query = "" }
     var openAlbumKey by rememberSaveable { mutableStateOf<String?>(null) }
     var openFolderKey by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -101,8 +111,14 @@ fun LibraryScreen(
         state.tracks.groupBy { it.folderKey }.map { (key, tracks) ->
             val segments = tracks.first().folderSegments
             FolderGroup(key, tracks.first().folderName, folderDisplayPath(segments), segments, tracks)
-        }.sortedBy { it.path.lowercase() }
+        }
     }
+    val visibleFolders = remember(folders, query, state.folderSort) {
+        folders
+            .filter { LibrarySearch.matches(query, it.name, it.path) }
+            .sortedFolders(state.folderSort, { it.name }, { it.tracks.size }, { it.lastModified })
+    }
+    val visibleAlbums = remember(state.albums, query) { LibrarySearch.albums(state.albums, query) }
 
     // Detalles (álbum o carpeta) sobre la pestaña actual
     state.albums.firstOrNull { it.key == openAlbumKey }?.let { album ->
@@ -147,7 +163,7 @@ fun LibraryScreen(
                 stringResource(R.string.library_folders),
             ),
             selected = tab,
-            onSelect = { tab = it },
+            onSelect = { if (it != tab) query = ""; tab = it },
         )
         when {
             state.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
@@ -162,10 +178,46 @@ fun LibraryScreen(
             )
             else -> when (LibraryTab.entries[tab]) {
                 LibraryTab.TRACKS -> TrackList(state.tracks, actions, Modifier.fillMaxSize())
-                LibraryTab.ALBUMS -> AlbumGrid(state.albums, state.covers) { openAlbumKey = it.key }
-                LibraryTab.FOLDERS -> FolderList(folders, onExclude = { onExcludeFolder(it.segments) }) { openFolderKey = it.key }
+                LibraryTab.ALBUMS -> Column(Modifier.fillMaxSize()) {
+                    SearchField(
+                        query = query,
+                        onQueryChange = { query = it },
+                        placeholder = stringResource(R.string.library_search_albums),
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+                    )
+                    if (visibleAlbums.isEmpty()) NoResults(query)
+                    else AlbumGrid(visibleAlbums, state.covers) { openAlbumKey = it.key }
+                }
+                LibraryTab.FOLDERS -> Column(Modifier.fillMaxSize()) {
+                    Row(
+                        Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        SearchField(
+                            query = query,
+                            onQueryChange = { query = it },
+                            placeholder = stringResource(R.string.library_search_folders),
+                            modifier = Modifier.weight(1f),
+                        )
+                        FolderSortButton(state.folderSort, onFolderSort)
+                    }
+                    if (visibleFolders.isEmpty()) NoResults(query)
+                    else FolderList(visibleFolders, onExclude = { onExcludeFolder(it.segments) }) { openFolderKey = it.key }
+                }
             }
         }
+    }
+}
+
+/** Aviso de búsqueda sin coincidencias. */
+@Composable
+fun NoResults(query: String) {
+    Box(Modifier.fillMaxSize().padding(32.dp), Alignment.TopCenter) {
+        Text(
+            stringResource(R.string.library_search_no_results, query),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
