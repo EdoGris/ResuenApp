@@ -1,6 +1,7 @@
 package cl.lossless.player.desktop
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -19,12 +20,17 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import cl.lossless.player.desktop.ui.Accent
 import cl.lossless.player.desktop.ui.App
 import cl.lossless.player.desktop.ui.AppIcon
+import cl.lossless.player.desktop.ui.Appearance
 import cl.lossless.player.desktop.ui.MiniPlayer
 import cl.lossless.player.desktop.ui.NeonTheme
 import cl.lossless.player.desktop.ui.miniPlayerSize
 import cl.lossless.player.lyrics.LrcParser
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import java.awt.GraphicsEnvironment
 import java.io.DataOutputStream
 import java.io.File
@@ -84,6 +90,18 @@ fun main(args: Array<String>) {
             // Atajos de reproducción: solo si nada enfocado (la búsqueda, un campo) usó la tecla.
             onKeyEvent = { e -> Shortcuts.handle(e, player) },
         ) {
+            // Barra de título de Windows con los colores de la app (fondo del tema, borde de acento).
+            val palette = Appearance.palette
+            LaunchedEffect(palette, mini) {
+                WindowsTitleBar.apply(window, dark = palette.dark, caption = palette.night, text = palette.text, border = palette.accent)
+            }
+            // "Color del sistema": sigue el color de énfasis si se cambia con la app abierta.
+            LaunchedEffect(Appearance.accent) {
+                while (Appearance.accent == Accent.SYSTEM) {
+                    SystemAccent.update(withContext(Dispatchers.IO) { SystemAccent.read() })
+                    delay(5_000)
+                }
+            }
             App(player, searchFocus, onMiniPlayer = {
                 miniState.size = miniPlayerSize()
                 mini = true

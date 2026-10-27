@@ -68,6 +68,9 @@ dependencies {
     // de Windows y macOS dentro del jar).
     implementation("com.github.kwhat:jnativehook:2.2.2")
 
+    // Colores de la barra de título de Windows (DwmSetWindowAttribute de dwmapi.dll).
+    implementation("net.java.dev.jna:jna:5.15.0")
+
     testImplementation("junit:junit:4.13.2")
 }
 

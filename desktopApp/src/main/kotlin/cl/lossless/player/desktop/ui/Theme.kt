@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import cl.lossless.player.desktop.AppSettings
 import cl.lossless.player.desktop.S
 import cl.lossless.player.desktop.Str
+import cl.lossless.player.desktop.SystemAccent
 import javax.imageio.ImageIO
 
 /** Tema de la app: Noche es el de la maqueta; Oscuro y Claro son los mismos de Android. */
@@ -60,12 +61,33 @@ enum class Accent(val label: Str, val hue: Float, val saturation: Float, private
     RED(S.accentRed, 355f, 0.85f),
     PINK(S.accentPink, 330f, 0.85f),
     PURPLE(S.accentPurple, 268f, 0.80f),
+    /** El color de énfasis de Windows o macOS, con el mismo ajuste de contraste que los demás. */
+    SYSTEM(S.accentSystem, 0f, 0f),
     ;
 
-    fun color(dark: Boolean): Color = when {
-        dark -> exact?.let { Color(it) } ?: vivid(hue, saturation, 0.60f, minLum = 0.28f)
-        else -> vivid(hue, saturation, 0.45f, maxLum = 0.12f)
+    fun color(dark: Boolean): Color {
+        val (h, s) = if (this == SYSTEM) SystemAccent.color.hueSaturation() else hue to saturation
+        return when {
+            dark -> exact?.let { Color(it) } ?: vivid(h, s, 0.60f, minLum = 0.28f)
+            else -> vivid(h, s, 0.45f, maxLum = 0.12f)
+        }
     }
+}
+
+/** Tono (0..360) y saturación HSL (0..1) de un color. */
+private fun Color.hueSaturation(): Pair<Float, Float> {
+    val max = maxOf(red, green, blue)
+    val min = minOf(red, green, blue)
+    val d = max - min
+    if (d < 1e-4f) return 0f to 0f
+    val l = (max + min) / 2
+    val s = d / (1 - kotlin.math.abs(2 * l - 1))
+    val h = when (max) {
+        red -> 60f * (((green - blue) / d) % 6f)
+        green -> 60f * ((blue - red) / d + 2f)
+        else -> 60f * ((red - green) / d + 4f)
+    }
+    return (if (h < 0) h + 360f else h) to s.coerceIn(0f, 1f)
 }
 
 /** Tipos de letra: los mismos que se pueden elegir en Android (incluidos en la app, licencia OFL). */
