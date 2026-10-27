@@ -43,8 +43,11 @@ class Player {
 
     @Volatile private var session: Session? = null
     @Volatile private var thread: Thread? = null
-    @Volatile var volume: Float = AppSettings.volume
-        private set
+    private val _volume = MutableStateFlow(AppSettings.volume)
+    /** Volumen 0..1; lo comparten la barra inferior y el mini reproductor. */
+    val volumeState: StateFlow<Float> = _volume.asStateFlow()
+    val volume: Float get() = _volume.value
+    private var beforeMute = if (AppSettings.volume > 0.001f) AppSettings.volume else 1f
 
     fun playQueue(tracks: List<Track>, start: Int) {
         if (tracks.isEmpty()) return
@@ -84,12 +87,38 @@ class Player {
         session?.seekToMs = ms.coerceAtLeast(0)
     }
 
+    /** Avanza o retrocede [deltaMs] dentro de la pista actual. */
+    fun seekBy(deltaMs: Long) {
+        val s = session ?: return
+        val duration = _state.value.durationMs
+        val target = s.positionMs() + deltaMs
+        seek(if (duration > 0) target.coerceAtMost(duration - 500) else target)
+    }
+
+    /** Detiene la reproducción y vuelve al inicio de la pista (Reproducir la empieza de nuevo). */
+    fun stop() {
+        session?.stop()
+        session = null
+        _state.update { it.copy(playing = false, outputFormat = null) }
+    }
+
     fun positionMs(): Long = session?.positionMs() ?: 0
 
     fun setVolume(v: Float) {
-        volume = v.coerceIn(0f, 1f)
-        AppSettings.volume = volume
-        session?.applyVolume(volume)
+        val value = v.coerceIn(0f, 1f)
+        _volume.value = value
+        AppSettings.volume = value
+        session?.applyVolume(value)
+    }
+
+    /** Silencia, o vuelve al volumen que había antes de silenciar. */
+    fun toggleMute() {
+        if (volume > 0.001f) {
+            beforeMute = volume
+            setVolume(0f)
+        } else {
+            setVolume(beforeMute)
+        }
     }
 
     /**
@@ -194,6 +223,7 @@ class Player {
                 _state.update { it.copy(outputFormat = "$bits bits / ${khz(rate)} kHz", durationMs = durationOf(grabber)) }
                 opened.start()
                 val bytesPerFrame = channels * bits / 8
+                val eq = EqProcessor(rate, channels)
                 var buffer = ByteArray(0)
 
                 while (!stopped) {
@@ -204,6 +234,7 @@ class Player {
                         opened.flush()
                         baseMs = seek
                         baseFrame = opened.longFramePosition
+                        eq.reset()
                     }
                     if (paused) {
                         if (opened.isRunning) opened.stop()
@@ -214,6 +245,7 @@ class Player {
                     }
                     val frame = grabber.grabSamples() ?: break
                     val samples = Decoder.toInt32Interleaved(frame, channels) ?: continue
+                    eq.process(samples)
                     val needed = samples.size / channels * bytesPerFrame
                     if (buffer.size < needed) buffer = ByteArray(needed)
                     val n = Decoder.pack(samples, bits, buffer)

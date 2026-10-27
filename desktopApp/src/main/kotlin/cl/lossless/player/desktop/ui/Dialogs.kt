@@ -94,6 +94,7 @@ sealed interface TrackDialog {
     data class EditTags(val tracks: List<Track>) : TrackDialog
     data class FindCover(val tracks: List<Track>) : TrackDialog
     data class FindLyrics(val track: Track) : TrackDialog
+    data object Equalizer : TrackDialog
 }
 
 /** Acciones sobre pistas que ofrecen el menú contextual, el detalle de álbum y el panel. */
@@ -128,6 +129,10 @@ fun TrackDialogHost(dialog: TrackDialog, player: Player, onDismiss: () -> Unit, 
                 is TrackDialog.EditTags -> TagEditorDialog(dialog.tracks, player, onDismiss, onUpdated)
                 is TrackDialog.FindCover -> CoverSearchDialog(dialog.tracks, player, onDismiss, onUpdated)
                 is TrackDialog.FindLyrics -> LyricsSearchDialog(dialog.track, onDismiss)
+                TrackDialog.Equalizer -> {
+                    DialogHeader(t(S.equalizer), null, onDismiss)
+                    EqualizerPanel(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()))
+                }
             }
         }
     }

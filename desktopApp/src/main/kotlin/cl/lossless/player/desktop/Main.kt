@@ -46,6 +46,7 @@ fun main(args: Array<String>) {
     // Diálogos de Swing (elegir carpeta) con el aspecto nativo del sistema.
     runCatching { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()) }
     val player = Player()
+    Shortcuts.start(player)
     application {
         val searchFocus = remember { FocusRequester() }
         var mini by remember { mutableStateOf(false) }
@@ -62,6 +63,7 @@ fun main(args: Array<String>) {
         Window(
             onCloseRequest = {
                 player.shutdown()
+                Shortcuts.shutdown()
                 exitApplication()
             },
             visible = !mini,
@@ -70,13 +72,17 @@ fun main(args: Array<String>) {
             state = rememberWindowState(width = 1360.dp, height = 860.dp),
             // Ctrl+F (⌘F en macOS) lleva a la búsqueda, como en la maqueta.
             onPreviewKeyEvent = { e ->
-                if (e.type == KeyEventType.KeyDown && (if (IsMac) e.isMetaPressed else e.isCtrlPressed) && e.key == Key.F) {
+                if (Shortcuts.handleCapture(e)) {
+                    true
+                } else if (e.type == KeyEventType.KeyDown && (if (IsMac) e.isMetaPressed else e.isCtrlPressed) && e.key == Key.F) {
                     runCatching { searchFocus.requestFocus() }
                     true
                 } else {
                     false
                 }
             },
+            // Atajos de reproducción: solo si nada enfocado (la búsqueda, un campo) usó la tecla.
+            onKeyEvent = { e -> Shortcuts.handle(e, player) },
         ) {
             App(player, searchFocus, onMiniPlayer = {
                 miniState.size = miniPlayerSize()
@@ -98,6 +104,7 @@ fun main(args: Array<String>) {
                 onPreviewKeyEvent = { e ->
                     if (e.type == KeyEventType.KeyDown && e.key == Key.Escape) { showFull(); true } else false
                 },
+                onKeyEvent = { e -> Shortcuts.handle(e, player) },
             ) {
                 CompositionLocalProvider(LocalLang provides (AppSettings.language ?: Lang.system())) {
                     NeonTheme {

@@ -60,6 +60,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -85,6 +87,9 @@ import androidx.compose.ui.unit.sp
 import cl.lossless.player.desktop.APP_VERSION
 import cl.lossless.player.desktop.Album
 import cl.lossless.player.desktop.Covers
+import cl.lossless.player.desktop.IsMac
+import cl.lossless.player.desktop.PlaybackAction
+import cl.lossless.player.desktop.Shortcuts
 import cl.lossless.player.desktop.Lang
 import cl.lossless.player.desktop.S
 import cl.lossless.player.desktop.Track
@@ -646,6 +651,10 @@ fun SettingsScreen(
 
         AppearanceCard()
 
+        SettingsCard(t(S.equalizer)) { EqualizerPanel(Modifier.fillMaxWidth()) }
+
+        ShortcutsCard()
+
         SettingsCard(t(S.output)) {
             Text(t(S.outputShared), color = Neon.Text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
             if (outputFormat != null) Text(outputFormat, color = Neon.Accent, fontFamily = Mono, fontSize = 12.sp)
@@ -712,6 +721,56 @@ private fun AppearanceCard() {
             Pill(t(S.sideRight), selected = !Appearance.panelLeft) { Appearance.placePanel(false) }
             Pill(t(S.sideLeft), selected = Appearance.panelLeft) { Appearance.placePanel(true) }
         }
+    }
+}
+
+/** Atajos de teclado: clic en uno y se pulsa la tecla nueva (la captura la hace la ventana). */
+@Composable
+private fun ShortcutsCard() {
+    SettingsCard(t(S.shortcuts)) {
+        val space = t(S.shortcutSpace)
+        PlaybackAction.entries.forEach { action ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(t(action.label), color = Neon.Text, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                val capturing = Shortcuts.capturing == action
+                val combo = Shortcuts.bindings[action]
+                val shape = RoundedCornerShape(6.dp)
+                Text(
+                    when {
+                        capturing -> t(S.shortcutPress)
+                        combo != null -> combo.label(space)
+                        else -> t(S.shortcutNone)
+                    },
+                    modifier = Modifier.widthIn(min = 120.dp).clip(shape)
+                        .background(if (capturing) Neon.Accent.copy(alpha = 0.15f) else Neon.Card)
+                        .border(1.dp, if (capturing) Neon.Accent else Neon.Border, shape)
+                        .clickable { Shortcuts.capturing = if (capturing) null else action }
+                        .padding(horizontal = 12.dp, vertical = 5.dp),
+                    color = when {
+                        capturing -> Neon.Accent
+                        combo != null -> Neon.TextStrong
+                        else -> Neon.Faint
+                    },
+                    fontFamily = Mono, fontSize = 12.sp, textAlign = TextAlign.Center,
+                )
+            }
+        }
+        Text(t(S.shortcutHint), color = Neon.Muted, fontSize = 12.sp)
+        GhostButton(Icons.Rounded.Refresh, t(S.shortcutReset)) { Shortcuts.capturing = null; Shortcuts.resetDefaults() }
+
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Neon.Border))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(t(S.mediaKeys), color = Neon.Text, fontSize = 13.sp, modifier = Modifier.weight(1f))
+            Switch(
+                checked = Shortcuts.mediaKeys,
+                onCheckedChange = Shortcuts::setMediaKeys,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Neon.OnAccent, checkedTrackColor = Neon.Accent,
+                    uncheckedThumbColor = Neon.Muted, uncheckedTrackColor = Neon.Card, uncheckedBorderColor = Neon.Border,
+                ),
+            )
+        }
+        if (IsMac) Text(t(S.mediaKeysMac), color = Neon.Muted, fontSize = 12.sp)
     }
 }
 

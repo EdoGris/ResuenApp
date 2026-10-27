@@ -335,7 +335,12 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
 
                     if (showPanel && !Appearance.panelLeft) Panel()
                 }
-                PlayerBar(player, state, position, panelOpen = panelOpen && state.current != null, onMiniPlayer = onMiniPlayer) { panelOpen = !panelOpen }
+                PlayerBar(
+                    player, state, position,
+                    panelOpen = panelOpen && state.current != null,
+                    onMiniPlayer = onMiniPlayer,
+                    onEqualizer = { dialog = TrackDialog.Equalizer },
+                ) { panelOpen = !panelOpen }
             }
             dialog?.let { d -> TrackDialogHost(d, player, onDismiss = { dialog = null }, onUpdated = ::onTagsSaved) }
         }
