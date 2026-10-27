@@ -42,6 +42,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SwapHoriz
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PictureInPictureAlt
@@ -53,8 +54,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -71,6 +72,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cl.lossless.player.desktop.DesktopEqualizer
 import cl.lossless.player.desktop.DesktopLyrics
 import cl.lossless.player.desktop.LyricsResult
 import cl.lossless.player.desktop.Player
@@ -391,12 +393,20 @@ fun NeonSlider(
 
 /** Barra inferior: pista actual, controles con barra de progreso, salida, volumen y panel. */
 @Composable
-fun PlayerBar(player: Player, state: PlayerState, positionMs: Long, panelOpen: Boolean, onMiniPlayer: () -> Unit, onTogglePanel: () -> Unit) {
+fun PlayerBar(
+    player: Player,
+    state: PlayerState,
+    positionMs: Long,
+    panelOpen: Boolean,
+    onMiniPlayer: () -> Unit,
+    onEqualizer: () -> Unit,
+    onTogglePanel: () -> Unit,
+) {
     val track = state.current
     val duration = state.durationMs.coerceAtLeast(1)
     var dragging by remember { mutableStateOf<Float?>(null) }
-    var volume by remember { mutableFloatStateOf(player.volume) }
-    var beforeMute by remember { mutableFloatStateOf(if (player.volume > 0f) player.volume else 1f) }
+    val volume by player.volumeState.collectAsState()
+    val eqOn = DesktopEqualizer.settings.collectAsState().value.isProcessing
 
     Box(Modifier.fillMaxWidth().height(1.dp).background(Neon.Border))
     Row(
@@ -499,23 +509,17 @@ fun PlayerBar(player: Player, state: PlayerState, positionMs: Long, panelOpen: B
             SmallIconButton(
                 if (volume <= 0.001f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
                 t(S.mute),
-            ) {
-                if (volume > 0.001f) {
-                    beforeMute = volume
-                    volume = 0f
-                } else {
-                    volume = beforeMute
-                }
-                player.setVolume(volume)
-            }
+                onClick = player::toggleMute,
+            )
             NeonSlider(
                 value = volume,
-                onValueChange = { volume = it; player.setVolume(it) },
+                onValueChange = player::setVolume,
                 modifier = Modifier.width(80.dp),
             )
             Spacer(Modifier.width(10.dp))
             Box(Modifier.width(1.dp).height(24.dp).background(Neon.Border))
             Spacer(Modifier.width(6.dp))
+            SmallIconButton(Icons.Rounded.GraphicEq, t(S.equalizer), tint = if (eqOn) Neon.Accent else Neon.Muted, onClick = onEqualizer)
             SmallIconButton(Icons.Rounded.PictureInPictureAlt, t(S.miniPlayer), onClick = onMiniPlayer)
             SmallIconButton(
                 Icons.Rounded.ViewSidebar, t(S.togglePanel),

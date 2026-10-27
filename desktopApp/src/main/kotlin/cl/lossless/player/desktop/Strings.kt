@@ -230,6 +230,79 @@ object S {
         "Sempre acima das outras janelas",
     )
 
+    // Ecualizador (mismos textos que en Android)
+    val equalizer = Str("Ecualizador", "Equalizer", "Égaliseur", "Equalizador")
+    val eqEnabled = Str("Activado", "On", "Activé", "Ativado")
+    val eqBypass = Str("Desactivado (bypass)", "Off (bypass)", "Désactivé (bypass)", "Desativado (bypass)")
+    val eqPreamp = Str("Preamp", "Preamp", "Préampli", "Pré-amp")
+    val eqPreampHint = Str(
+        "Bájalo si subes varias bandas, para evitar saturación",
+        "Lower it if you boost several bands, to avoid clipping",
+        "Baissez-le si vous montez plusieurs bandes, pour éviter la saturation",
+        "Abaixe se aumentar várias bandas, para evitar saturação",
+    )
+    val eqReset = Str("Restablecer", "Reset", "Réinitialiser", "Redefinir")
+    val eqBandsHint = Str(
+        "dB por banda · doble clic en una banda para volverla a 0",
+        "dB per band · double-click a band to reset it to 0",
+        "dB par bande · double-cliquez sur une bande pour la remettre à 0",
+        "dB por banda · clique duas vezes numa banda para voltar a 0",
+    )
+    val eqNoteBypass = Str(
+        "Con el ecualizador apagado o en plano, el audio pasa sin ninguna modificación.",
+        "With the equalizer off or flat, the audio passes through unmodified.",
+        "Avec l'égaliseur désactivé ou à plat, l'audio passe sans aucune modification.",
+        "Com o equalizador desligado ou plano, o áudio passa sem nenhuma modificação.",
+    )
+    val eqNoteProcessing = Str(
+        "El ecualizador procesa el audio dentro de la app, antes de la salida. Desactívalo para escuchar el archivo sin alterar.",
+        "The equalizer processes the audio inside the app, before the output. Turn it off to hear the file unaltered.",
+        "L'égaliseur traite l'audio dans l'app, avant la sortie. Désactivez-le pour écouter le fichier sans altération.",
+        "O equalizador processa o áudio dentro do app, antes da saída. Desative-o para ouvir o arquivo sem alterações.",
+    )
+    val eqPresetFlat = Str("Plano", "Flat", "Plat", "Plano")
+    val eqPresetRock = Str("Rock", "Rock", "Rock", "Rock")
+    val eqPresetPop = Str("Pop", "Pop", "Pop", "Pop")
+    val eqPresetJazz = Str("Jazz", "Jazz", "Jazz", "Jazz")
+    val eqPresetClassical = Str("Clásica", "Classical", "Classique", "Clássica")
+    val eqPresetDance = Str("Electrónica", "Electronic", "Électronique", "Eletrônica")
+    val eqPresetHiphop = Str("Hip-Hop", "Hip-Hop", "Hip-Hop", "Hip-Hop")
+    val eqPresetAcoustic = Str("Acústico", "Acoustic", "Acoustique", "Acústico")
+    val eqPresetBass = Str("Realce de graves", "Bass booster", "Graves renforcés", "Realce de graves")
+    val eqPresetVocal = Str("Voz / Podcast", "Vocal / Podcast", "Voix / Podcast", "Voz / Podcast")
+    val eqPresetCustom = Str("Personalizado", "Custom", "Personnalisé", "Personalizado")
+
+    // Atajos de teclado
+    val shortcuts = Str("Atajos de teclado", "Keyboard shortcuts", "Raccourcis clavier", "Atalhos de teclado")
+    val shortcutPlayPause = Str("Reproducir / pausa", "Play / pause", "Lecture / pause", "Tocar / pausar")
+    val shortcutStop = Str("Detener", "Stop", "Arrêter", "Parar")
+    val shortcutNext = Str("Siguiente canción", "Next song", "Titre suivant", "Próxima música")
+    val shortcutPrevious = Str("Canción anterior", "Previous song", "Titre précédent", "Música anterior")
+    val shortcutForward = Str("Adelantar 10 s", "Forward 10 s", "Avancer de 10 s", "Avançar 10 s")
+    val shortcutRewind = Str("Retroceder 10 s", "Rewind 10 s", "Reculer de 10 s", "Voltar 10 s")
+    val shortcutNone = Str("Sin tecla", "No key", "Aucune touche", "Sem tecla")
+    val shortcutPress = Str("Pulsa una tecla…", "Press a key…", "Appuyez sur une touche…", "Pressione uma tecla…")
+    val shortcutSpace = Str("Espacio", "Space", "Espace", "Espaço")
+    val shortcutHint = Str(
+        "Haz clic en un atajo y pulsa la tecla nueva. Esc cancela; Supr lo deja sin tecla. Funcionan con la ventana de ResuenApp activa.",
+        "Click a shortcut and press the new key. Esc cancels; Delete leaves it without a key. They work while the ResuenApp window is active.",
+        "Cliquez sur un raccourci et appuyez sur la nouvelle touche. Échap annule ; Suppr le laisse sans touche. Ils fonctionnent quand la fenêtre de ResuenApp est active.",
+        "Clique num atalho e pressione a nova tecla. Esc cancela; Delete deixa sem tecla. Funcionam com a janela do ResuenApp ativa.",
+    )
+    val shortcutReset = Str("Restablecer atajos", "Reset shortcuts", "Réinitialiser les raccourcis", "Redefinir atalhos")
+    val mediaKeys = Str(
+        "Teclas multimedia del teclado (▶︎⏸ ⏹ ⏭ ⏮), también con la app en segundo plano",
+        "Keyboard media keys (▶︎⏸ ⏹ ⏭ ⏮), also with the app in the background",
+        "Touches multimédia du clavier (▶︎⏸ ⏹ ⏭ ⏮), même avec l'app en arrière-plan",
+        "Teclas multimídia do teclado (▶︎⏸ ⏹ ⏭ ⏮), também com o app em segundo plano",
+    )
+    val mediaKeysMac = Str(
+        "macOS pedirá permiso de Accesibilidad para ResuenApp (Ajustes del Sistema → Privacidad y seguridad → Accesibilidad).",
+        "macOS will ask for Accessibility permission for ResuenApp (System Settings → Privacy & Security → Accessibility).",
+        "macOS demandera l'autorisation d'Accessibilité pour ResuenApp (Réglages Système → Confidentialité et sécurité → Accessibilité).",
+        "O macOS vai pedir permissão de Acessibilidade para o ResuenApp (Ajustes do Sistema → Privacidade e Segurança → Acessibilidade).",
+    )
+
     // Actualizaciones
     val updateCheck = Str("Buscar actualizaciones", "Check for updates", "Rechercher des mises à jour", "Procurar atualizações")
     val updateChecking = Str("Buscando versiones nuevas…", "Checking for new versions…", "Recherche de nouvelles versions…", "Procurando versões novas…")

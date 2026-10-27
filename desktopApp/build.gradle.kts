@@ -64,6 +64,10 @@ dependencies {
     runtimeOnly("org.bytedeco:javacpp:$javacpp:$nativePlatform")
     runtimeOnly("org.bytedeco:ffmpeg:7.1-$javacpp:$nativePlatform")
 
+    // Teclas multimedia del teclado con la app en segundo plano (trae sus librerías nativas
+    // de Windows y macOS dentro del jar).
+    implementation("com.github.kwhat:jnativehook:2.2.2")
+
     testImplementation("junit:junit:4.13.2")
 }
 
