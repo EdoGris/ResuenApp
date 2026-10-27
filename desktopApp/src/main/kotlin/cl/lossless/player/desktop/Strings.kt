@@ -175,6 +175,7 @@ object S {
     val accentRed = Str("Rojo", "Red", "Rouge", "Vermelho")
     val accentPink = Str("Rosa", "Pink", "Rose", "Rosa")
     val accentPurple = Str("Violeta", "Violet", "Violet", "Violeta")
+    val accentSystem = Str("Color del sistema", "System color", "Couleur du système", "Cor do sistema")
     val font = Str("Tipo de letra · %1\$s", "Font · %1\$s", "Police · %1\$s", "Fonte · %1\$s")
     val fontSystem = Str("Sistema", "System", "Système", "Sistema")
     val textSize = Str("Tamaño del texto", "Text size", "Taille du texte", "Tamanho do texto")
