@@ -100,6 +100,8 @@ object Shortcuts {
     /** Acción que espera su nueva tecla (se eligió "cambiar" en Ajustes). */
     var capturing by mutableStateOf<PlaybackAction?>(null)
 
+    // El setter privado chocaría en la JVM con setMediaKeys(Boolean): se le da otro nombre.
+    @set:JvmName("updateMediaKeys")
     var mediaKeys by mutableStateOf(AppSettings.mediaKeys)
         private set
 
