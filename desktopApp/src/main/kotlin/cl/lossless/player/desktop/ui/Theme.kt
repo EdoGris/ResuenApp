@@ -201,6 +201,11 @@ object Appearance {
     var panelWidth by mutableStateOf(AppSettings.panelWidth.coerceIn(PANEL_MIN, PANEL_MAX))
         private set
 
+    /** Barra lateral de la biblioteca reducida a íconos. */
+    var sidebarCollapsed by mutableStateOf(AppSettings.sidebarCollapsed)
+        private set
+    fun toggleSidebar() { sidebarCollapsed = !sidebarCollapsed; AppSettings.sidebarCollapsed = sidebarCollapsed }
+
     val palette: Palette by derivedStateOf { Palette.of(theme, accent) }
 
     fun placePanel(left: Boolean) { panelLeft = left; AppSettings.panelLeft = left }

@@ -54,7 +54,6 @@ import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -236,7 +235,7 @@ fun GhostButton(icon: ImageVector?, label: String, onClick: () -> Unit) {
 private fun ViewHeader(
     title: String,
     eyebrow: String? = null,
-    eyebrowIcon: ImageVector = Icons.Rounded.Storage,
+    eyebrowIcon: ImageVector = Icons.Rounded.Folder,
     summary: String? = null,
     onBack: (() -> Unit)? = null,
     action: (@Composable () -> Unit)? = null,
@@ -280,7 +279,7 @@ fun SongsHeader(folders: List<String>, tracks: List<Track>, onPlayAll: () -> Uni
 
 private val ColNumber = 48.dp
 private val ColFormat = 150.dp
-private val ColDuration = 64.dp
+private val ColDuration = 88.dp
 
 /** Tabla de pistas en un panel translúcido: #, título con carátula, artista, álbum, formato y duración. */
 @Composable

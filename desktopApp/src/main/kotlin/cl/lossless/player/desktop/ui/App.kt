@@ -1,5 +1,12 @@
 package cl.lossless.player.desktop.ui
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.TooltipArea
+import androidx.compose.foundation.TooltipPlacement
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -452,27 +459,43 @@ private fun SearchField(query: String, onQuery: (String) -> Unit, focus: FocusRe
     }
 }
 
-/** Barra lateral izquierda: secciones de la biblioteca y Ajustes al pie. */
+/** Barra lateral izquierda: secciones de la biblioteca y Ajustes al pie. Se puede reducir a solo íconos. */
 @Composable
 private fun Sidebar(selected: Tab, trackCount: Int, onSelect: (Tab) -> Unit) {
+    val collapsed = Appearance.sidebarCollapsed
+    val width by animateDpAsState(if (collapsed) 62.dp else 240.dp)
     Column(
-        Modifier.width(240.dp).fillMaxHeight().background(Neon.Surface.copy(alpha = 0.75f)).padding(10.dp),
+        Modifier.width(width).fillMaxHeight().background(Neon.Surface.copy(alpha = 0.75f)).padding(10.dp),
     ) {
-        SectionLabel(t(S.library), Modifier.padding(start = 12.dp, bottom = 8.dp, top = 6.dp), color = Neon.Accent)
-        NavItem(Icons.Rounded.MusicNote, t(S.songs), selected == Tab.SONGS, badge = "$trackCount") { onSelect(Tab.SONGS) }
-        NavItem(Icons.Rounded.Album, t(S.albums), selected == Tab.ALBUMS) { onSelect(Tab.ALBUMS) }
-        NavItem(Icons.Rounded.Mic, t(S.artists), selected == Tab.ARTISTS) { onSelect(Tab.ARTISTS) }
-        NavItem(Icons.Rounded.Folder, t(S.folders), selected == Tab.FOLDERS) { onSelect(Tab.FOLDERS) }
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.Start,
+        ) {
+            if (!collapsed) {
+                SectionLabel(t(S.library), Modifier.padding(start = 12.dp).weight(1f), color = Neon.Accent)
+            }
+            SmallIconButton(
+                if (collapsed) Icons.AutoMirrored.Rounded.KeyboardArrowRight else Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+                if (collapsed) t(S.expandSidebar) else t(S.collapseSidebar),
+                onClick = Appearance::toggleSidebar,
+            )
+        }
+        NavItem(Icons.Rounded.MusicNote, t(S.songs), selected == Tab.SONGS, collapsed, badge = "$trackCount") { onSelect(Tab.SONGS) }
+        NavItem(Icons.Rounded.Album, t(S.albums), selected == Tab.ALBUMS, collapsed) { onSelect(Tab.ALBUMS) }
+        NavItem(Icons.Rounded.Mic, t(S.artists), selected == Tab.ARTISTS, collapsed) { onSelect(Tab.ARTISTS) }
+        NavItem(Icons.Rounded.Folder, t(S.folders), selected == Tab.FOLDERS, collapsed) { onSelect(Tab.FOLDERS) }
         Spacer(Modifier.weight(1f))
         Box(Modifier.fillMaxWidth().height(1.dp).background(Neon.Border))
         Spacer(Modifier.height(8.dp))
-        NavItem(Icons.Rounded.Settings, t(S.settings), selected == Tab.SETTINGS) { onSelect(Tab.SETTINGS) }
+        NavItem(Icons.Rounded.Settings, t(S.settings), selected == Tab.SETTINGS, collapsed) { onSelect(Tab.SETTINGS) }
     }
     Box(Modifier.width(1.dp).fillMaxHeight().background(Neon.Border))
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun NavItem(icon: ImageVector, label: String, selected: Boolean, badge: String? = null, onClick: () -> Unit) {
+private fun NavItem(icon: ImageVector, label: String, selected: Boolean, collapsed: Boolean, badge: String? = null, onClick: () -> Unit) {
     val shape = RoundedCornerShape(8.dp)
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
@@ -481,6 +504,28 @@ private fun NavItem(icon: ImageVector, label: String, selected: Boolean, badge: 
         hovered -> Neon.Text
         else -> Neon.Muted
     }
+    // Contraída solo queda el ícono; el nombre aparece como globo al pasar el mouse.
+    if (collapsed) {
+        TooltipArea(
+            tooltip = {
+                Text(
+                    label, color = Neon.Text, fontSize = 12.sp,
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Neon.Card)
+                        .border(1.dp, Neon.Border, RoundedCornerShape(6.dp)).padding(horizontal = 10.dp, vertical = 5.dp),
+                )
+            },
+            tooltipPlacement = TooltipPlacement.ComponentRect(anchor = Alignment.CenterEnd, alignment = Alignment.CenterEnd, offset = DpOffset(8.dp, 0.dp)),
+        ) { NavRow(icon, label, selected, collapsed, badge, shape, interaction, hovered, color, onClick) }
+    } else {
+        NavRow(icon, label, selected, collapsed, badge, shape, interaction, hovered, color, onClick)
+    }
+}
+
+@Composable
+private fun NavRow(
+    icon: ImageVector, label: String, selected: Boolean, collapsed: Boolean, badge: String?, shape: RoundedCornerShape,
+    interaction: MutableInteractionSource, hovered: Boolean, color: Color, onClick: () -> Unit,
+) {
     Row(
         Modifier.fillMaxWidth().padding(vertical = 1.dp).clip(shape)
             .background(
@@ -495,11 +540,14 @@ private fun NavItem(icon: ImageVector, label: String, selected: Boolean, badge: 
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.Start,
     ) {
         // El ícono siempre lleva el color de acento; el texto se ilumina al elegirlo o pasar el mouse.
-        Icon(icon, null, tint = if (selected || hovered) color else Neon.Accent.copy(alpha = 0.75f), modifier = Modifier.size(17.dp))
-        Spacer(Modifier.width(12.dp))
-        Text(label, color = color, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-        if (badge != null) Text(badge, color = color.copy(alpha = 0.6f), fontFamily = Mono, fontSize = 10.sp)
+        Icon(icon, label, tint = if (selected || hovered) color else Neon.Accent.copy(alpha = 0.75f), modifier = Modifier.size(17.dp))
+        if (!collapsed) {
+            Spacer(Modifier.width(12.dp))
+            Text(label, color = color, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1)
+            if (badge != null) Text(badge, color = color.copy(alpha = 0.6f), fontFamily = Mono, fontSize = 10.sp)
+        }
     }
 }
