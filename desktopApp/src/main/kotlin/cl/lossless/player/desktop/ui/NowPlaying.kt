@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.automirrored.rounded.Notes
@@ -283,7 +284,13 @@ private fun QueueList(state: PlayerState, onPlay: (Int) -> Unit) {
         if (state.index >= 0) listState.scrollToItem((state.index - 2).coerceAtLeast(0))
     }
     Column(Modifier.fillMaxSize().padding(top = 16.dp)) {
-        SectionLabel(t(S.upNext), Modifier.padding(bottom = 10.dp))
+        Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            SectionLabel(t(S.upNext), Modifier.weight(1f))
+            val actions = LocalTrackActions.current
+            if (actions != null && state.queue.isNotEmpty()) {
+                SmallIconButton(Icons.AutoMirrored.Rounded.PlaylistAdd, t(S.saveQueueAsPlaylist)) { actions.addToPlaylist(state.queue) }
+            }
+        }
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
             itemsIndexed(state.queue) { i, track ->
                 val current = i == state.index

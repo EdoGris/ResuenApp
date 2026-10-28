@@ -31,6 +31,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.DragIndicator
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.zIndex
+import cl.lossless.player.desktop.DesktopPlaylists
+import cl.lossless.player.playlist.Playlist
+import java.awt.Cursor
+import kotlin.math.roundToInt
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -280,6 +297,7 @@ fun SongsHeader(folders: List<String>, tracks: List<Track>, onPlayAll: () -> Uni
 private val ColNumber = 48.dp
 private val ColFormat = 150.dp
 private val ColDuration = 88.dp
+private val ColRemove = 32.dp
 
 /** Tabla de pistas en un panel translúcido: #, título con carátula, artista, álbum, formato y duración. */
 @Composable
@@ -290,14 +308,23 @@ fun TrackTable(
     showAlbum: Boolean = true,
     useTrackNumbers: Boolean = false,
     header: (@Composable () -> Unit)? = null,
+    emptyText: String? = null,
+    unavailable: Set<String> = emptySet(),
+    onRemove: ((Int) -> Unit)? = null,
+    onMove: ((from: Int, to: Int) -> Unit)? = null,
     onPlay: (Int) -> Unit,
 ) {
+    // Arrastre para reordenar (listas): la fila sigue al mouse y al soltar se mueve las filas recorridas.
+    var dragFrom by remember { mutableStateOf<Int?>(null) }
+    var dragOffset by remember { mutableStateOf(0f) }
+    var rowHeight by remember { mutableStateOf(1) }
+    val move by rememberUpdatedState(onMove)
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(24.dp)) {
         if (header != null) item { header() }
         if (tracks.isEmpty()) {
             item {
                 Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                    Text(t(S.noResults), color = Neon.Muted)
+                    Text(emptyText ?: t(S.noResults), color = Neon.Muted)
                 }
             }
             return@LazyColumn
@@ -317,19 +344,44 @@ fun TrackTable(
                 if (showAlbum) HeaderCell(t(S.colAlbum), Modifier.weight(1f))
                 HeaderCell(t(S.colFormat), Modifier.width(ColFormat), TextAlign.Center)
                 HeaderCell(t(S.colDuration), Modifier.width(ColDuration), TextAlign.End)
+                if (onRemove != null) Spacer(Modifier.width(ColRemove))
             }
         }
-        itemsIndexed(tracks, key = { _, it -> it.path }) { i, track ->
+        // Una lista puede repetir una canción: ahí la clave lleva también la posición.
+        itemsIndexed(tracks, key = { i, it -> if (onMove != null) "$i|${it.path}" else it.path }) { i, track ->
             val number = if (useTrackNumbers && track.trackNumber > 0) track.trackNumber else i + 1
-            TrackContextMenu(track) {
-                TrackRow(
-                    track,
-                    number = number,
-                    current = track.path == currentPath,
-                    playing = playing,
-                    showAlbum = showAlbum,
-                    last = i == tracks.lastIndex,
-                ) { onPlay(i) }
+            val dragging = dragFrom == i
+            val handle = if (onMove == null) null else Modifier.pointerInput(i, tracks.size) {
+                detectDragGestures(
+                    onDragStart = { dragFrom = i; dragOffset = 0f },
+                    onDrag = { change, amount -> change.consume(); dragOffset += amount.y },
+                    onDragEnd = {
+                        val to = (i + (dragOffset / rowHeight).roundToInt()).coerceIn(0, tracks.lastIndex)
+                        if (to != i) move?.invoke(i, to)
+                        dragFrom = null; dragOffset = 0f
+                    },
+                    onDragCancel = { dragFrom = null; dragOffset = 0f },
+                )
+            }
+            // La fila arrastrada se dibuja sobre las demás (zIndex en la raíz del elemento de la lista).
+            Box(
+                Modifier.zIndex(if (dragging) 1f else 0f)
+                    .graphicsLayer { translationY = if (dragging) dragOffset else 0f }
+                    .onSizeChanged { rowHeight = it.height.coerceAtLeast(1) },
+            ) {
+                TrackContextMenu(track) {
+                    TrackRow(
+                        track,
+                        number = number,
+                        current = track.path == currentPath,
+                        playing = playing,
+                        showAlbum = showAlbum,
+                        last = i == tracks.lastIndex,
+                        missing = track.path in unavailable,
+                        dragHandle = handle,
+                        onRemove = onRemove?.let { remove -> { remove(i) } },
+                    ) { onPlay(i) }
+                }
             }
         }
     }
@@ -342,9 +394,11 @@ private fun TrackContextMenu(track: Track, content: @Composable () -> Unit) {
     val edit = t(S.editTags)
     val cover = t(S.searchCover)
     val lyrics = t(S.searchLyrics)
+    val playlist = t(S.addToPlaylist)
     ContextMenuArea(
         items = {
             listOf(
+                ContextMenuItem(playlist) { actions.addToPlaylist(listOf(track)) },
                 ContextMenuItem(edit) { actions.editTags(listOf(track)) },
                 ContextMenuItem(cover) { actions.findCover(track) },
                 ContextMenuItem(lyrics) { actions.findLyrics(track) },
@@ -363,12 +417,24 @@ private fun HeaderCell(text: String, modifier: Modifier, align: TextAlign = Text
 }
 
 @Composable
-private fun TrackRow(track: Track, number: Int, current: Boolean, playing: Boolean, showAlbum: Boolean, last: Boolean, onClick: () -> Unit) {
+private fun TrackRow(
+    track: Track,
+    number: Int,
+    current: Boolean,
+    playing: Boolean,
+    showAlbum: Boolean,
+    last: Boolean,
+    missing: Boolean = false,
+    dragHandle: Modifier? = null,
+    onRemove: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
     val shape = if (last) RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp) else RoundedCornerShape(0.dp)
     Box(
-        Modifier.fillMaxWidth().clip(shape)
+        modifier.fillMaxWidth().alpha(if (missing) 0.45f else 1f).clip(shape)
             .background(Neon.Surface.copy(alpha = 0.75f))
             .border(1.dp, Neon.Border.copy(alpha = 0.6f), shape),
     ) {
@@ -382,12 +448,19 @@ private fun TrackRow(track: Track, number: Int, current: Boolean, playing: Boole
                     },
                 )
                 .hoverable(interaction)
-                .clickable(onClick = onClick)
+                .clickable(enabled = !missing, onClick = onClick)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.width(ColNumber), contentAlignment = Alignment.Center) {
-                if (current) {
+            Box(
+                Modifier.width(ColNumber).then(
+                    if (dragHandle != null) dragHandle.pointerHoverIcon(PointerIcon(Cursor(Cursor.MOVE_CURSOR))) else Modifier,
+                ),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (dragHandle != null && hovered) {
+                    Icon(Icons.Rounded.DragIndicator, t(S.dragToReorder), tint = Neon.Accent, modifier = Modifier.size(18.dp))
+                } else if (current) {
                     PlayingBars(active = playing)
                 } else {
                     Text(
@@ -405,7 +478,7 @@ private fun TrackRow(track: Track, number: Int, current: Boolean, playing: Boole
                 )
             }
             Text(
-                track.artist.ifBlank { t(S.unknownArtist) }, Modifier.weight(1f).padding(horizontal = 6.dp),
+                if (missing) t(S.trackMissing) else track.artist.ifBlank { t(S.unknownArtist) }, Modifier.weight(1f).padding(horizontal = 6.dp),
                 color = Neon.Muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
             if (showAlbum) {
@@ -421,6 +494,11 @@ private fun TrackRow(track: Track, number: Int, current: Boolean, playing: Boole
                 formatTime(track.durationMs), Modifier.width(ColDuration).padding(horizontal = 6.dp), textAlign = TextAlign.End,
                 color = Neon.Muted, fontFamily = Mono, fontSize = 12.sp,
             )
+            if (onRemove != null) {
+                Box(Modifier.width(ColRemove), contentAlignment = Alignment.Center) {
+                    if (hovered) SmallIconButton(Icons.Rounded.Close, t(S.removeFromPlaylist), size = 16.dp, onClick = onRemove)
+                }
+            }
         }
         if (current) Box(Modifier.width(2.dp).height(48.dp).background(Neon.Accent))
     }
@@ -498,6 +576,7 @@ fun AlbumDetail(album: Album, currentPath: String?, playing: Boolean, onBack: ()
                     LocalTrackActions.current?.let { actions ->
                         GhostButton(Icons.Rounded.Edit, t(S.editAlbum)) { actions.editTags(album.tracks) }
                         GhostButton(Icons.Rounded.AddPhotoAlternate, t(S.searchCover).removeSuffix("…")) { actions.findCover(album.tracks.first()) }
+                        GhostButton(Icons.AutoMirrored.Rounded.PlaylistAdd, t(S.addToPlaylist).removeSuffix("…")) { actions.addToPlaylist(album.tracks) }
                     }
                 }
             }
@@ -606,6 +685,87 @@ fun FolderDetail(path: String, tracks: List<Track>, currentPath: String?, playin
             action = { PrimaryButton(Icons.Rounded.PlayArrow, t(S.playAll)) { onPlay(0) } },
         )
     }, onPlay = onPlay)
+}
+
+/** Listas guardadas: crear una nueva y abrir, renombrar o eliminar las existentes (clic derecho). */
+@Composable
+fun PlaylistList(onNew: () -> Unit, onOpen: (Playlist) -> Unit, onRename: (Playlist) -> Unit, onDelete: (Playlist) -> Unit) {
+    val lists = DesktopPlaylists.all
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(24.dp)) {
+        item {
+            ViewHeader(
+                title = t(S.playlists),
+                summary = t(S.playlistCount, lists.size),
+                action = { PrimaryButton(Icons.Rounded.Add, t(S.newPlaylist), onNew) },
+            )
+        }
+        if (lists.isEmpty()) item { Text(t(S.noPlaylists), color = Neon.Muted, modifier = Modifier.padding(24.dp)) }
+        items(lists, key = { it.id }) { list ->
+            val interaction = remember { MutableInteractionSource() }
+            val hovered by interaction.collectIsHoveredAsState()
+            val rename = t(S.renamePlaylist)
+            val delete = t(S.deletePlaylist)
+            ContextMenuArea(items = { listOf(ContextMenuItem(rename) { onRename(list) }, ContextMenuItem(delete) { onDelete(list) }) }) {
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                        .background(if (hovered) Neon.Hover.copy(alpha = 0.6f) else Color.Transparent)
+                        .hoverable(interaction).clickable { onOpen(list) }
+                        .padding(horizontal = 12.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.AutoMirrored.Rounded.QueueMusic, null, tint = Neon.Accent, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        list.name, Modifier.weight(1f), color = if (hovered) Neon.TextStrong else Neon.Text, fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(t(S.trackCount, list.paths.size), color = Neon.Muted, fontFamily = Mono, fontSize = 11.sp)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Una lista: sus canciones en orden, con quitar (×) y arrastrar desde el número para reordenar.
+ * Las que ya no están en la biblioteca ni en el disco se ven atenuadas como "No encontrada".
+ */
+@Composable
+fun PlaylistDetail(
+    list: Playlist,
+    tracks: List<Track>,
+    missing: Set<String>,
+    currentPath: String?,
+    playing: Boolean,
+    onBack: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+    onPlay: (Int) -> Unit,
+) {
+    TrackTable(
+        tracks, currentPath, playing,
+        header = {
+            ViewHeader(
+                title = list.name,
+                eyebrow = t(S.playlists),
+                eyebrowIcon = Icons.AutoMirrored.Rounded.QueueMusic,
+                summary = summaryOf(tracks.filter { it.path !in missing }),
+                onBack = onBack,
+                action = {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        GhostButton(Icons.Rounded.Edit, t(S.renamePlaylist), onRename)
+                        GhostButton(Icons.Rounded.Delete, t(S.deletePlaylist), onDelete)
+                        if (tracks.size > missing.size) PrimaryButton(Icons.Rounded.PlayArrow, t(S.playAll)) { onPlay(-1) }
+                    }
+                },
+            )
+        },
+        emptyText = t(S.playlistEmpty),
+        unavailable = missing,
+        onRemove = { DesktopPlaylists.remove(list.id, it) },
+        onMove = { from, to -> DesktopPlaylists.move(list.id, from, to) },
+        onPlay = onPlay,
+    )
 }
 
 @Composable
