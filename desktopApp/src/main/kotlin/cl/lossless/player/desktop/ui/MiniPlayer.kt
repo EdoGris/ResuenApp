@@ -59,7 +59,7 @@ import kotlinx.coroutines.withContext
 /** Tamaño de la ventana del mini reproductor; crece con el tamaño del texto elegido en Ajustes. */
 fun miniPlayerSize(): DpSize {
     val scale = Appearance.textSize.scale
-    return DpSize(440.dp * scale, 214.dp * scale)
+    return DpSize(440.dp * scale, 222.dp * scale)
 }
 
 /**
@@ -157,31 +157,37 @@ fun WindowScope.MiniPlayer(player: Player, pinned: Boolean, onPin: () -> Unit, o
             )
             Text(formatTime(state.durationMs), color = Neon.Muted, fontFamily = Mono, fontSize = 10.sp)
         }
-        Row(
-            Modifier.fillMaxWidth().padding(start = 8.dp, end = 12.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            SmallIconButton(Icons.Rounded.SkipPrevious, t(S.previous), tint = Neon.Text, size = 18.dp) { if (track != null) player.previous() }
-            Box(
-                Modifier.size(32.dp).glow(Neon.Accent, if (track != null) 10.dp else 0.dp, CircleShape).clip(CircleShape)
-                    .background(if (track != null) Neon.Accent else Neon.Hover)
-                    .clickable(enabled = track != null, onClick = player::toggle),
-                contentAlignment = Alignment.Center,
+        // Controles centrados en el ancho de la ventana; el volumen queda a la derecha.
+        Box(Modifier.fillMaxWidth().padding(start = 8.dp, end = 12.dp, bottom = 8.dp)) {
+            Row(
+                Modifier.align(Alignment.Center),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Icon(
-                    if (state.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    if (state.playing) t(S.pause) else t(S.play),
-                    tint = Neon.OnAccent,
-                    modifier = Modifier.size(20.dp),
-                )
+                // Anterior y siguiente del mismo tamaño que el botón de reproducir (28 + 6 + 6 = 40 dp).
+                SmallIconButton(Icons.Rounded.SkipPrevious, t(S.previous), tint = Neon.Text, size = 28.dp) { if (track != null) player.previous() }
+                Box(
+                    Modifier.size(40.dp).glow(Neon.Accent, if (track != null) 12.dp else 0.dp, CircleShape).clip(CircleShape)
+                        .background(if (track != null) Neon.Accent else Neon.Hover)
+                        .clickable(enabled = track != null, onClick = player::toggle),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        if (state.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        if (state.playing) t(S.pause) else t(S.play),
+                        tint = Neon.OnAccent,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
+                SmallIconButton(Icons.Rounded.SkipNext, t(S.next), tint = Neon.Text, size = 28.dp) { if (track != null) player.next() }
             }
-            SmallIconButton(Icons.Rounded.SkipNext, t(S.next), tint = Neon.Text, size = 18.dp) { if (track != null) player.next() }
-            Spacer(Modifier.weight(1f))
-            SmallIconButton(
-                if (volume <= 0.001f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
-                t(S.mute), size = 16.dp, onClick = player::toggleMute,
-            )
-            NeonSlider(value = volume, onValueChange = player::setVolume, modifier = Modifier.width(96.dp))
+            Row(Modifier.align(Alignment.CenterEnd), verticalAlignment = Alignment.CenterVertically) {
+                SmallIconButton(
+                    if (volume <= 0.001f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
+                    t(S.mute), size = 16.dp, onClick = player::toggleMute,
+                )
+                NeonSlider(value = volume, onValueChange = player::setVolume, modifier = Modifier.width(84.dp))
+            }
         }
     }
 }
