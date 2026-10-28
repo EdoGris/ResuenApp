@@ -19,6 +19,13 @@ import javax.sound.sampled.SourceDataLine
 import kotlin.math.log10
 import kotlin.math.roundToInt
 
+/** Repetir: nada, toda la cola o solo la canción actual. [next] es el que sigue al tocar el botón. */
+enum class RepeatMode {
+    OFF, ALL, ONE;
+
+    val next: RepeatMode get() = entries[(ordinal + 1) % entries.size]
+}
+
 data class PlayerState(
     val queue: List<Track> = emptyList(),
     val index: Int = -1,
@@ -49,6 +56,16 @@ class Player {
     val volume: Float get() = _volume.value
     private var beforeMute = if (AppSettings.volume > 0.001f) AppSettings.volume else 1f
 
+    private val _repeat = MutableStateFlow(AppSettings.repeat)
+    val repeat: StateFlow<RepeatMode> = _repeat.asStateFlow()
+
+    /** Pasa a la siguiente opción: no repetir → repetir todo → repetir una. */
+    fun cycleRepeat() {
+        val mode = _repeat.value.next
+        _repeat.value = mode
+        AppSettings.repeat = mode
+    }
+
     fun playQueue(tracks: List<Track>, start: Int) {
         if (tracks.isEmpty()) return
         _state.update { it.copy(queue = tracks, index = start.coerceIn(tracks.indices), error = null) }
@@ -65,12 +82,16 @@ class Player {
         _state.update { it.copy(playing = !s.paused) }
     }
 
+    /** Siguiente a mano: con "repetir todo" vuelve a la primera tras la última. */
     fun next() {
         val st = _state.value
-        if (st.index + 1 < st.queue.size) {
-            _state.update { it.copy(index = it.index + 1, error = null) }
-            startCurrent()
+        val target = when {
+            st.index + 1 < st.queue.size -> st.index + 1
+            _repeat.value == RepeatMode.ALL && st.queue.isNotEmpty() -> 0
+            else -> return
         }
+        _state.update { it.copy(index = target, error = null) }
+        startCurrent()
     }
 
     fun previous() {
@@ -167,8 +188,14 @@ class Player {
     private fun onEnded(s: Session) {
         if (session !== s) return
         val st = _state.value
-        if (st.index + 1 < st.queue.size) {
-            _state.update { it.copy(index = it.index + 1) }
+        val target = when {
+            _repeat.value == RepeatMode.ONE -> st.index
+            st.index + 1 < st.queue.size -> st.index + 1
+            _repeat.value == RepeatMode.ALL && st.queue.isNotEmpty() -> 0
+            else -> -1
+        }
+        if (target >= 0) {
+            _state.update { it.copy(index = target) }
             startCurrent()
         } else {
             session = null

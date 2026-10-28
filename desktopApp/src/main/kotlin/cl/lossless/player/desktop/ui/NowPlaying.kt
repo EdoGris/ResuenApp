@@ -47,6 +47,8 @@ import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PictureInPictureAlt
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.rounded.ViewSidebar
@@ -77,6 +79,7 @@ import cl.lossless.player.desktop.DesktopLyrics
 import cl.lossless.player.desktop.LyricsResult
 import cl.lossless.player.desktop.Player
 import cl.lossless.player.desktop.PlayerState
+import cl.lossless.player.desktop.RepeatMode
 import cl.lossless.player.desktop.S
 import cl.lossless.player.desktop.Track
 import cl.lossless.player.desktop.t
@@ -391,6 +394,25 @@ fun NeonSlider(
     }
 }
 
+/** Repetir: gris apagado, en el color de acento con "todo" y con el ícono del 1 con "una". */
+@Composable
+fun RepeatButton(player: Player, size: Dp) {
+    val mode by player.repeat.collectAsState()
+    SmallIconButton(
+        if (mode == RepeatMode.ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+        t(
+            when (mode) {
+                RepeatMode.OFF -> S.repeatOff
+                RepeatMode.ALL -> S.repeatAll
+                RepeatMode.ONE -> S.repeatOne
+            },
+        ),
+        tint = if (mode == RepeatMode.OFF) Neon.Muted else Neon.Accent,
+        size = size,
+        onClick = player::cycleRepeat,
+    )
+}
+
 /** Barra inferior: pista actual, controles con barra de progreso, salida, volumen y panel. */
 @Composable
 fun PlayerBar(
@@ -446,6 +468,8 @@ fun PlayerBar(
         // Controles y progreso
         Column(Modifier.weight(1.7f).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                // Mismo ancho que el botón de repetir, para que reproducir quede al centro.
+                Spacer(Modifier.width(30.dp))
                 SmallIconButton(Icons.Rounded.SkipPrevious, t(S.previous), tint = Neon.Text, size = 20.dp) { if (track != null) player.previous() }
                 val shape = CircleShape
                 Box(
@@ -462,6 +486,7 @@ fun PlayerBar(
                     )
                 }
                 SmallIconButton(Icons.Rounded.SkipNext, t(S.next), tint = Neon.Text, size = 20.dp) { if (track != null) player.next() }
+                RepeatButton(player, size = 18.dp)
             }
             Spacer(Modifier.height(4.dp))
             Row(Modifier.widthIn(max = 560.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

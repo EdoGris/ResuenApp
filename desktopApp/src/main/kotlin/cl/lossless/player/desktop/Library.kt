@@ -127,6 +127,10 @@ object AppSettings {
         get() = prefs.getFloat("volume", 1f)
         set(value) = prefs.putFloat("volume", value)
 
+    var repeat: RepeatMode
+        get() = RepeatMode.entries.firstOrNull { it.name == prefs.get("repeat", null) } ?: RepeatMode.OFF
+        set(value) = prefs.put("repeat", value.name)
+
     // Apariencia: nombres de ThemeMode, Accent, AppFont y TextSize (ver ui/Theme.kt).
     var theme: String?
         get() = prefs.get("theme", null)

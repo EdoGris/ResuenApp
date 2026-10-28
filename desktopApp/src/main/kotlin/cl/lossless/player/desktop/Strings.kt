@@ -104,6 +104,9 @@ object S {
     val pause = Str("Pausa", "Pause", "Pause", "Pausar")
     val next = Str("Siguiente", "Next", "Suivant", "Próxima")
     val previous = Str("Anterior", "Previous", "Précédent", "Anterior")
+    val repeatOff = Str("Repetir: no", "Repeat: off", "Répéter : non", "Repetir: não")
+    val repeatAll = Str("Repetir todo", "Repeat all", "Tout répéter", "Repetir tudo")
+    val repeatOne = Str("Repetir una", "Repeat one", "Répéter un titre", "Repetir uma")
     val nothingPlaying = Str("Nada sonando", "Nothing playing", "Rien en lecture", "Nada tocando")
     val playbackError = Str("No se pudo reproducir: %1\$s", "Couldn't play: %1\$s", "Lecture impossible : %1\$s", "Não foi possível tocar: %1\$s")
 
