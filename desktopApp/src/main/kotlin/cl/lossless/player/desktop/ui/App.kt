@@ -1,5 +1,13 @@
 package cl.lossless.player.desktop.ui
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.TooltipArea
+import androidx.compose.foundation.TooltipPlacement
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -68,6 +76,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cl.lossless.player.desktop.APP_VERSION
 import cl.lossless.player.desktop.DesktopLyrics
+import cl.lossless.player.desktop.DesktopPlaylists
 import cl.lossless.player.desktop.DesktopUpdater
 import cl.lossless.player.desktop.AppSettings
 import cl.lossless.player.desktop.IsMac
@@ -91,7 +100,7 @@ import java.io.File
 import java.text.Normalizer
 import javax.swing.JFileChooser
 
-private enum class Tab { SONGS, ALBUMS, ARTISTS, FOLDERS, SETTINGS }
+private enum class Tab { SONGS, ALBUMS, ARTISTS, FOLDERS, PLAYLISTS, SETTINGS }
 
 private fun String.searchKey(): String =
     Normalizer.normalize(lowercase(), Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
@@ -119,6 +128,7 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
     var openAlbum by remember { mutableStateOf<String?>(null) }
     var openArtist by remember { mutableStateOf<String?>(null) }
     var openFolder by remember { mutableStateOf<String?>(null) }
+    var openPlaylist by remember { mutableStateOf<String?>(null) }
     var panelOpen by remember { mutableStateOf(true) }
     var dialog by remember { mutableStateOf<TrackDialog?>(null) }
 
@@ -207,7 +217,7 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
 
     fun select(target: Tab) {
         tab = target
-        openAlbum = null; openArtist = null; openFolder = null
+        openAlbum = null; openArtist = null; openFolder = null; openPlaylist = null
     }
 
     val actions = remember {
@@ -216,6 +226,7 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
             // La carátula es del álbum: se guarda en todas sus pistas.
             findCover = { t -> dialog = TrackDialog.FindCover(tracks.filter { it.albumKey == t.albumKey }.ifEmpty { listOf(t) }) },
             findLyrics = { dialog = TrackDialog.FindLyrics(it) },
+            addToPlaylist = { if (it.isNotEmpty()) dialog = TrackDialog.AddToPlaylist(it) },
         )
     }
 
@@ -228,6 +239,28 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
         if (openAlbum != null && tracks.none { it.albumKey == openAlbum }) openAlbum = updated.firstOrNull()?.albumKey
         val snapshot = tracks
         scope.launch(Dispatchers.IO) { LibraryScanner.saveCache(snapshot) }
+    }
+
+    // Canciones de la lista abierta: las de la biblioteca, o leídas del disco si están fuera de ella.
+    val playlist = openPlaylist?.let { DesktopPlaylists[it] }
+    val libraryByPath = remember(tracks) { tracks.associateBy { it.path } }
+    var outside by remember { mutableStateOf<Map<String, Track?>>(emptyMap()) }
+    LaunchedEffect(playlist?.paths, libraryByPath) {
+        val unknown = playlist?.paths.orEmpty().filter { it !in libraryByPath && it !in outside }.distinct()
+        if (unknown.isNotEmpty()) {
+            val read = withContext(Dispatchers.IO) {
+                unknown.associateWith { path -> File(path).takeIf { it.isFile }?.let { LibraryScanner.readTrack(it.toPath()) } }
+            }
+            outside = outside + read
+        }
+    }
+    val playlistTracks = remember(playlist, libraryByPath, outside) {
+        playlist?.paths.orEmpty().map { path ->
+            libraryByPath[path] ?: outside[path] ?: Track(path, File(path).nameWithoutExtension, "", "", "", 0, 0, 0, "", 0, 0, 2, 0)
+        }
+    }
+    val playlistMissing = remember(playlist, libraryByPath, outside) {
+        playlist?.paths.orEmpty().filter { libraryByPath[it] == null && outside[it] == null }.toSet()
     }
 
     val track = state.current
@@ -268,6 +301,7 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
                     Sidebar(
                         selected = tab,
                         trackCount = filtered.size,
+                        playlistCount = DesktopPlaylists.all.size,
                         onSelect = ::select,
                     )
                     if (showPanel && Appearance.panelLeft) Panel()
@@ -318,6 +352,28 @@ private fun Library(player: Player, searchFocus: FocusRequester, language: Lang?
                                         ArtistDetail(artist, current, state.playing, onBack = { openArtist = null }) { player.playQueue(artist.tracks, it) }
                                     } else {
                                         ArtistGrid(artists) { openArtist = it.name }
+                                    }
+                                }
+                                tab == Tab.PLAYLISTS -> {
+                                    if (playlist != null) {
+                                        PlaylistDetail(
+                                            playlist, playlistTracks, playlistMissing, current, state.playing,
+                                            onBack = { openPlaylist = null },
+                                            onRename = { dialog = TrackDialog.PlaylistName(playlist.id, playlist.name) },
+                                            onDelete = { dialog = TrackDialog.DeletePlaylist(playlist.id, playlist.name) },
+                                        ) { i ->
+                                            // Solo se encolan las que existen; -1 es "Reproducir todo".
+                                            val playable = playlistTracks.filter { it.path !in playlistMissing }
+                                            val start = if (i < 0) 0 else playlistTracks.take(i).count { it.path !in playlistMissing }
+                                            if (playable.isNotEmpty()) player.playQueue(playable, start)
+                                        }
+                                    } else {
+                                        PlaylistList(
+                                            onNew = { dialog = TrackDialog.PlaylistName(null, "") },
+                                            onOpen = { openPlaylist = it.id },
+                                            onRename = { dialog = TrackDialog.PlaylistName(it.id, it.name) },
+                                            onDelete = { dialog = TrackDialog.DeletePlaylist(it.id, it.name) },
+                                        )
                                     }
                                 }
                                 else -> {
@@ -452,27 +508,44 @@ private fun SearchField(query: String, onQuery: (String) -> Unit, focus: FocusRe
     }
 }
 
-/** Barra lateral izquierda: secciones de la biblioteca y Ajustes al pie. */
+/** Barra lateral izquierda: secciones de la biblioteca y Ajustes al pie. Se puede reducir a solo íconos. */
 @Composable
-private fun Sidebar(selected: Tab, trackCount: Int, onSelect: (Tab) -> Unit) {
+private fun Sidebar(selected: Tab, trackCount: Int, playlistCount: Int, onSelect: (Tab) -> Unit) {
+    val collapsed = Appearance.sidebarCollapsed
+    val width by animateDpAsState(if (collapsed) 62.dp else 240.dp)
     Column(
-        Modifier.width(240.dp).fillMaxHeight().background(Neon.Surface.copy(alpha = 0.75f)).padding(10.dp),
+        Modifier.width(width).fillMaxHeight().background(Neon.Surface.copy(alpha = 0.75f)).padding(10.dp),
     ) {
-        SectionLabel(t(S.library), Modifier.padding(start = 12.dp, bottom = 8.dp, top = 6.dp), color = Neon.Accent)
-        NavItem(Icons.Rounded.MusicNote, t(S.songs), selected == Tab.SONGS, badge = "$trackCount") { onSelect(Tab.SONGS) }
-        NavItem(Icons.Rounded.Album, t(S.albums), selected == Tab.ALBUMS) { onSelect(Tab.ALBUMS) }
-        NavItem(Icons.Rounded.Mic, t(S.artists), selected == Tab.ARTISTS) { onSelect(Tab.ARTISTS) }
-        NavItem(Icons.Rounded.Folder, t(S.folders), selected == Tab.FOLDERS) { onSelect(Tab.FOLDERS) }
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.Start,
+        ) {
+            if (!collapsed) {
+                SectionLabel(t(S.library), Modifier.padding(start = 12.dp).weight(1f), color = Neon.Accent)
+            }
+            SmallIconButton(
+                if (collapsed) Icons.AutoMirrored.Rounded.KeyboardArrowRight else Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+                if (collapsed) t(S.expandSidebar) else t(S.collapseSidebar),
+                onClick = Appearance::toggleSidebar,
+            )
+        }
+        NavItem(Icons.Rounded.MusicNote, t(S.songs), selected == Tab.SONGS, collapsed, badge = "$trackCount") { onSelect(Tab.SONGS) }
+        NavItem(Icons.Rounded.Album, t(S.albums), selected == Tab.ALBUMS, collapsed) { onSelect(Tab.ALBUMS) }
+        NavItem(Icons.Rounded.Mic, t(S.artists), selected == Tab.ARTISTS, collapsed) { onSelect(Tab.ARTISTS) }
+        NavItem(Icons.Rounded.Folder, t(S.folders), selected == Tab.FOLDERS, collapsed) { onSelect(Tab.FOLDERS) }
+        NavItem(Icons.AutoMirrored.Rounded.QueueMusic, t(S.playlists), selected == Tab.PLAYLISTS, collapsed, badge = "$playlistCount") { onSelect(Tab.PLAYLISTS) }
         Spacer(Modifier.weight(1f))
         Box(Modifier.fillMaxWidth().height(1.dp).background(Neon.Border))
         Spacer(Modifier.height(8.dp))
-        NavItem(Icons.Rounded.Settings, t(S.settings), selected == Tab.SETTINGS) { onSelect(Tab.SETTINGS) }
+        NavItem(Icons.Rounded.Settings, t(S.settings), selected == Tab.SETTINGS, collapsed) { onSelect(Tab.SETTINGS) }
     }
     Box(Modifier.width(1.dp).fillMaxHeight().background(Neon.Border))
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun NavItem(icon: ImageVector, label: String, selected: Boolean, badge: String? = null, onClick: () -> Unit) {
+private fun NavItem(icon: ImageVector, label: String, selected: Boolean, collapsed: Boolean, badge: String? = null, onClick: () -> Unit) {
     val shape = RoundedCornerShape(8.dp)
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
@@ -481,6 +554,28 @@ private fun NavItem(icon: ImageVector, label: String, selected: Boolean, badge: 
         hovered -> Neon.Text
         else -> Neon.Muted
     }
+    // Contraída solo queda el ícono; el nombre aparece como globo al pasar el mouse.
+    if (collapsed) {
+        TooltipArea(
+            tooltip = {
+                Text(
+                    label, color = Neon.Text, fontSize = 12.sp,
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Neon.Card)
+                        .border(1.dp, Neon.Border, RoundedCornerShape(6.dp)).padding(horizontal = 10.dp, vertical = 5.dp),
+                )
+            },
+            tooltipPlacement = TooltipPlacement.ComponentRect(anchor = Alignment.CenterEnd, alignment = Alignment.CenterEnd, offset = DpOffset(8.dp, 0.dp)),
+        ) { NavRow(icon, label, selected, collapsed, badge, shape, interaction, hovered, color, onClick) }
+    } else {
+        NavRow(icon, label, selected, collapsed, badge, shape, interaction, hovered, color, onClick)
+    }
+}
+
+@Composable
+private fun NavRow(
+    icon: ImageVector, label: String, selected: Boolean, collapsed: Boolean, badge: String?, shape: RoundedCornerShape,
+    interaction: MutableInteractionSource, hovered: Boolean, color: Color, onClick: () -> Unit,
+) {
     Row(
         Modifier.fillMaxWidth().padding(vertical = 1.dp).clip(shape)
             .background(
@@ -495,11 +590,14 @@ private fun NavItem(icon: ImageVector, label: String, selected: Boolean, badge: 
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.Start,
     ) {
         // El ícono siempre lleva el color de acento; el texto se ilumina al elegirlo o pasar el mouse.
-        Icon(icon, null, tint = if (selected || hovered) color else Neon.Accent.copy(alpha = 0.75f), modifier = Modifier.size(17.dp))
-        Spacer(Modifier.width(12.dp))
-        Text(label, color = color, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-        if (badge != null) Text(badge, color = color.copy(alpha = 0.6f), fontFamily = Mono, fontSize = 10.sp)
+        Icon(icon, label, tint = if (selected || hovered) color else Neon.Accent.copy(alpha = 0.75f), modifier = Modifier.size(17.dp))
+        if (!collapsed) {
+            Spacer(Modifier.width(12.dp))
+            Text(label, color = color, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), maxLines = 1)
+            if (badge != null) Text(badge, color = color.copy(alpha = 0.6f), fontFamily = Mono, fontSize = 10.sp)
+        }
     }
 }

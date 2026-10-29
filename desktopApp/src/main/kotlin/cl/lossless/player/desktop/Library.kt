@@ -127,6 +127,10 @@ object AppSettings {
         get() = prefs.getFloat("volume", 1f)
         set(value) = prefs.putFloat("volume", value)
 
+    var repeat: RepeatMode
+        get() = RepeatMode.entries.firstOrNull { it.name == prefs.get("repeat", null) } ?: RepeatMode.OFF
+        set(value) = prefs.put("repeat", value.name)
+
     // Apariencia: nombres de ThemeMode, Accent, AppFont y TextSize (ver ui/Theme.kt).
     var theme: String?
         get() = prefs.get("theme", null)
@@ -144,6 +148,9 @@ object AppSettings {
     var panelLeft: Boolean
         get() = prefs.getBoolean("panel_left", false)
         set(value) = prefs.putBoolean("panel_left", value)
+    var sidebarCollapsed: Boolean
+        get() = prefs.getBoolean("sidebar_collapsed", false)
+        set(value) = prefs.putBoolean("sidebar_collapsed", value)
     var panelWidth: Float
         get() = prefs.getFloat("panel_width", 320f)
         set(value) = prefs.putFloat("panel_width", value)

@@ -104,6 +104,9 @@ object S {
     val pause = Str("Pausa", "Pause", "Pause", "Pausar")
     val next = Str("Siguiente", "Next", "Suivant", "Próxima")
     val previous = Str("Anterior", "Previous", "Précédent", "Anterior")
+    val repeatOff = Str("Repetir: no", "Repeat: off", "Répéter : non", "Repetir: não")
+    val repeatAll = Str("Repetir todo", "Repeat all", "Tout répéter", "Repetir tudo")
+    val repeatOne = Str("Repetir una", "Repeat one", "Répéter un titre", "Repetir uma")
     val nothingPlaying = Str("Nada sonando", "Nothing playing", "Rien en lecture", "Nada tocando")
     val playbackError = Str("No se pudo reproducir: %1\$s", "Couldn't play: %1\$s", "Lecture impossible : %1\$s", "Não foi possível tocar: %1\$s")
 
@@ -220,6 +223,41 @@ object S {
     val sideRight = Str("A la derecha", "On the right", "À droite", "À direita")
     val sideLeft = Str("A la izquierda", "On the left", "À gauche", "À esquerda")
     val swapSide = Str("Cambiar de lado", "Switch side", "Changer de côté", "Trocar de lado")
+    val collapseSidebar = Str("Contraer biblioteca", "Collapse library", "Réduire la bibliothèque", "Recolher biblioteca")
+    val expandSidebar = Str("Expandir biblioteca", "Expand library", "Développer la bibliothèque", "Expandir biblioteca")
+
+    // Listas de reproducción
+    val playlists = Str("Listas", "Playlists", "Playlists", "Playlists")
+    val playlistCount = Str("%1\$d listas", "%1\$d playlists", "%1\$d playlists", "%1\$d playlists")
+    val newPlaylist = Str("Nueva lista", "New playlist", "Nouvelle playlist", "Nova playlist")
+    val playlistName = Str("Nombre de la lista", "Playlist name", "Nom de la playlist", "Nome da playlist")
+    val create = Str("Crear", "Create", "Créer", "Criar")
+    val addToPlaylist = Str("Añadir a lista…", "Add to playlist…", "Ajouter à une playlist…", "Adicionar à playlist…")
+    val addedToPlaylist = Str("Añadida a %1\$s", "Added to %1\$s", "Ajouté à %1\$s", "Adicionada a %1\$s")
+    val renamePlaylist = Str("Renombrar", "Rename", "Renommer", "Renomear")
+    val deletePlaylist = Str("Eliminar lista", "Delete playlist", "Supprimer la playlist", "Excluir playlist")
+    val deletePlaylistConfirm = Str(
+        "¿Eliminar \"%1\$s\"? Las canciones no se borran.",
+        "Delete \"%1\$s\"? The songs themselves are kept.",
+        "Supprimer « %1\$s » ? Les titres sont conservés.",
+        "Excluir \"%1\$s\"? As músicas não são apagadas.",
+    )
+    val removeFromPlaylist = Str("Quitar de la lista", "Remove from playlist", "Retirer de la playlist", "Remover da playlist")
+    val saveQueueAsPlaylist = Str("Guardar cola como lista", "Save queue as playlist", "Enregistrer la file comme playlist", "Salvar fila como playlist")
+    val playlistEmpty = Str(
+        "Esta lista está vacía. Añade canciones con clic derecho → Añadir a lista.",
+        "This playlist is empty. Add songs with right-click → Add to playlist.",
+        "Cette playlist est vide. Ajoutez des titres avec clic droit → Ajouter à une playlist.",
+        "Esta playlist está vazia. Adicione músicas com clique direito → Adicionar à playlist.",
+    )
+    val noPlaylists = Str(
+        "Aún no tienes listas. Crea una aquí o con clic derecho sobre una canción.",
+        "No playlists yet. Create one here or by right-clicking a song.",
+        "Aucune playlist pour l'instant. Créez-en une ici ou avec un clic droit sur un titre.",
+        "Nenhuma playlist ainda. Crie uma aqui ou com clique direito numa música.",
+    )
+    val trackMissing = Str("No encontrada", "Not found", "Introuvable", "Não encontrada")
+    val dragToReorder = Str("Arrastra para reordenar", "Drag to reorder", "Glisser pour réorganiser", "Arraste para reordenar")
 
     // Mini reproductor
     val miniPlayer = Str("Mini reproductor", "Mini player", "Mini lecteur", "Mini player")
