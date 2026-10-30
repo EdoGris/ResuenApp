@@ -31,7 +31,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Search
@@ -71,6 +75,7 @@ import cl.lossless.player.desktop.CoverCandidate
 import cl.lossless.player.desktop.CoverSearch
 import cl.lossless.player.desktop.Covers
 import cl.lossless.player.desktop.DesktopLyrics
+import cl.lossless.player.desktop.DesktopPlaylists
 import cl.lossless.player.desktop.IsMac
 import cl.lossless.player.desktop.Player
 import cl.lossless.player.desktop.S
@@ -94,6 +99,11 @@ sealed interface TrackDialog {
     data class EditTags(val tracks: List<Track>) : TrackDialog
     data class FindCover(val tracks: List<Track>) : TrackDialog
     data class FindLyrics(val track: Track) : TrackDialog
+    data object Equalizer : TrackDialog
+    data class AddToPlaylist(val tracks: List<Track>) : TrackDialog
+    /** Crear (id null) o renombrar una lista. */
+    data class PlaylistName(val id: String?, val current: String) : TrackDialog
+    data class DeletePlaylist(val id: String, val name: String) : TrackDialog
 }
 
 /** Acciones sobre pistas que ofrecen el menú contextual, el detalle de álbum y el panel. */
@@ -103,6 +113,7 @@ class TrackActions(
     val editSelection: () -> Unit,
     val findCover: (Track) -> Unit,
     val findLyrics: (Track) -> Unit,
+    val addToPlaylist: (List<Track>) -> Unit,
 )
 
 val LocalTrackActions = staticCompositionLocalOf<TrackActions?> { null }
@@ -158,7 +169,13 @@ fun TrackDialogHost(dialog: TrackDialog, player: Player, onDismiss: () -> Unit, 
         contentAlignment = Alignment.Center,
     ) {
         Column(
-            Modifier.width(if (dialog is TrackDialog.EditTags) 520.dp else 680.dp).heightIn(max = 640.dp)
+            Modifier.width(
+                when (dialog) {
+                    is TrackDialog.EditTags -> 520.dp
+                    is TrackDialog.AddToPlaylist, is TrackDialog.PlaylistName, is TrackDialog.DeletePlaylist -> 440.dp
+                    else -> 680.dp
+                },
+            ).heightIn(max = 640.dp)
                 .glow(Neon.Accent.copy(alpha = 0.35f), 24.dp, RoundedCornerShape(16.dp))
                 .glass(RoundedCornerShape(16.dp), Neon.Surface)
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
@@ -168,6 +185,21 @@ fun TrackDialogHost(dialog: TrackDialog, player: Player, onDismiss: () -> Unit, 
                 is TrackDialog.EditTags -> TagEditorDialog(dialog.tracks, player, onDismiss, onUpdated)
                 is TrackDialog.FindCover -> CoverSearchDialog(dialog.tracks, player, onDismiss, onUpdated)
                 is TrackDialog.FindLyrics -> LyricsSearchDialog(dialog.track, onDismiss)
+                TrackDialog.Equalizer -> {
+                    DialogHeader(t(S.equalizer), null, onDismiss)
+                    EqualizerPanel(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()))
+                }
+                is TrackDialog.AddToPlaylist -> AddToPlaylistDialog(dialog.tracks, onDismiss)
+                is TrackDialog.PlaylistName -> PlaylistNameDialog(dialog.id, dialog.current, onDismiss)
+                is TrackDialog.DeletePlaylist -> {
+                    DialogHeader(t(S.deletePlaylist), null, onDismiss)
+                    Text(t(S.deletePlaylistConfirm, dialog.name), color = Neon.Text, fontSize = 13.sp)
+                    Spacer(Modifier.height(16.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
+                        GhostButton(null, t(S.cancel), onDismiss)
+                        PrimaryButton(Icons.Rounded.Delete, t(S.deletePlaylist)) { DesktopPlaylists.delete(dialog.id); onDismiss() }
+                    }
+                }
             }
         }
     }
@@ -512,4 +544,72 @@ private fun pickImage(title: String): File? {
     dialog.setFilenameFilter { _, name -> name.lowercase().let { it.endsWith(".jpg") || it.endsWith(".jpeg") || it.endsWith(".png") } }
     dialog.isVisible = true
     return dialog.file?.let { File(dialog.directory, it) }?.takeIf { it.isFile }
+}
+
+/** Elegir una lista existente o crear una nueva con las pistas (una canción, un álbum o la cola). */
+@Composable
+private fun ColumnScope.AddToPlaylistDialog(tracks: List<Track>, onDismiss: () -> Unit) {
+    var name by remember { mutableStateOf("") }
+    val paths = remember(tracks) { tracks.map { it.path } }
+    fun create() {
+        if (name.isBlank()) return
+        DesktopPlaylists.create(name, paths)
+        onDismiss()
+    }
+    DialogHeader(
+        t(S.addToPlaylist).removeSuffix("…"),
+        if (tracks.size == 1) tracks.first().title else t(S.trackCount, tracks.size),
+        onDismiss,
+    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        NeonTextField(name, { name = it }, t(S.newPlaylist), Modifier.weight(1f), onSubmit = ::create)
+        Spacer(Modifier.width(10.dp))
+        PrimaryButton(Icons.Rounded.Add, t(S.create), ::create)
+    }
+    val lists = DesktopPlaylists.all
+    if (lists.isNotEmpty()) {
+        Spacer(Modifier.height(14.dp))
+        LazyColumn(Modifier.heightIn(max = 320.dp)) {
+            items(lists, key = { it.id }) { list ->
+                val interaction = remember { MutableInteractionSource() }
+                val hovered by interaction.collectIsHoveredAsState()
+                val already = paths.all { it in list.paths }
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                        .background(if (hovered) Neon.Hover.copy(alpha = 0.6f) else Color.Transparent)
+                        .hoverable(interaction)
+                        .clickable { DesktopPlaylists.add(list.id, paths); onDismiss() }
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.AutoMirrored.Rounded.QueueMusic, null, tint = Neon.Accent, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        list.name, Modifier.weight(1f), color = if (hovered) Neon.TextStrong else Neon.Text, fontSize = 13.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                    if (already) Icon(Icons.Rounded.Check, null, tint = Neon.Accent, modifier = Modifier.size(16.dp).padding(end = 4.dp))
+                    Text(t(S.trackCount, list.paths.size), color = Neon.Muted, fontFamily = Mono, fontSize = 11.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ColumnScope.PlaylistNameDialog(id: String?, current: String, onDismiss: () -> Unit) {
+    var name by remember { mutableStateOf(current) }
+    fun save() {
+        if (name.isBlank()) return
+        if (id == null) DesktopPlaylists.create(name) else DesktopPlaylists.rename(id, name)
+        onDismiss()
+    }
+    DialogHeader(if (id == null) t(S.newPlaylist) else t(S.renamePlaylist), null, onDismiss)
+    SectionLabel(t(S.playlistName), Modifier.padding(bottom = 4.dp))
+    NeonTextField(name, { name = it }, t(S.playlistName), Modifier.fillMaxWidth(), onSubmit = ::save)
+    Spacer(Modifier.height(16.dp))
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
+        GhostButton(null, t(S.cancel), onDismiss)
+        PrimaryButton(Icons.Rounded.Save, if (id == null) t(S.create) else t(S.save), ::save)
+    }
 }

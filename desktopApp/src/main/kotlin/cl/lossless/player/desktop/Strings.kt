@@ -104,6 +104,9 @@ object S {
     val pause = Str("Pausa", "Pause", "Pause", "Pausar")
     val next = Str("Siguiente", "Next", "Suivant", "Próxima")
     val previous = Str("Anterior", "Previous", "Précédent", "Anterior")
+    val repeatOff = Str("Repetir: no", "Repeat: off", "Répéter : non", "Repetir: não")
+    val repeatAll = Str("Repetir todo", "Repeat all", "Tout répéter", "Repetir tudo")
+    val repeatOne = Str("Repetir una", "Repeat one", "Répéter un titre", "Repetir uma")
     val nothingPlaying = Str("Nada sonando", "Nothing playing", "Rien en lecture", "Nada tocando")
     val playbackError = Str("No se pudo reproducir: %1\$s", "Couldn't play: %1\$s", "Lecture impossible : %1\$s", "Não foi possível tocar: %1\$s")
 
@@ -175,6 +178,7 @@ object S {
     val accentRed = Str("Rojo", "Red", "Rouge", "Vermelho")
     val accentPink = Str("Rosa", "Pink", "Rose", "Rosa")
     val accentPurple = Str("Violeta", "Violet", "Violet", "Violeta")
+    val accentSystem = Str("Color del sistema", "System color", "Couleur du système", "Cor do sistema")
     val font = Str("Tipo de letra · %1\$s", "Font · %1\$s", "Police · %1\$s", "Fonte · %1\$s")
     val fontSystem = Str("Sistema", "System", "Système", "Sistema")
     val textSize = Str("Tamaño del texto", "Text size", "Taille du texte", "Tamanho do texto")
@@ -244,6 +248,41 @@ object S {
     val sideRight = Str("A la derecha", "On the right", "À droite", "À direita")
     val sideLeft = Str("A la izquierda", "On the left", "À gauche", "À esquerda")
     val swapSide = Str("Cambiar de lado", "Switch side", "Changer de côté", "Trocar de lado")
+    val collapseSidebar = Str("Contraer biblioteca", "Collapse library", "Réduire la bibliothèque", "Recolher biblioteca")
+    val expandSidebar = Str("Expandir biblioteca", "Expand library", "Développer la bibliothèque", "Expandir biblioteca")
+
+    // Listas de reproducción
+    val playlists = Str("Listas", "Playlists", "Playlists", "Playlists")
+    val playlistCount = Str("%1\$d listas", "%1\$d playlists", "%1\$d playlists", "%1\$d playlists")
+    val newPlaylist = Str("Nueva lista", "New playlist", "Nouvelle playlist", "Nova playlist")
+    val playlistName = Str("Nombre de la lista", "Playlist name", "Nom de la playlist", "Nome da playlist")
+    val create = Str("Crear", "Create", "Créer", "Criar")
+    val addToPlaylist = Str("Añadir a lista…", "Add to playlist…", "Ajouter à une playlist…", "Adicionar à playlist…")
+    val addedToPlaylist = Str("Añadida a %1\$s", "Added to %1\$s", "Ajouté à %1\$s", "Adicionada a %1\$s")
+    val renamePlaylist = Str("Renombrar", "Rename", "Renommer", "Renomear")
+    val deletePlaylist = Str("Eliminar lista", "Delete playlist", "Supprimer la playlist", "Excluir playlist")
+    val deletePlaylistConfirm = Str(
+        "¿Eliminar \"%1\$s\"? Las canciones no se borran.",
+        "Delete \"%1\$s\"? The songs themselves are kept.",
+        "Supprimer « %1\$s » ? Les titres sont conservés.",
+        "Excluir \"%1\$s\"? As músicas não são apagadas.",
+    )
+    val removeFromPlaylist = Str("Quitar de la lista", "Remove from playlist", "Retirer de la playlist", "Remover da playlist")
+    val saveQueueAsPlaylist = Str("Guardar cola como lista", "Save queue as playlist", "Enregistrer la file comme playlist", "Salvar fila como playlist")
+    val playlistEmpty = Str(
+        "Esta lista está vacía. Añade canciones con clic derecho → Añadir a lista.",
+        "This playlist is empty. Add songs with right-click → Add to playlist.",
+        "Cette playlist est vide. Ajoutez des titres avec clic droit → Ajouter à une playlist.",
+        "Esta playlist está vazia. Adicione músicas com clique direito → Adicionar à playlist.",
+    )
+    val noPlaylists = Str(
+        "Aún no tienes listas. Crea una aquí o con clic derecho sobre una canción.",
+        "No playlists yet. Create one here or by right-clicking a song.",
+        "Aucune playlist pour l'instant. Créez-en une ici ou avec un clic droit sur un titre.",
+        "Nenhuma playlist ainda. Crie uma aqui ou com clique direito numa música.",
+    )
+    val trackMissing = Str("No encontrada", "Not found", "Introuvable", "Não encontrada")
+    val dragToReorder = Str("Arrastra para reordenar", "Drag to reorder", "Glisser pour réorganiser", "Arraste para reordenar")
 
     // Mini reproductor
     val miniPlayer = Str("Mini reproductor", "Mini player", "Mini lecteur", "Mini player")
@@ -253,6 +292,79 @@ object S {
         "Always on top of other windows",
         "Toujours au-dessus des autres fenêtres",
         "Sempre acima das outras janelas",
+    )
+
+    // Ecualizador (mismos textos que en Android)
+    val equalizer = Str("Ecualizador", "Equalizer", "Égaliseur", "Equalizador")
+    val eqEnabled = Str("Activado", "On", "Activé", "Ativado")
+    val eqBypass = Str("Desactivado (bypass)", "Off (bypass)", "Désactivé (bypass)", "Desativado (bypass)")
+    val eqPreamp = Str("Preamp", "Preamp", "Préampli", "Pré-amp")
+    val eqPreampHint = Str(
+        "Bájalo si subes varias bandas, para evitar saturación",
+        "Lower it if you boost several bands, to avoid clipping",
+        "Baissez-le si vous montez plusieurs bandes, pour éviter la saturation",
+        "Abaixe se aumentar várias bandas, para evitar saturação",
+    )
+    val eqReset = Str("Restablecer", "Reset", "Réinitialiser", "Redefinir")
+    val eqBandsHint = Str(
+        "dB por banda · doble clic en una banda para volverla a 0",
+        "dB per band · double-click a band to reset it to 0",
+        "dB par bande · double-cliquez sur une bande pour la remettre à 0",
+        "dB por banda · clique duas vezes numa banda para voltar a 0",
+    )
+    val eqNoteBypass = Str(
+        "Con el ecualizador apagado o en plano, el audio pasa sin ninguna modificación.",
+        "With the equalizer off or flat, the audio passes through unmodified.",
+        "Avec l'égaliseur désactivé ou à plat, l'audio passe sans aucune modification.",
+        "Com o equalizador desligado ou plano, o áudio passa sem nenhuma modificação.",
+    )
+    val eqNoteProcessing = Str(
+        "El ecualizador procesa el audio dentro de la app, antes de la salida. Desactívalo para escuchar el archivo sin alterar.",
+        "The equalizer processes the audio inside the app, before the output. Turn it off to hear the file unaltered.",
+        "L'égaliseur traite l'audio dans l'app, avant la sortie. Désactivez-le pour écouter le fichier sans altération.",
+        "O equalizador processa o áudio dentro do app, antes da saída. Desative-o para ouvir o arquivo sem alterações.",
+    )
+    val eqPresetFlat = Str("Plano", "Flat", "Plat", "Plano")
+    val eqPresetRock = Str("Rock", "Rock", "Rock", "Rock")
+    val eqPresetPop = Str("Pop", "Pop", "Pop", "Pop")
+    val eqPresetJazz = Str("Jazz", "Jazz", "Jazz", "Jazz")
+    val eqPresetClassical = Str("Clásica", "Classical", "Classique", "Clássica")
+    val eqPresetDance = Str("Electrónica", "Electronic", "Électronique", "Eletrônica")
+    val eqPresetHiphop = Str("Hip-Hop", "Hip-Hop", "Hip-Hop", "Hip-Hop")
+    val eqPresetAcoustic = Str("Acústico", "Acoustic", "Acoustique", "Acústico")
+    val eqPresetBass = Str("Realce de graves", "Bass booster", "Graves renforcés", "Realce de graves")
+    val eqPresetVocal = Str("Voz / Podcast", "Vocal / Podcast", "Voix / Podcast", "Voz / Podcast")
+    val eqPresetCustom = Str("Personalizado", "Custom", "Personnalisé", "Personalizado")
+
+    // Atajos de teclado
+    val shortcuts = Str("Atajos de teclado", "Keyboard shortcuts", "Raccourcis clavier", "Atalhos de teclado")
+    val shortcutPlayPause = Str("Reproducir / pausa", "Play / pause", "Lecture / pause", "Tocar / pausar")
+    val shortcutStop = Str("Detener", "Stop", "Arrêter", "Parar")
+    val shortcutNext = Str("Siguiente canción", "Next song", "Titre suivant", "Próxima música")
+    val shortcutPrevious = Str("Canción anterior", "Previous song", "Titre précédent", "Música anterior")
+    val shortcutForward = Str("Adelantar 10 s", "Forward 10 s", "Avancer de 10 s", "Avançar 10 s")
+    val shortcutRewind = Str("Retroceder 10 s", "Rewind 10 s", "Reculer de 10 s", "Voltar 10 s")
+    val shortcutNone = Str("Sin tecla", "No key", "Aucune touche", "Sem tecla")
+    val shortcutPress = Str("Pulsa una tecla…", "Press a key…", "Appuyez sur une touche…", "Pressione uma tecla…")
+    val shortcutSpace = Str("Espacio", "Space", "Espace", "Espaço")
+    val shortcutHint = Str(
+        "Haz clic en un atajo y pulsa la tecla nueva. Esc cancela; Supr lo deja sin tecla. Funcionan con la ventana de ResuenApp activa.",
+        "Click a shortcut and press the new key. Esc cancels; Delete leaves it without a key. They work while the ResuenApp window is active.",
+        "Cliquez sur un raccourci et appuyez sur la nouvelle touche. Échap annule ; Suppr le laisse sans touche. Ils fonctionnent quand la fenêtre de ResuenApp est active.",
+        "Clique num atalho e pressione a nova tecla. Esc cancela; Delete deixa sem tecla. Funcionam com a janela do ResuenApp ativa.",
+    )
+    val shortcutReset = Str("Restablecer atajos", "Reset shortcuts", "Réinitialiser les raccourcis", "Redefinir atalhos")
+    val mediaKeys = Str(
+        "Teclas multimedia del teclado (▶︎⏸ ⏹ ⏭ ⏮), también con la app en segundo plano",
+        "Keyboard media keys (▶︎⏸ ⏹ ⏭ ⏮), also with the app in the background",
+        "Touches multimédia du clavier (▶︎⏸ ⏹ ⏭ ⏮), même avec l'app en arrière-plan",
+        "Teclas multimídia do teclado (▶︎⏸ ⏹ ⏭ ⏮), também com o app em segundo plano",
+    )
+    val mediaKeysMac = Str(
+        "macOS pedirá permiso de Accesibilidad para ResuenApp (Ajustes del Sistema → Privacidad y seguridad → Accesibilidad).",
+        "macOS will ask for Accessibility permission for ResuenApp (System Settings → Privacy & Security → Accessibility).",
+        "macOS demandera l'autorisation d'Accessibilité pour ResuenApp (Réglages Système → Confidentialité et sécurité → Accessibilité).",
+        "O macOS vai pedir permissão de Acessibilidade para o ResuenApp (Ajustes do Sistema → Privacidade e Segurança → Acessibilidade).",
     )
 
     // Actualizaciones

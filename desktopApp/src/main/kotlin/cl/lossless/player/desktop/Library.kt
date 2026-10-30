@@ -137,6 +137,10 @@ object AppSettings {
         get() = prefs.getFloat("volume", 1f)
         set(value) = prefs.putFloat("volume", value)
 
+    var repeat: RepeatMode
+        get() = RepeatMode.entries.firstOrNull { it.name == prefs.get("repeat", null) } ?: RepeatMode.OFF
+        set(value) = prefs.put("repeat", value.name)
+
     // Apariencia: nombres de ThemeMode, Accent, AppFont y TextSize (ver ui/Theme.kt).
     var theme: String?
         get() = prefs.get("theme", null)
@@ -154,9 +158,29 @@ object AppSettings {
     var panelLeft: Boolean
         get() = prefs.getBoolean("panel_left", false)
         set(value) = prefs.putBoolean("panel_left", value)
+    var sidebarCollapsed: Boolean
+        get() = prefs.getBoolean("sidebar_collapsed", false)
+        set(value) = prefs.putBoolean("sidebar_collapsed", value)
     var panelWidth: Float
         get() = prefs.getFloat("panel_width", 320f)
         set(value) = prefs.putFloat("panel_width", value)
+
+    // Atajos de reproducción: una línea "ACCIÓN=tecla:ctrl:alt:shift:meta" por acción con tecla.
+    fun loadShortcuts(): Map<PlaybackAction, KeyCombo>? {
+        val raw = prefs.get("shortcuts", null) ?: return null
+        return raw.split('\n').mapNotNull { line ->
+            val action = PlaybackAction.entries.firstOrNull { it.name == line.substringBefore('=') }
+            val combo = KeyCombo.decode(line.substringAfter('=', ""))
+            if (action != null && combo != null) action to combo else null
+        }.toMap()
+    }
+    fun saveShortcuts(bindings: Map<PlaybackAction, KeyCombo>) =
+        prefs.put("shortcuts", bindings.entries.joinToString("\n") { "${it.key.name}=${it.value.encode()}" })
+
+    /** Teclas multimedia con la app en segundo plano. En macOS pide permiso de accesibilidad, así que empieza apagado. */
+    var mediaKeys: Boolean
+        get() = prefs.getBoolean("media_keys", !IsMac)
+        set(value) = prefs.putBoolean("media_keys", value)
 
     // Mini reproductor: si queda encima de las demás ventanas y dónde se dejó (null = esquina inferior derecha).
     var miniOnTop: Boolean
