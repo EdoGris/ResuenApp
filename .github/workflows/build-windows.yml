@@ -79,7 +79,7 @@ jobs:
 
           function Wait-Window($seconds) {
             for ($i = 0; $i -lt $seconds * 4; $i++) {
-              $w = Get-Process -Name $name -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero } | Select-Object -First 1
+              $w = Get-Process -Name $name -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -ne "" } | Select-Object -First 1
               if ($w) { return $w.MainWindowHandle }
               Start-Sleep -Milliseconds 250
             }
@@ -90,7 +90,10 @@ jobs:
             Start-Sleep -Milliseconds 700
             $r = New-Object Win+RECT
             [Win]::GetWindowRect($h, [ref]$r) | Out-Null
-            $bmp = New-Object System.Drawing.Bitmap ($r.R - $r.L), ($r.B - $r.T)
+            $w = $r.R - $r.L; $hgt = $r.B - $r.T
+            Write-Host "$file : ventana $w x $hgt en ($($r.L), $($r.T))"
+            if ($w -le 0 -or $hgt -le 0) { Shot-Screen $file; return }
+            $bmp = New-Object System.Drawing.Bitmap $w, $hgt
             $g = [System.Drawing.Graphics]::FromImage($bmp)
             $g.CopyFromScreen($r.L, $r.T, 0, 0, $bmp.Size)
             $bmp.Save((Join-Path $shots $file))
