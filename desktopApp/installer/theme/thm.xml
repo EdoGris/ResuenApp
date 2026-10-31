@@ -44,7 +44,8 @@
         <Text X="24" Y="100" Width="-24" Height="34" FontId="1" DisablePrefix="yes">#(loc.ProgressHeader)</Text>
         <Text Name="OverallProgressPackageText" X="24" Y="150" Width="-110" Height="20" FontId="2" DisablePrefix="yes">#(loc.OverallProgressPackageText)</Text>
         <Text Name="OverallProgressText" X="-24" Y="150" Width="80" Height="20" FontId="4" DisablePrefix="yes" HexStyle="2"></Text>
-        <Progressbar Name="OverallCalculatedProgressbar" X="24" Y="180" Width="-24" Height="6" SourceX="44" SourceY="436" />
+        <!-- Barra y porcentaje leen el mismo avance (OnProgress); la "Calculated" usa otra cuenta y no calzaba. -->
+        <Progressbar Name="OverallProgressbar" X="24" Y="180" Width="-24" Height="6" SourceX="44" SourceY="436" />
         <Button Name="ProgressCancelButton" X="-24" Y="-18" Width="112" Height="32" SourceX="560" SourceY="340" TabStop="yes" FontId="0" HideWhenDisabled="yes">#(loc.ProgressCancelButton)</Button>
     </Page>
 
