@@ -207,7 +207,9 @@ class AutoLibrary(private val context: Context) {
                 .setTitle(track.title)
                 .setArtist(track.artist)
                 .setAlbumTitle(track.album)
-                .setSubtitle(track.artist)
+                // En las listas del auto: "Artista · FLAC 24-bit".
+                .setSubtitle(listOf(track.artist, track.qualityLabel).filter { it.isNotBlank() }.joinToString(" · "))
+                .setDescription(track.qualityDetails.ifEmpty { null })
                 .setArtworkUri(coverUri(track))
                 .setIsBrowsable(false)
                 .setIsPlayable(true)
