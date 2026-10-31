@@ -28,7 +28,7 @@ jobs:
         run: echo "number=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Instalador MSI
-        run: ./gradlew :shared:jvmTest :desktopApp:createDistributable :desktopApp:packageMsi
+        run: ./gradlew :shared:jvmTest :desktopApp:test :desktopApp:createDistributable :desktopApp:packageMsi
 
       # Ícono de ResuenApp en el asistente de instalación (banner y panel de bienvenida).
       - name: Imágenes del instalador
