@@ -13,6 +13,8 @@ kotlin {
     sourceSets {
         jvmMain.dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+            // Etiquetas de los archivos (TagFiles): las editan el escritorio y Android.
+            api("net.jthink:jaudiotagger:3.0.1")
             // En Android org.json viene en el sistema; en escritorio lo aporta cada app.
             compileOnly("org.json:json:20240303")
         }

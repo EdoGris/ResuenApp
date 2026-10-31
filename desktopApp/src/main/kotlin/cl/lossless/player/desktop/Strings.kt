@@ -215,6 +215,31 @@ object S {
         "Elle sera enregistrée dans %1\$d fichiers",
         "Será salva dentro de %1\$d arquivos",
     )
+    val mergeHint = Str(
+        "Estas canciones están en %1\$d carpetas. Con el mismo álbum y artista (o artista del álbum) se verán como un solo álbum.",
+        "These songs are in %1\$d folders. With the same album and artist (or album artist) they'll show up as one album.",
+        "Ces titres sont dans %1\$d dossiers. Avec le même album et le même artiste (ou artiste de l'album), ils formeront un seul album.",
+        "Estas músicas estão em %1\$d pastas. Com o mesmo álbum e artista (ou artista do álbum) elas aparecerão como um só álbum.",
+    )
+
+    // Selección de varias canciones
+    val select = Str("Seleccionar", "Select", "Sélectionner", "Selecionar")
+    val selectedCount = Str("%1\$d seleccionadas", "%1\$d selected", "%1\$d sélectionnés", "%1\$d selecionadas")
+    val selectAll = Str("Seleccionar todo", "Select all", "Tout sélectionner", "Selecionar tudo")
+    val clearSelection = Str("Quitar selección", "Clear selection", "Effacer la sélection", "Limpar seleção")
+    val editSelected = Str("Asignar álbum y artista…", "Set album and artist…", "Définir l'album et l'artiste…", "Definir álbum e artista…")
+    val editSelectedTags = Str(
+        "Editar etiquetas de %1\$d canciones…",
+        "Edit tags of %1\$d songs…",
+        "Modifier les étiquettes de %1\$d titres…",
+        "Editar tags de %1\$d músicas…",
+    )
+    val selectHint = Str(
+        "%1\$s+clic o el cuadro junto al número para seleccionar varias canciones",
+        "%1\$s+click or the box next to the number to select several songs",
+        "%1\$s+clic ou la case à côté du numéro pour sélectionner plusieurs titres",
+        "%1\$s+clique ou a caixa ao lado do número para selecionar várias músicas",
+    )
     val lyricsPlain = Str("Solo texto", "Plain text", "Texte seul", "Só texto")
     val useThis = Str("Usar", "Use", "Utiliser", "Usar")
 

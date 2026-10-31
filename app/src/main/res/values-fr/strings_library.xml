@@ -105,4 +105,35 @@
     <string name="library_sort_newest">Modifiés récemment</string>
     <string name="library_sort_oldest">Modifiés il y a longtemps</string>
     <string name="library_sort_most_tracks">Plus de titres</string>
+
+    <!-- Selección de varias canciones y edición de etiquetas -->
+    <string name="library_select_hint">Appuyez longuement sur un titre pour en sélectionner plusieurs et leur attribuer un album et un artiste</string>
+    <plurals name="library_selected_count">
+        <item quantity="one">%d sélectionné</item>
+        <item quantity="many">%d sélectionnés</item>
+        <item quantity="other">%d sélectionnés</item>
+    </plurals>
+    <string name="library_select_all">Tout sélectionner</string>
+    <string name="library_clear_selection">Effacer la sélection</string>
+    <string name="library_edit_tags">Modifier</string>
+    <plurals name="library_tags_title">
+        <item quantity="one">Modifier %d titre</item>
+        <item quantity="many">Modifier %d titres</item>
+        <item quantity="other">Modifier %d titres</item>
+    </plurals>
+    <string name="library_tag_artist">Artiste</string>
+    <string name="library_tag_album">Album</string>
+    <string name="library_tag_album_artist">Artiste de l\'album</string>
+    <string name="library_tag_year">Année</string>
+    <string name="library_tag_genre">Genre</string>
+    <string name="library_tags_mixed">Valeurs multiples (conservées)</string>
+    <string name="library_tags_unchanged">Inchangé</string>
+    <string name="library_tags_merge_hint">Ils sont dans %1$d dossiers. Avec le même album et le même artiste (ou artiste de l\'album), ils formeront un seul album.</string>
+    <string name="library_tags_saving">Enregistrement…</string>
+    <string name="library_tags_error">Enregistrement impossible : %1$s</string>
+    <plurals name="library_tags_saved">
+        <item quantity="one">Étiquettes enregistrées dans %d titre</item>
+        <item quantity="many">Étiquettes enregistrées dans %d titres</item>
+        <item quantity="other">Étiquettes enregistrées dans %d titres</item>
+    </plurals>
 </resources>
