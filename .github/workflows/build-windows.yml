@@ -67,7 +67,6 @@ jobs:
           using System; using System.Runtime.InteropServices;
           public static class Win {
             [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
-            [DllImport("user32.dll")] public static extern IntPtr FindWindow(string cls, string title);
             [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
             [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
           }
@@ -80,8 +79,8 @@ jobs:
 
           function Wait-Window($seconds) {
             for ($i = 0; $i -lt $seconds * 4; $i++) {
-              $h = [Win]::FindWindow("WixStdBA", $null)
-              if ($h -ne [IntPtr]::Zero) { return $h }
+              $w = Get-Process -Name $name -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero } | Select-Object -First 1
+              if ($w) { return $w.MainWindowHandle }
               Start-Sleep -Milliseconds 250
             }
             return [IntPtr]::Zero

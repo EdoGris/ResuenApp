@@ -14,7 +14,8 @@
 <Theme xmlns="http://wixtoolset.org/schemas/thmutil/2010" ImageFile="sprite.png">
     <Window Width="540" Height="340" FontId="0" SourceX="0" SourceY="0">#(loc.Caption)</Window>
 
-    <Font Id="0" Height="-13" Weight="400" Foreground="F0E8E2" Background="140D0A">Segoe UI</Font>
+    <!-- La fuente 0 es la de la ventana: sin Background, para que Windows no pinte encima del fondo de sprite.png. -->
+    <Font Id="0" Height="-13" Weight="400" Foreground="F0E8E2">Segoe UI</Font>
     <Font Id="1" Height="-24" Weight="600" Foreground="FFFFFF" Background="140D0A">Segoe UI</Font>
     <Font Id="2" Height="-14" Weight="400" Foreground="B8A394" Background="140D0A">Segoe UI</Font>
     <Font Id="3" Height="-12" Weight="400" Foreground="8B7464" Background="1B120E">Segoe UI</Font>
@@ -23,7 +24,7 @@
 
     <!-- Cerrar (la ventana no tiene barra de título; se arrastra desde cualquier parte). WixStdBA 3.11
          no atiende un botón de minimizar, por eso no hay. -->
-    <Button Name="CloseButton" X="-1" Y="1" Width="44" Height="30" SourceX="0" SourceY="436" TabStop="no" FontId="0">x</Button>
+    <Button Name="CloseButton" X="-1" Y="1" Width="44" Height="30" SourceX="0" SourceY="436" TabStop="no" FontId="0" Visible="yes">x</Button>
 
     <Page Name="Help">
         <Text X="24" Y="96" Width="-24" Height="34" FontId="1" DisablePrefix="yes">#(loc.HelpHeader)</Text>

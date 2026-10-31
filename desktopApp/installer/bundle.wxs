@@ -33,6 +33,8 @@
       <Payload Id="StringsPt" Name="1046\thm.wxl" SourceFile="$(var.InstallerDir)\theme\strings\pt.wxl" Compressed="yes" />
       <Payload Id="SpritePt" Name="1046\sprite.png" SourceFile="$(var.InstallerDir)\theme\sprites\pt.png" Compressed="yes" />
     </BootstrapperApplicationRef>
+    <!-- Versión para mostrar: WixBundleVersion siempre lleva cuatro números (1.2.80.0). -->
+    <Variable Name="ResuenAppVersion" Value="$(var.Version)" />
     <Chain>
       <MsiPackage SourceFile="$(var.Msi)" Compressed="yes" />
     </Chain>

@@ -4,7 +4,7 @@
   <String Id="Caption">Installation de [WixBundleName]</String>
   <String Id="InstallHeader">Bienvenue</String>
   <String Id="InstallMessage">[WixBundleName], votre lecteur de musique sans perte, va être installé sur cet ordinateur. Cliquez sur Installer pour continuer.</String>
-  <String Id="InstallVersion">Version [WixBundleVersion]</String>
+  <String Id="InstallVersion">Version [ResuenAppVersion]</String>
   <String Id="ConfirmCancelMessage">Voulez-vous vraiment annuler ?</String>
   <String Id="ExecuteUpgradeRelatedBundleMessage">Version précédente</String>
   <String Id="HelpHeader">Aide de l'installation</String>
