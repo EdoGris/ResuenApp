@@ -50,6 +50,7 @@ import androidx.compose.material.icons.rounded.PictureInPictureAlt
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.rounded.ViewSidebar
@@ -420,6 +421,19 @@ fun RepeatButton(player: Player, size: Dp) {
     )
 }
 
+/** Aleatorio: gris apagado o en el color de acento cuando está activo. */
+@Composable
+fun ShuffleButton(player: Player, size: Dp) {
+    val on by player.shuffle.collectAsState()
+    SmallIconButton(
+        Icons.Rounded.Shuffle,
+        t(if (on) S.shuffleOn else S.shuffleOff),
+        tint = if (on) Neon.Accent else Neon.Muted,
+        size = size,
+        onClick = player::toggleShuffle,
+    )
+}
+
 /** Barra inferior: pista actual, controles con barra de progreso, salida, volumen y panel. */
 @Composable
 fun PlayerBar(
@@ -475,8 +489,8 @@ fun PlayerBar(
         // Controles y progreso
         Column(Modifier.weight(1.7f).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                // Mismo ancho que el botón de repetir, para que reproducir quede al centro.
-                Spacer(Modifier.width(30.dp))
+                // Aleatorio y repetir tienen el mismo ancho, así reproducir queda al centro.
+                ShuffleButton(player, size = 18.dp)
                 SmallIconButton(Icons.Rounded.SkipPrevious, t(S.previous), tint = Neon.Text, size = 20.dp) { if (track != null) player.previous() }
                 val shape = CircleShape
                 Box(
