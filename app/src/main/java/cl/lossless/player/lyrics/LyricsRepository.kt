@@ -39,6 +39,7 @@ sealed interface LyricsResult {
  *  2. Letra incrustada en las etiquetas del archivo.
  *  3. Caché de descargas anteriores.
  *  4. LRCLIB: búsqueda exacta (con duración) y luego aproximada, prefiriendo letra sincronizada.
+ *  5. Lyrics.ovh (solo texto) si LRCLIB no la tiene o no responde.
  *
  * Si lo encontrado no trae tiempos, [align] los pide al servidor de alineación (WhisperX) y
  * [estimate] los estima en el teléfono mientras tanto o si no hay servidor.
@@ -46,6 +47,7 @@ sealed interface LyricsResult {
 class LyricsRepository(
     private val context: Context,
     private val client: LrcLibClient = LrcLibClient(),
+    private val fallback: LyricsOvhClient = LyricsOvhClient(),
     private val cache: LyricsCache = LyricsCache(context),
 ) {
 
@@ -69,22 +71,47 @@ class LyricsRepository(
         }
         if (!searchOnline) return@withContext LyricsResult.NotFound(searchedOnline = false, offline = false)
 
-        try {
-            val found = fetchOnline(track)
-            if (found != null) {
-                cache.putFound(key, found)
-                LyricsResult.Found(found)
-            } else {
+        val (title, artist) = TrackMetadataCleaner.clean(track.title, track.artist)
+        if (title.isBlank()) return@withContext LyricsResult.NotFound(searchedOnline = true, offline = false)
+
+        // LRCLIB primero (puede traer tiempos); si no tiene nada o falla, Lyrics.ovh.
+        var lrclibError: LyricsResult.NotFound? = null
+        val fromLrcLib = try {
+            fetchLrcLib(title, artist, track.durationMs / 1000)
+        } catch (e: LrcLibClient.ServerError) {
+            Log.w(TAG, "LRCLIB falló para ${track.uri}", e)
+            lrclibError = LyricsResult.NotFound(searchedOnline = true, offline = true, serverError = true, detail = "HTTP ${e.code}")
+            null
+        } catch (e: IOException) {
+            Log.w(TAG, "Sin respuesta de LRCLIB para ${track.uri}", e)
+            lrclibError = LyricsResult.NotFound(searchedOnline = true, offline = true, detail = describe(e))
+            null
+        }
+        if (fromLrcLib != null) {
+            cache.putFound(key, fromLrcLib)
+            return@withContext LyricsResult.Found(fromLrcLib)
+        }
+
+        var fallbackFailed = false
+        val fromOvh = try {
+            fallback.get(artist, title)?.let { Lyrics(null, it, LyricsSource.LYRICS_OVH) }
+        } catch (e: IOException) {
+            Log.w(TAG, "Lyrics.ovh falló para ${track.uri}", e)
+            fallbackFailed = true
+            null
+        }
+        when {
+            fromOvh != null -> {
+                cache.putFound(key, fromOvh)
+                LyricsResult.Found(fromOvh)
+            }
+            // Algo no respondió: no se guarda "sin letra" para reintentar la próxima vez.
+            lrclibError != null -> lrclibError
+            fallbackFailed -> LyricsResult.NotFound(searchedOnline = true, offline = false)
+            else -> {
                 cache.putNotFound(key)
                 LyricsResult.NotFound(searchedOnline = true, offline = false)
             }
-        } catch (e: LrcLibClient.ServerError) {
-            Log.w(TAG, "LRCLIB falló para ${track.uri}", e)
-            // No se guarda: se reintentará.
-            LyricsResult.NotFound(searchedOnline = true, offline = true, serverError = true, detail = "HTTP ${e.code}")
-        } catch (e: IOException) {
-            Log.w(TAG, "Sin respuesta de LRCLIB para ${track.uri}", e)
-            LyricsResult.NotFound(searchedOnline = true, offline = true, detail = describe(e))
         }
     }
 
@@ -106,7 +133,7 @@ class LyricsRepository(
         val key = "estimate:${track.uri}#${plain.hashCode()}"
         (withContext(Dispatchers.IO) { cache.get(key) } as? LyricsCache.Entry.Found)?.let { return it.lyrics }
 
-        val segments = withContext(Dispatchers.Default) { VocalActivity.analyze(context, track.uri) }.orEmpty()
+        val segments = withContext(Dispatchers.Default) { VocalAnalyzer.analyze(context, track.uri) }.orEmpty()
         val synced = LyricsAligner.align(lines, segments, track.durationMs)
         val result = lyrics.copy(synced = synced, estimated = true)
         withContext(Dispatchers.IO) { cache.putFound(key, result) }
@@ -239,11 +266,7 @@ class LyricsRepository(
 
     // ---------- Internet ----------
 
-    private fun fetchOnline(track: Track): Lyrics? {
-        val (title, artist) = TrackMetadataCleaner.clean(track.title, track.artist)
-        if (title.isBlank()) return null
-        val durationSec = track.durationMs / 1000
-
+    private fun fetchLrcLib(title: String, artist: String, durationSec: Long): Lyrics? {
         // 1) Exacta: LRCLIB exige la duración con ±2 s de tolerancia.
         // Si falla por un error de LRCLIB se sigue con la búsqueda aproximada, que puede responder.
         if (artist.isNotBlank() && durationSec > 0) {
@@ -266,7 +289,8 @@ class LyricsRepository(
         LrcParser.parse(syncedLyrics)?.let { lines ->
             return Lyrics(lines, plainLyrics ?: lines.joinToString("\n") { it.text }, LyricsSource.LRCLIB, instrumental)
         }
-        if (!plainLyrics.isNullOrBlank()) return Lyrics(null, plainLyrics.trim(), LyricsSource.LRCLIB, instrumental)
+        val plain = plainLyrics
+        if (!plain.isNullOrBlank()) return Lyrics(null, plain.trim(), LyricsSource.LRCLIB, instrumental)
         return if (instrumental) Lyrics(null, null, LyricsSource.LRCLIB, instrumental = true) else null
     }
 

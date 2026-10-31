@@ -4,6 +4,14 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// Número de compilación = cantidad de commits de la rama (el CI hace un checkout completo).
+// Sube solo en cada commit, así cada APK que publica el CI se instala encima del anterior y el
+// actualizador de la app sabe cuál es más nuevo. RESUENAPP_BUILD lo fija a mano si hace falta.
+val buildNumber: Int = providers.environmentVariable("RESUENAPP_BUILD").orNull?.toIntOrNull()
+    ?: runCatching {
+        providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }.standardOutput.asText.get().trim().toInt()
+    }.getOrDefault(3)
+
 android {
     namespace = "cl.lossless.player"
     compileSdk = 36
@@ -12,14 +20,14 @@ android {
         applicationId = "cl.lossless.player"
         minSdk = 34          // Android 14: necesario para AudioMixerAttributes (bit-perfect USB)
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = buildNumber
+        versionName = "1.2.$buildNumber"
     }
 
     buildTypes {
         release { isMinifyEnabled = false }
-        // Instalable junto a la app normal: otro paquete, otro nombre e ícono propio
-        // (recursos en src/experimental). Datos y ajustes quedan separados de la app estable.
+        // Instalable junto a la app normal: otro paquete y otro nombre (src/experimental); el
+        // ícono es el mismo de la app de Windows. Datos y ajustes quedan separados de la estable.
         create("experimental") {
             initWith(getByName("debug"))
             applicationIdSuffix = ".exp"
@@ -42,6 +50,9 @@ kotlin { jvmToolchain(17) }
 val media3 = "1.8.0"   // revisa la última versión estable de Media3
 
 dependencies {
+    // Lógica compartida con la versión de escritorio (letras, carátulas, ecualizador)
+    implementation(project(":shared"))
+
     // Reproducción y sesión multimedia (Google / AndroidX)
     implementation("androidx.media3:media3-exoplayer:$media3")
     implementation("androidx.media3:media3-session:$media3")
@@ -57,6 +68,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.activity:activity-compose:1.10.1")
+    implementation("androidx.core:core-ktx:1.16.0")   // FileProvider para el actualizador
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.2")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.2")
 

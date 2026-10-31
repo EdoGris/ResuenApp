@@ -43,6 +43,7 @@ import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -59,16 +60,23 @@ import androidx.compose.ui.unit.dp
 import cl.lossless.player.R
 import cl.lossless.player.covers.CoverRef
 import cl.lossless.player.library.AlbumGroup
+import cl.lossless.player.library.FolderSort
+import cl.lossless.player.library.LibrarySearch
 import cl.lossless.player.library.Track
 import cl.lossless.player.library.folderDisplayPath
 import cl.lossless.player.library.folderSegments
+import cl.lossless.player.library.sortedFolders
 import cl.lossless.player.ui.LibraryUiState
 import cl.lossless.player.ui.components.CoverImage
 import cl.lossless.player.ui.components.EmptyState
+import cl.lossless.player.ui.components.FolderSortButton
+import cl.lossless.player.ui.components.SearchField
 import cl.lossless.player.ui.components.ScreenHeader
 import cl.lossless.player.ui.components.SegmentedTabs
+import cl.lossless.player.ui.components.SelectionBar
 import cl.lossless.player.ui.components.TrackActions
 import cl.lossless.player.ui.components.TrackList
+import cl.lossless.player.ui.components.TrackSelection
 import cl.lossless.player.ui.components.albumTrackNumber
 import cl.lossless.player.ui.components.formatDuration
 
@@ -81,7 +89,9 @@ private data class FolderGroup(
     val path: String,
     val segments: List<String>,
     val tracks: List<Track>,
-)
+) {
+    val lastModified: Long = tracks.maxOf { it.dateModified }
+}
 
 @Composable
 fun LibraryScreen(
@@ -92,8 +102,16 @@ fun LibraryScreen(
     onEditCover: (AlbumGroup) -> Unit,
     onExcludeFolder: (List<String>) -> Unit,
     onSyncLyrics: (List<Track>) -> Unit,
+    onFolderSort: (FolderSort) -> Unit,
+    onEditTags: (List<Track>) -> Unit,
 ) {
     var tab by rememberSaveable { mutableIntStateOf(LibraryTab.TRACKS.ordinal) }
+    // Canciones marcadas para asignarles álbum y artista; se vacía al recargar la biblioteca.
+    val selection = remember { TrackSelection() }
+    LaunchedEffect(state.tracks) { selection.clear() }
+    val editSelected = { onEditTags(state.tracks.filter { it in selection }) }
+    var query by rememberSaveable { mutableStateOf("") }
+    BackHandler(enabled = query.isNotEmpty()) { query = "" }
     var openAlbumKey by rememberSaveable { mutableStateOf<String?>(null) }
     var openFolderKey by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -101,8 +119,14 @@ fun LibraryScreen(
         state.tracks.groupBy { it.folderKey }.map { (key, tracks) ->
             val segments = tracks.first().folderSegments
             FolderGroup(key, tracks.first().folderName, folderDisplayPath(segments), segments, tracks)
-        }.sortedBy { it.path.lowercase() }
+        }
     }
+    val visibleFolders = remember(folders, query, state.folderSort) {
+        folders
+            .filter { LibrarySearch.matches(query, it.name, it.path) }
+            .sortedFolders(state.folderSort, { it.name }, { it.tracks.size }, { it.lastModified })
+    }
+    val visibleAlbums = remember(state.albums, query) { LibrarySearch.albums(state.albums, query) }
 
     // Detalles (álbum o carpeta) sobre la pestaña actual
     state.albums.firstOrNull { it.key == openAlbumKey }?.let { album ->
@@ -116,7 +140,10 @@ fun LibraryScreen(
             onBack = { openAlbumKey = null },
             onEditCover = { onEditCover(album) },
             onSyncLyrics = { onSyncLyrics(album.tracks) },
+            selection = selection,
+            onEditSelected = editSelected,
         )
+        BackHandler(enabled = selection.active) { selection.clear() }
         return
     }
     folders.firstOrNull { it.key == openFolderKey }?.let { folder ->
@@ -130,7 +157,10 @@ fun LibraryScreen(
             onBack = { openFolderKey = null },
             onEditCover = null,
             onSyncLyrics = { onSyncLyrics(folder.tracks) },
+            selection = selection,
+            onEditSelected = editSelected,
         )
+        BackHandler(enabled = selection.active) { selection.clear() }
         return
     }
 
@@ -147,7 +177,7 @@ fun LibraryScreen(
                 stringResource(R.string.library_folders),
             ),
             selected = tab,
-            onSelect = { tab = it },
+            onSelect = { if (it != tab) { query = ""; selection.clear() }; tab = it },
         )
         when {
             state.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
@@ -161,11 +191,63 @@ fun LibraryScreen(
                 onSecondary = onRescan,
             )
             else -> when (LibraryTab.entries[tab]) {
-                LibraryTab.TRACKS -> TrackList(state.tracks, actions, Modifier.fillMaxSize())
-                LibraryTab.ALBUMS -> AlbumGrid(state.albums, state.covers) { openAlbumKey = it.key }
-                LibraryTab.FOLDERS -> FolderList(folders, onExclude = { onExcludeFolder(it.segments) }) { openFolderKey = it.key }
+                LibraryTab.TRACKS -> Column(Modifier.fillMaxSize()) {
+                    BackHandler(enabled = selection.active) { selection.clear() }
+                    if (selection.active) SelectionBar(selection, state.tracks, onEdit = editSelected)
+                    TrackList(
+                        state.tracks, actions, Modifier.fillMaxSize(),
+                        selection = selection,
+                        header = {
+                            if (!selection.active) item(key = "select-hint") {
+                                Text(
+                                    stringResource(R.string.library_select_hint),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        },
+                    )
+                }
+                LibraryTab.ALBUMS -> Column(Modifier.fillMaxSize()) {
+                    SearchField(
+                        query = query,
+                        onQueryChange = { query = it },
+                        placeholder = stringResource(R.string.library_search_albums),
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+                    )
+                    if (visibleAlbums.isEmpty()) NoResults(query)
+                    else AlbumGrid(visibleAlbums, state.covers) { openAlbumKey = it.key }
+                }
+                LibraryTab.FOLDERS -> Column(Modifier.fillMaxSize()) {
+                    Row(
+                        Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        SearchField(
+                            query = query,
+                            onQueryChange = { query = it },
+                            placeholder = stringResource(R.string.library_search_folders),
+                            modifier = Modifier.weight(1f),
+                        )
+                        FolderSortButton(state.folderSort, onFolderSort)
+                    }
+                    if (visibleFolders.isEmpty()) NoResults(query)
+                    else FolderList(visibleFolders, onExclude = { onExcludeFolder(it.segments) }) { openFolderKey = it.key }
+                }
             }
         }
+    }
+}
+
+/** Aviso de búsqueda sin coincidencias. */
+@Composable
+fun NoResults(query: String) {
+    Box(Modifier.fillMaxSize().padding(32.dp), Alignment.TopCenter) {
+        Text(
+            stringResource(R.string.library_search_no_results, query),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -302,14 +384,18 @@ private fun CollectionDetail(
     onBack: () -> Unit,
     onEditCover: (() -> Unit)?,
     onSyncLyrics: (() -> Unit)? = null,
+    selection: TrackSelection? = null,
+    onEditSelected: () -> Unit = {},
 ) {
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(title = "", onBack = onBack)
+        if (selection != null && selection.active) SelectionBar(selection, tracks, onEdit = onEditSelected)
         TrackList(
             tracks = tracks,
             actions = actions,
             number = ::albumTrackNumber,
             modifier = Modifier.fillMaxSize(),
+            selection = selection,
             header = {
                 item(key = "header") {
                     CollectionHeader(title, subtitle, tracks, cover, onEditCover,

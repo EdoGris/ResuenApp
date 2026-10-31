@@ -1,0 +1,96 @@
+name: Compilar macOS
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  dmg:
+    # jpackage solo empaqueta para la máquina en la que corre: una .dmg por arquitectura.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: apple-silicon
+          - runner: macos-15-intel
+            arch: intel
+    runs-on: ${{ matrix.runner }}
+    env:
+      RELEASES_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+    steps:
+      # Historial completo: la versión es 1.2.<cantidad de commits>.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Compilar la app
+        run: ./gradlew :shared:jvmTest :desktopApp:createDistributable
+
+      # Igual que en Windows: abre la app ya empaquetada en modo de prueba para comprobar que
+      # FFmpeg (librerías de esta arquitectura) y la lectura de etiquetas funcionan.
+      - name: Prueba de la app
+        run: |
+          app="desktopApp/build/compose/binaries/main/app/ResuenApp.app"
+          out="$RUNNER_TEMP/selftest.txt"
+          set +e
+          "$app/Contents/MacOS/ResuenApp" --self-test "$out"
+          code=$?
+          set -e
+          if [ -f "$out" ]; then cat "$out"; else echo "Sin reporte"; fi
+          file "$app/Contents/MacOS/ResuenApp"
+          exit $code
+
+      # La .dmg se arma con create-dmg (no con la de jpackage) para tener el ícono de ResuenApp
+      # en el volumen, el fondo con la marca y una ventana sin barras ni scroll.
+      - name: Imagen de disco (.dmg)
+        run: |
+          brew install create-dmg
+          version=$(cat desktopApp/build/generated/version/resuenapp-version.txt)
+          mkdir -p dist
+          desktopApp/installer/macos/make-dmg.sh \
+            desktopApp/build/compose/binaries/main/app/ResuenApp.app \
+            "dist/ResuenApp-$version-macOS-${{ matrix.arch }}.dmg"
+          ls -la dist
+
+      - name: Revisar la .dmg
+        run: |
+          dmg=$(ls dist/*.dmg)
+          mnt=$(mktemp -d)
+          hdiutil attach "$dmg" -readonly -nobrowse -mountpoint "$mnt"
+          ls -la "$mnt" "$mnt/.background"
+          test -f "$mnt/.VolumeIcon.icns"
+          test -f "$mnt/.DS_Store"
+          test -d "$mnt/ResuenApp.app"
+          test -L "$mnt/Applications"
+          hdiutil detach "$mnt"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ResuenApp-macOS-${{ matrix.arch }}
+          path: dist/*.dmg
+
+      # Cada push a experimental se publica en el repo público de instaladores, de donde la app
+      # se actualiza sola. Necesita el secreto RELEASES_TOKEN (permiso Contents: write en ese repo).
+      - name: Número de compilación
+        id: build
+        run: echo "number=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar versión
+        if: github.ref == 'refs/heads/experimental' && env.RELEASES_TOKEN != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: EdoGris/ResuenApp-releases
+          token: ${{ secrets.RELEASES_TOKEN }}
+          tag_name: exp-1.2.${{ steps.build.outputs.number }}
+          name: ResuenApp 1.2.${{ steps.build.outputs.number }} (experimental)
+          prerelease: true
+          body: ${{ github.event.head_commit.message }}
+          files: dist/*.dmg

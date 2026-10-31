@@ -86,6 +86,11 @@ import cl.lossless.player.R
 import cl.lossless.player.ui.LibraryUiState
 import cl.lossless.player.ui.components.ScreenHeader
 import cl.lossless.player.ui.theme.ThemeMode
+import cl.lossless.player.update.AppUpdater
+import cl.lossless.player.update.UpdateState
+import androidx.compose.material.icons.rounded.SystemUpdate
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
@@ -208,7 +213,8 @@ fun SettingsScreen(
                         selected = state.themeMode == mode,
                         onClick = { onThemeMode(mode) },
                         shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
-                    ) { Text(stringResource(mode.labelRes)) }
+                        icon = {},
+                    ) { Text(stringResource(mode.labelRes), maxLines = 1, softWrap = false) }
                 }
             }
             Text(
@@ -381,7 +387,55 @@ fun SettingsScreen(
                 } else null,
             )
         }
+
+        UpdateSection()
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+/** Buscar e instalar versiones nuevas (ver AppUpdater). */
+@Composable
+private fun UpdateSection() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val state = AppUpdater.state
+    SettingsSection(stringResource(R.string.settings_section_updates), Icons.Rounded.SystemUpdate) {
+        val subtitle = when (state) {
+            UpdateState.Idle -> null
+            UpdateState.Checking -> stringResource(R.string.update_checking)
+            UpdateState.UpToDate -> stringResource(R.string.update_up_to_date)
+            is UpdateState.Available -> stringResource(R.string.update_available, state.update.version)
+            is UpdateState.Downloading -> stringResource(R.string.update_downloading, (state.progress * 100).toInt())
+            is UpdateState.NeedsPermission -> stringResource(R.string.update_permission)
+            is UpdateState.Failed -> stringResource(R.string.update_failed, state.message)
+        }
+        val update = when (state) {
+            is UpdateState.Available -> state.update
+            is UpdateState.NeedsPermission -> state.update
+            else -> null
+        }
+        SettingRow(
+            title = if (update != null) stringResource(R.string.update_available, update.version) else stringResource(R.string.update_check),
+            subtitle = subtitle.takeIf { update == null || state is UpdateState.NeedsPermission },
+            trailing = {
+                if (update != null) {
+                    FilledTonalButton(onClick = { scope.launch { AppUpdater.install(context, update) } }) {
+                        Text(stringResource(R.string.update_install))
+                    }
+                } else {
+                    Icon(Icons.Rounded.Refresh, null)
+                }
+            },
+            onClick = if (update == null && state !is UpdateState.Checking && state !is UpdateState.Downloading) {
+                { scope.launch { AppUpdater.check(context.applicationContext) } }
+            } else null,
+        )
+        if (state is UpdateState.Downloading) {
+            LinearProgressIndicator(
+                progress = { state.progress },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+        }
     }
 }
 

@@ -65,6 +65,7 @@
     <string name="settings_theme_system">Système</string>
     <string name="settings_theme_dark">Sombre</string>
     <string name="settings_theme_light">Clair</string>
+    <string name="settings_theme_night">Nuit</string>
     <string name="settings_accent_blue">Bleu</string>
     <string name="settings_accent_teal">Turquoise</string>
     <string name="settings_accent_green">Émeraude</string>
@@ -73,6 +74,11 @@
     <string name="settings_accent_red">Rouge</string>
     <string name="settings_accent_pink">Rose</string>
     <string name="settings_accent_purple">Violet</string>
+    <string name="settings_accent_neon_cyan">Cyan néon</string>
+    <string name="settings_accent_neon_teal">Turquoise néon</string>
+    <string name="settings_accent_neon_amber">Ambre néon</string>
+    <string name="settings_accent_neon_blue">Bleu néon</string>
+    <string name="settings_accent_neon_pink">Rose néon</string>
     <string name="settings_font_system">Système</string>
     <string name="settings_text_size_small">Petit</string>
     <string name="settings_text_size_normal">Normal</string>
@@ -165,4 +171,16 @@
     <string name="settings_section_language">Langue</string>
     <string name="settings_language_hint">Choisissez la langue de l\'application ou utilisez celle du système.</string>
     <string name="settings_language_system">Système</string>
+    <string name="settings_section_updates">Mises à jour</string>
+    <string name="update_check">Rechercher des mises à jour</string>
+    <string name="update_checking">Recherche…</string>
+    <string name="update_up_to_date">Vous avez la dernière version</string>
+    <string name="update_available">Version %1$s disponible</string>
+    <string name="update_install">Mettre à jour</string>
+    <string name="update_downloading">Téléchargement… %1$d %%</string>
+    <string name="update_permission">Autorisez l\'installation d\'apps depuis ResuenApp, puis touchez à nouveau Mettre à jour.</string>
+    <string name="update_failed">Recherche impossible : %1$s</string>
+    <string name="update_dialog_title">Nouvelle version disponible</string>
+    <string name="update_dialog_body">La version %1$s est disponible. Elle se télécharge et s\'installe par-dessus, sans perdre votre bibliothèque ni vos réglages.</string>
+    <string name="update_later">Plus tard</string>
 </resources>

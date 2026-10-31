@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -57,6 +58,7 @@ import cl.lossless.player.library.Track
 import cl.lossless.player.playback.PlaybackStatus
 import cl.lossless.player.library.FolderExclusions
 import cl.lossless.player.playback.eq.EqPresets
+import cl.lossless.player.playback.eq.nameRes
 import cl.lossless.player.ui.screens.ExcludedFoldersScreen
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -69,6 +71,7 @@ import cl.lossless.player.ui.components.CoverDialog
 import cl.lossless.player.ui.components.EmptyState
 import cl.lossless.player.ui.components.MiniPlayer
 import cl.lossless.player.ui.components.PlaylistNameDialog
+import cl.lossless.player.ui.components.TagEditDialog
 import cl.lossless.player.ui.components.TrackActions
 import cl.lossless.player.ui.components.displayName
 import cl.lossless.player.ui.equalizer.EqualizerScreen
@@ -141,6 +144,14 @@ fun LosslessApp(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? -> uri?.let(vm::selectFolder) }
     val pickFolder = { folderPicker.launch(null) }
+
+    // ---------- Etiquetas: autorización del sistema para modificar canciones fuera de la carpeta ----------
+    val tagConsent = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result -> vm.onTagWriteConsent(result.resultCode == Activity.RESULT_OK) }
+    LaunchedEffect(state.tagWriteConsent) {
+        state.tagWriteConsent?.let { tagConsent.launch(IntentSenderRequest.Builder(it).build()) }
+    }
 
     // ---------- Ecualizador (propio, dentro del pipeline de audio) ----------
     var equalizerOpen by rememberSaveable { mutableStateOf(false) }
@@ -271,12 +282,16 @@ fun LosslessApp(
                         onEditCover = vm::openCoverDialog,
                         onExcludeFolder = excludeFolder,
                         onSyncLyrics = syncLyrics,
+                        onFolderSort = vm::setFolderSort,
+                        onEditTags = vm::openTagEditor,
                     )
                     Destination.FOLDERS -> FoldersScreen(
                         tracks = state.tracks,
                         actions = trackActions,
                         onPickFolder = pickFolder,
                         onExcludeFolder = excludeFolder,
+                        folderSort = state.folderSort,
+                        onFolderSort = vm::setFolderSort,
                     )
                     Destination.PLAYLISTS -> PlaylistsScreen(
                         playlists = playlists,
@@ -412,6 +427,9 @@ fun LosslessApp(
             onChooseLocal = vm::chooseLocalCover,
             onDismiss = vm::closeDialog,
         )
+    }
+    state.tagEdit?.let { edit ->
+        TagEditDialog(edit, onDismiss = vm::closeTagEditor, onSave = vm::saveTags)
     }
     addToPlaylistFor?.let { track ->
         AddToPlaylistDialog(

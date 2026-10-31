@@ -90,4 +90,45 @@
         <item quantity="one">%d song added to the lyrics sync queue</item>
         <item quantity="other">%d songs added to the lyrics sync queue</item>
     </plurals>
+
+    <!-- Búsqueda y orden -->
+    <string name="library_search_albums">Search albums</string>
+    <string name="library_search_folders">Search folders</string>
+    <string name="library_search_folders_tracks">Search folders and songs</string>
+    <string name="library_search_clear">Clear search</string>
+    <string name="library_search_no_results">No results for “%1$s”</string>
+    <string name="library_sort">Sort folders</string>
+    <string name="library_sort_name_asc">Name (A-Z)</string>
+    <string name="library_sort_name_desc">Name (Z-A)</string>
+    <string name="library_sort_newest">Recently modified</string>
+    <string name="library_sort_oldest">Least recently modified</string>
+    <string name="library_sort_most_tracks">Most songs</string>
+
+    <!-- Selección de varias canciones y edición de etiquetas -->
+    <string name="library_select_hint">Long-press a song to select several and set their album and artist</string>
+    <plurals name="library_selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <string name="library_select_all">Select all</string>
+    <string name="library_clear_selection">Clear selection</string>
+    <string name="library_edit_tags">Edit</string>
+    <plurals name="library_tags_title">
+        <item quantity="one">Edit %d song</item>
+        <item quantity="other">Edit %d songs</item>
+    </plurals>
+    <string name="library_tag_artist">Artist</string>
+    <string name="library_tag_album">Album</string>
+    <string name="library_tag_album_artist">Album artist</string>
+    <string name="library_tag_year">Year</string>
+    <string name="library_tag_genre">Genre</string>
+    <string name="library_tags_mixed">Multiple values (kept)</string>
+    <string name="library_tags_unchanged">Unchanged</string>
+    <string name="library_tags_merge_hint">They are in %1$d folders. With the same album and artist (or album artist) they\'ll show up as one album.</string>
+    <string name="library_tags_saving">Saving…</string>
+    <string name="library_tags_error">Couldn\'t save: %1$s</string>
+    <plurals name="library_tags_saved">
+        <item quantity="one">Tags saved to %d song</item>
+        <item quantity="other">Tags saved to %d songs</item>
+    </plurals>
 </resources>

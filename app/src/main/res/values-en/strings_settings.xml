@@ -65,6 +65,7 @@
     <string name="settings_theme_system">System</string>
     <string name="settings_theme_dark">Dark</string>
     <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_night">Night</string>
     <string name="settings_accent_blue">Blue</string>
     <string name="settings_accent_teal">Teal</string>
     <string name="settings_accent_green">Emerald</string>
@@ -73,6 +74,11 @@
     <string name="settings_accent_red">Red</string>
     <string name="settings_accent_pink">Pink</string>
     <string name="settings_accent_purple">Violet</string>
+    <string name="settings_accent_neon_cyan">Neon cyan</string>
+    <string name="settings_accent_neon_teal">Neon teal</string>
+    <string name="settings_accent_neon_amber">Neon amber</string>
+    <string name="settings_accent_neon_blue">Neon blue</string>
+    <string name="settings_accent_neon_pink">Neon pink</string>
     <string name="settings_font_system">System</string>
     <string name="settings_text_size_small">Small</string>
     <string name="settings_text_size_normal">Normal</string>
@@ -156,4 +162,16 @@
     <string name="settings_section_language">Language</string>
     <string name="settings_language_hint">Choose the app language or use the system one.</string>
     <string name="settings_language_system">System</string>
+    <string name="settings_section_updates">Updates</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_up_to_date">You have the latest version</string>
+    <string name="update_available">Version %1$s available</string>
+    <string name="update_install">Update</string>
+    <string name="update_downloading">Downloading… %1$d %%</string>
+    <string name="update_permission">Allow installing apps from ResuenApp, then tap Update again.</string>
+    <string name="update_failed">Couldn\'t check: %1$s</string>
+    <string name="update_dialog_title">New version available</string>
+    <string name="update_dialog_body">Version %1$s is available. It downloads and installs over this one, keeping your library and settings.</string>
+    <string name="update_later">Later</string>
 </resources>

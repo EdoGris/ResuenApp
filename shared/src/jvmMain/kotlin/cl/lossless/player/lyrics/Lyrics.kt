@@ -1,8 +1,5 @@
 package cl.lossless.player.lyrics
 
-import androidx.annotation.StringRes
-import cl.lossless.player.R
-
 /** Una palabra con su tiempo (LRC "mejorado" o alineación del servidor). */
 data class LyricWord(val startMs: Long, val endMs: Long, val text: String)
 
@@ -19,13 +16,8 @@ data class LyricLine(val timeMs: Long, val text: String, val words: List<LyricWo
     }
 }
 
-enum class LyricsSource(@StringRes val labelRes: Int) {
-    SIDECAR(R.string.lyrics_source_sidecar),
-    EMBEDDED(R.string.lyrics_source_embedded),
-    LRCLIB(R.string.lyrics_source_lrclib),
-    USER(R.string.lyrics_source_user),
-    ALIGNED(R.string.lyrics_source_aligned),
-}
+/** De dónde salió la letra. El texto visible lo da cada app (en Android, `LyricsSource.labelRes`). */
+enum class LyricsSource { SIDECAR, EMBEDDED, LRCLIB, LYRICS_OVH, USER, ALIGNED }
 
 /**
  * Letra de una pista: sincronizada ([synced]) cuando hay marcas de tiempo; si no, solo texto
