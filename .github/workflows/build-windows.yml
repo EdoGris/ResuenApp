@@ -56,6 +56,86 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit 1 }
           Get-ChildItem $out\*.exe
 
+      # Abre el Setup.exe en esta máquina y fotografía su ventana: comprueba que el tema Noche carga
+      # (si no, Burn se cierra solo) y deja las capturas en el artefacto "Instalador-capturas" para
+      # revisar el diseño en los cuatro idiomas sin tener que instalar nada.
+      - name: Capturas del instalador
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          Add-Type @"
+          using System; using System.Runtime.InteropServices;
+          public static class Win {
+            [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
+            [DllImport("user32.dll")] public static extern IntPtr FindWindow(string cls, string title);
+            [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+            [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+          }
+          "@
+          $setup = (Get-ChildItem desktopApp/build/compose/binaries/main/setup/*.exe | Select-Object -First 1).FullName
+          $name = [IO.Path]::GetFileNameWithoutExtension($setup)
+          $shots = "desktopApp/build/compose/binaries/main/capturas"
+          New-Item -ItemType Directory -Force $shots | Out-Null
+          $shots = (Resolve-Path $shots).Path
+
+          function Wait-Window($seconds) {
+            for ($i = 0; $i -lt $seconds * 4; $i++) {
+              $h = [Win]::FindWindow("WixStdBA", $null)
+              if ($h -ne [IntPtr]::Zero) { return $h }
+              Start-Sleep -Milliseconds 250
+            }
+            return [IntPtr]::Zero
+          }
+          function Shot($h, $file) {
+            [Win]::SetForegroundWindow($h) | Out-Null
+            Start-Sleep -Milliseconds 700
+            $r = New-Object Win+RECT
+            [Win]::GetWindowRect($h, [ref]$r) | Out-Null
+            $bmp = New-Object System.Drawing.Bitmap ($r.R - $r.L), ($r.B - $r.T)
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($r.L, $r.T, 0, 0, $bmp.Size)
+            $bmp.Save((Join-Path $shots $file))
+            $g.Dispose(); $bmp.Dispose()
+          }
+          function Close-Setup {
+            Get-Process -Name $name -ErrorAction SilentlyContinue | Stop-Process -Force
+            Start-Sleep 2
+          }
+          function Open-Setup($arguments, $file) {
+            $log = Join-Path $shots "$file.log"
+            $p = Start-Process $setup -ArgumentList "$arguments -log `"$log`"" -PassThru
+            $h = Wait-Window 30
+            if ($h -eq [IntPtr]::Zero) {
+              if (Test-Path $log) { Get-Content $log -Tail 40 }
+              throw "El Setup.exe no abrió su ventana ($arguments)"
+            }
+            Start-Sleep 2
+            Shot $h "$file.png"
+            return $p
+          }
+
+          # Bienvenida en cada idioma (1034 = español, 1036 = francés, 1046 = portugués, 1033 = inglés).
+          foreach ($lang in "1034", "1033", "1036", "1046") {
+            Open-Setup "-lang $lang" "1-bienvenida-$lang" | Out-Null
+            Close-Setup
+          }
+          # Progreso (instalación sin preguntas) y, ya instalado, la pantalla de reparar/desinstalar.
+          $p = Start-Process $setup -ArgumentList "/passive -lang 1034 -log `"$(Join-Path $shots '2-progreso.log')`"" -PassThru
+          $h = Wait-Window 30
+          if ($h -ne [IntPtr]::Zero) { Start-Sleep -Milliseconds 1500; Shot $h "2-progreso-1034.png" }
+          $p.WaitForExit(180000) | Out-Null
+          Open-Setup "-lang 1034" "3-modificar-1034" | Out-Null
+          Close-Setup
+          Start-Process $setup -ArgumentList "/uninstall /quiet" -Wait
+          Get-ChildItem $shots
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Instalador-capturas
+          path: desktopApp/build/compose/binaries/main/capturas/
+          if-no-files-found: ignore
+
       # Abre el ejecutable ya empaquetado en modo de prueba: comprueba que FFmpeg y la lectura
       # de etiquetas funcionan dentro del instalador (sin salida de audio, el servidor no tiene).
       - name: Prueba del ejecutable
