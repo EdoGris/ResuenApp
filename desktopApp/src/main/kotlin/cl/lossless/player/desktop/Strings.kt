@@ -251,7 +251,8 @@ object S {
     val sideLeft = Str("A la izquierda", "On the left", "À gauche", "À esquerda")
     val swapSide = Str("Cambiar de lado", "Switch side", "Changer de côté", "Trocar de lado")
     val collapseSidebar = Str("Contraer biblioteca", "Collapse library", "Réduire la bibliothèque", "Recolher biblioteca")
-    val expandSidebar = Str("Expandir biblioteca", "Expand library", "Développer la bibliothèque", "Expandir biblioteca")
+    val expandSidebar = Str("Menú: pasa el mouse para abrirlo", "Menu: hover to open", "Menu : survolez pour l'ouvrir", "Menu: passe o mouse para abrir")
+    val pinSidebar = Str("Mantener abierto", "Keep open", "Garder ouvert", "Manter aberto")
 
     // Listas de reproducción
     val playlists = Str("Listas", "Playlists", "Playlists", "Playlists")
