@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.automirrored.rounded.Notes
@@ -42,10 +43,14 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SwapHoriz
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PictureInPictureAlt
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.RepeatOne
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.rounded.ViewSidebar
@@ -53,8 +58,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -71,10 +76,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cl.lossless.player.desktop.DesktopEqualizer
 import cl.lossless.player.desktop.DesktopLyrics
 import cl.lossless.player.desktop.LyricsResult
 import cl.lossless.player.desktop.Player
 import cl.lossless.player.desktop.PlayerState
+import cl.lossless.player.desktop.RepeatMode
 import cl.lossless.player.desktop.S
 import cl.lossless.player.desktop.Track
 import cl.lossless.player.desktop.t
@@ -278,7 +285,13 @@ private fun QueueList(state: PlayerState, onPlay: (Int) -> Unit) {
         if (state.index >= 0) listState.scrollToItem((state.index - 2).coerceAtLeast(0))
     }
     Column(Modifier.fillMaxSize().padding(top = 16.dp)) {
-        SectionLabel(t(S.upNext), Modifier.padding(bottom = 10.dp))
+        Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            SectionLabel(t(S.upNext), Modifier.weight(1f))
+            val actions = LocalTrackActions.current
+            if (actions != null && state.queue.isNotEmpty()) {
+                SmallIconButton(Icons.AutoMirrored.Rounded.PlaylistAdd, t(S.saveQueueAsPlaylist)) { actions.addToPlaylist(state.queue) }
+            }
+        }
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
             itemsIndexed(state.queue) { i, track ->
                 val current = i == state.index
@@ -389,14 +402,54 @@ fun NeonSlider(
     }
 }
 
+/** Repetir: gris apagado, en el color de acento con "todo" y con el ícono del 1 con "una". */
+@Composable
+fun RepeatButton(player: Player, size: Dp) {
+    val mode by player.repeat.collectAsState()
+    SmallIconButton(
+        if (mode == RepeatMode.ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+        t(
+            when (mode) {
+                RepeatMode.OFF -> S.repeatOff
+                RepeatMode.ALL -> S.repeatAll
+                RepeatMode.ONE -> S.repeatOne
+            },
+        ),
+        tint = if (mode == RepeatMode.OFF) Neon.Muted else Neon.Accent,
+        size = size,
+        onClick = player::cycleRepeat,
+    )
+}
+
+/** Aleatorio: gris apagado o en el color de acento cuando está activo. */
+@Composable
+fun ShuffleButton(player: Player, size: Dp) {
+    val on by player.shuffle.collectAsState()
+    SmallIconButton(
+        Icons.Rounded.Shuffle,
+        t(if (on) S.shuffleOn else S.shuffleOff),
+        tint = if (on) Neon.Accent else Neon.Muted,
+        size = size,
+        onClick = player::toggleShuffle,
+    )
+}
+
 /** Barra inferior: pista actual, controles con barra de progreso, salida, volumen y panel. */
 @Composable
-fun PlayerBar(player: Player, state: PlayerState, positionMs: Long, panelOpen: Boolean, onMiniPlayer: () -> Unit, onTogglePanel: () -> Unit) {
+fun PlayerBar(
+    player: Player,
+    state: PlayerState,
+    positionMs: Long,
+    panelOpen: Boolean,
+    onMiniPlayer: () -> Unit,
+    onEqualizer: () -> Unit,
+    onTogglePanel: () -> Unit,
+) {
     val track = state.current
     val duration = state.durationMs.coerceAtLeast(1)
     var dragging by remember { mutableStateOf<Float?>(null) }
-    var volume by remember { mutableFloatStateOf(player.volume) }
-    var beforeMute by remember { mutableFloatStateOf(if (player.volume > 0f) player.volume else 1f) }
+    val volume by player.volumeState.collectAsState()
+    val eqOn = DesktopEqualizer.settings.collectAsState().value.isProcessing
 
     Box(Modifier.fillMaxWidth().height(1.dp).background(Neon.Border))
     Row(
@@ -436,6 +489,8 @@ fun PlayerBar(player: Player, state: PlayerState, positionMs: Long, panelOpen: B
         // Controles y progreso
         Column(Modifier.weight(1.7f).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                // Aleatorio y repetir tienen el mismo ancho, así reproducir queda al centro.
+                ShuffleButton(player, size = 18.dp)
                 SmallIconButton(Icons.Rounded.SkipPrevious, t(S.previous), tint = Neon.Text, size = 20.dp) { if (track != null) player.previous() }
                 val shape = CircleShape
                 Box(
@@ -452,6 +507,7 @@ fun PlayerBar(player: Player, state: PlayerState, positionMs: Long, panelOpen: B
                     )
                 }
                 SmallIconButton(Icons.Rounded.SkipNext, t(S.next), tint = Neon.Text, size = 20.dp) { if (track != null) player.next() }
+                RepeatButton(player, size = 18.dp)
             }
             Spacer(Modifier.height(4.dp))
             Row(Modifier.widthIn(max = 560.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -499,23 +555,17 @@ fun PlayerBar(player: Player, state: PlayerState, positionMs: Long, panelOpen: B
             SmallIconButton(
                 if (volume <= 0.001f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
                 t(S.mute),
-            ) {
-                if (volume > 0.001f) {
-                    beforeMute = volume
-                    volume = 0f
-                } else {
-                    volume = beforeMute
-                }
-                player.setVolume(volume)
-            }
+                onClick = player::toggleMute,
+            )
             NeonSlider(
                 value = volume,
-                onValueChange = { volume = it; player.setVolume(it) },
+                onValueChange = player::setVolume,
                 modifier = Modifier.width(80.dp),
             )
             Spacer(Modifier.width(10.dp))
             Box(Modifier.width(1.dp).height(24.dp).background(Neon.Border))
             Spacer(Modifier.width(6.dp))
+            SmallIconButton(Icons.Rounded.GraphicEq, t(S.equalizer), tint = if (eqOn) Neon.Accent else Neon.Muted, onClick = onEqualizer)
             SmallIconButton(Icons.Rounded.PictureInPictureAlt, t(S.miniPlayer), onClick = onMiniPlayer)
             SmallIconButton(
                 Icons.Rounded.ViewSidebar, t(S.togglePanel),

@@ -1,7 +1,8 @@
 package cl.lossless.player.desktop
 
+import cl.lossless.player.tags.TagField
+import cl.lossless.player.tags.TagFiles
 import org.jaudiotagger.audio.AudioFileIO
-import org.jaudiotagger.tag.FieldKey
 import org.jaudiotagger.tag.images.ArtworkFactory
 import org.json.JSONObject
 import java.io.IOException
@@ -9,41 +10,18 @@ import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URLEncoder
 
-/** Campos que se pueden editar a mano, en el orden en que aparecen en el editor. */
-enum class TagField(val key: FieldKey, val perTrack: Boolean = false, val numeric: Boolean = false) {
-    TITLE(FieldKey.TITLE, perTrack = true),
-    ARTIST(FieldKey.ARTIST),
-    ALBUM(FieldKey.ALBUM),
-    ALBUM_ARTIST(FieldKey.ALBUM_ARTIST),
-    YEAR(FieldKey.YEAR, numeric = true),
-    GENRE(FieldKey.GENRE),
-    TRACK(FieldKey.TRACK, perTrack = true, numeric = true),
-    DISC(FieldKey.DISC_NO, numeric = true),
-}
-
 /** Lee y escribe las etiquetas de los archivos con jaudiotagger (FLAC, MP3, M4A/ALAC, WAV, OGG). */
 object TagEditor {
 
     /** Valor de cada campo en cada archivo. Bloqueante. */
-    fun read(track: Track): Map<TagField, String> {
-        val tag = runCatching { AudioFileIO.read(track.file).tag }.getOrNull()
-        return TagField.entries.associateWith { f ->
-            tag?.let { runCatching { it.getFirst(f.key) }.getOrNull() }?.trim().orEmpty()
-        }
-    }
+    fun read(track: Track): Map<TagField, String> = TagFiles.read(track.file)
 
     /**
      * Escribe [changes] en cada archivo (un valor vacío borra el campo) y devuelve las pistas
      * releídas. Bloqueante; el archivo no puede estar abierto (ver [Player.withFilesReleased]).
      */
     fun write(tracks: List<Track>, changes: Map<TagField, String>): List<Track> = tracks.map { track ->
-        val audio = AudioFileIO.read(track.file)
-        val tag = audio.tagOrCreateAndSetDefault
-        for ((field, value) in changes) {
-            val v = value.trim()
-            if (v.isEmpty()) runCatching { tag.deleteField(field.key) } else tag.setField(field.key, v)
-        }
-        audio.commit()
+        TagFiles.write(track.file, changes)
         LibraryScanner.readTrack(track.file.toPath())
     }
 

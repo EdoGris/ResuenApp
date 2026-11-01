@@ -105,4 +105,35 @@
     <string name="library_sort_newest">Modificadas recentemente</string>
     <string name="library_sort_oldest">Modificadas há mais tempo</string>
     <string name="library_sort_most_tracks">Mais músicas</string>
+
+    <!-- Selección de varias canciones y edición de etiquetas -->
+    <string name="library_select_hint">Mantenha pressionada uma música para selecionar várias e definir álbum e artista</string>
+    <plurals name="library_selected_count">
+        <item quantity="one">%d selecionada</item>
+        <item quantity="many">%d selecionadas</item>
+        <item quantity="other">%d selecionadas</item>
+    </plurals>
+    <string name="library_select_all">Selecionar tudo</string>
+    <string name="library_clear_selection">Limpar seleção</string>
+    <string name="library_edit_tags">Editar</string>
+    <plurals name="library_tags_title">
+        <item quantity="one">Editar %d música</item>
+        <item quantity="many">Editar %d músicas</item>
+        <item quantity="other">Editar %d músicas</item>
+    </plurals>
+    <string name="library_tag_artist">Artista</string>
+    <string name="library_tag_album">Álbum</string>
+    <string name="library_tag_album_artist">Artista do álbum</string>
+    <string name="library_tag_year">Ano</string>
+    <string name="library_tag_genre">Gênero</string>
+    <string name="library_tags_mixed">Vários valores (mantidos)</string>
+    <string name="library_tags_unchanged">Sem alterações</string>
+    <string name="library_tags_merge_hint">Elas estão em %1$d pastas. Com o mesmo álbum e artista (ou artista do álbum) aparecerão como um só álbum.</string>
+    <string name="library_tags_saving">Salvando…</string>
+    <string name="library_tags_error">Não foi possível salvar: %1$s</string>
+    <plurals name="library_tags_saved">
+        <item quantity="one">Tags salvas em %d música</item>
+        <item quantity="many">Tags salvas em %d músicas</item>
+        <item quantity="other">Tags salvas em %d músicas</item>
+    </plurals>
 </resources>

@@ -1,5 +1,6 @@
 package cl.lossless.player.desktop
 
+import cl.lossless.player.library.AlbumGrouping
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import org.jaudiotagger.tag.Tag
@@ -33,7 +34,10 @@ data class Track(
     val file: File get() = File(path)
     val folder: String get() = file.parent.orEmpty()
     val folderName: String get() = file.parentFile?.name.orEmpty()
+    /** Carpeta + álbum: identifica la carátula. El álbum que se muestra lo decide [albumKeysByPath]. */
     val albumKey: String get() = "$folder|${album.trim().lowercase()}"
+
+    val groupingFields: AlbumGrouping.Fields get() = AlbumGrouping.Fields(folder, album, albumArtist, artist)
 
     /** "FLAC 24/96" para mostrar junto a la pista. */
     val formatLabel: String
@@ -76,10 +80,16 @@ fun khz(rate: Int): String {
 /** Un álbum dentro de una carpeta, como AlbumGroup en Android. */
 data class Album(val key: String, val title: String, val artist: String, val tracks: List<Track>)
 
+/** Clave del álbum de cada pista; une las de carpetas distintas con el mismo álbum y artista. */
+fun List<Track>.albumKeysByPath(): Map<String, String> {
+    val keys = AlbumGrouping.keys(this) { it.groupingFields }
+    return indices.associate { this[it].path to keys[it] }
+}
+
 fun List<Track>.toAlbums(variousArtists: String): List<Album> =
-    groupBy { it.albumKey }.map { (key, tracks) ->
+    AlbumGrouping.group(this) { it.groupingFields }.map { (key, tracks) ->
         val first = tracks.first()
-        val artists = tracks.map { it.albumArtist.ifBlank { it.artist } }.filter { it.isNotBlank() }.distinct()
+        val artists = tracks.map { it.albumArtist.ifBlank { it.artist }.trim() }.filter { it.isNotBlank() }.distinctBy { it.lowercase() }
         Album(
             key = key,
             title = first.album.ifBlank { first.folderName },
@@ -127,6 +137,14 @@ object AppSettings {
         get() = prefs.getFloat("volume", 1f)
         set(value) = prefs.putFloat("volume", value)
 
+    var repeat: RepeatMode
+        get() = RepeatMode.entries.firstOrNull { it.name == prefs.get("repeat", null) } ?: RepeatMode.OFF
+        set(value) = prefs.put("repeat", value.name)
+
+    var shuffle: Boolean
+        get() = prefs.getBoolean("shuffle", false)
+        set(value) = prefs.putBoolean("shuffle", value)
+
     // Apariencia: nombres de ThemeMode, Accent, AppFont y TextSize (ver ui/Theme.kt).
     var theme: String?
         get() = prefs.get("theme", null)
@@ -144,9 +162,29 @@ object AppSettings {
     var panelLeft: Boolean
         get() = prefs.getBoolean("panel_left", false)
         set(value) = prefs.putBoolean("panel_left", value)
+    var sidebarCollapsed: Boolean
+        get() = prefs.getBoolean("sidebar_collapsed", false)
+        set(value) = prefs.putBoolean("sidebar_collapsed", value)
     var panelWidth: Float
         get() = prefs.getFloat("panel_width", 320f)
         set(value) = prefs.putFloat("panel_width", value)
+
+    // Atajos de reproducción: una línea "ACCIÓN=tecla:ctrl:alt:shift:meta" por acción con tecla.
+    fun loadShortcuts(): Map<PlaybackAction, KeyCombo>? {
+        val raw = prefs.get("shortcuts", null) ?: return null
+        return raw.split('\n').mapNotNull { line ->
+            val action = PlaybackAction.entries.firstOrNull { it.name == line.substringBefore('=') }
+            val combo = KeyCombo.decode(line.substringAfter('=', ""))
+            if (action != null && combo != null) action to combo else null
+        }.toMap()
+    }
+    fun saveShortcuts(bindings: Map<PlaybackAction, KeyCombo>) =
+        prefs.put("shortcuts", bindings.entries.joinToString("\n") { "${it.key.name}=${it.value.encode()}" })
+
+    /** Teclas multimedia con la app en segundo plano. En macOS pide permiso de accesibilidad, así que empieza apagado. */
+    var mediaKeys: Boolean
+        get() = prefs.getBoolean("media_keys", !IsMac)
+        set(value) = prefs.putBoolean("media_keys", value)
 
     // Google Drive: sesión guardada (el refresh token permite pedir accesos nuevos sin el navegador).
     var driveRefreshToken: String?

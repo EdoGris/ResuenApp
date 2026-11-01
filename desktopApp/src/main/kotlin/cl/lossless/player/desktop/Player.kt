@@ -19,6 +19,19 @@ import javax.sound.sampled.SourceDataLine
 import kotlin.math.log10
 import kotlin.math.roundToInt
 
+/** Repetir: nada, toda la cola o solo la canción actual. [next] es el que sigue al tocar el botón. */
+enum class RepeatMode {
+    OFF, ALL, ONE;
+
+    val next: RepeatMode get() = entries[(ordinal + 1) % entries.size]
+}
+
+/** Permutación aleatoria de 0 until [size] que empieza por [first] (si es un índice válido). */
+internal fun shuffledOrder(size: Int, first: Int): List<Int> {
+    val rest = (0 until size).filter { it != first }.shuffled()
+    return if (first in 0 until size) listOf(first) + rest else rest
+}
+
 data class PlayerState(
     val queue: List<Track> = emptyList(),
     val index: Int = -1,
@@ -43,8 +56,35 @@ class Player {
 
     @Volatile private var session: Session? = null
     @Volatile private var thread: Thread? = null
-    @Volatile var volume: Float = AppSettings.volume
-        private set
+    private val _volume = MutableStateFlow(AppSettings.volume)
+    /** Volumen 0..1; lo comparten la barra inferior y el mini reproductor. */
+    val volumeState: StateFlow<Float> = _volume.asStateFlow()
+    val volume: Float get() = _volume.value
+    private var beforeMute = if (AppSettings.volume > 0.001f) AppSettings.volume else 1f
+
+    private val _repeat = MutableStateFlow(AppSettings.repeat)
+    val repeat: StateFlow<RepeatMode> = _repeat.asStateFlow()
+
+    /** Pasa a la siguiente opción: no repetir → repetir todo → repetir una. */
+    fun cycleRepeat() {
+        val mode = _repeat.value.next
+        _repeat.value = mode
+        AppSettings.repeat = mode
+    }
+
+    private val _shuffle = MutableStateFlow(AppSettings.shuffle)
+    /** Aleatorio: la cola se muestra en su orden, pero se recorre según [order]. */
+    val shuffle: StateFlow<Boolean> = _shuffle.asStateFlow()
+
+    /** Orden de reproducción en aleatorio (índices de la cola); vacío si está apagado. */
+    @Volatile private var order: List<Int> = emptyList()
+
+    fun toggleShuffle() {
+        val on = !_shuffle.value
+        _shuffle.value = on
+        AppSettings.shuffle = on
+        rebuildOrder()
+    }
 
     /** La cola se terminó de reproducir; si llegan más pistas con [append], sigue con ellas. */
     @Volatile private var endedAtTail = false
@@ -53,7 +93,34 @@ class Player {
         if (tracks.isEmpty()) return
         endedAtTail = false
         _state.update { it.copy(queue = tracks, index = start.coerceIn(tracks.indices), error = null) }
+        rebuildOrder()
         startCurrent()
+    }
+
+    /** Baraja la cola dejando la canción actual primero, así lo que suena no se interrumpe. */
+    private fun rebuildOrder() {
+        val st = _state.value
+        order = if (!_shuffle.value || st.queue.isEmpty()) emptyList()
+        else shuffledOrder(st.queue.size, st.index)
+    }
+
+    /**
+     * Índice de la cola a [step] posiciones de la actual (en el orden aleatorio si está activo),
+     * o -1 si no hay. Con [wrap] da la vuelta: tras la última vuelve a la primera.
+     */
+    private fun neighbor(step: Int, wrap: Boolean): Int {
+        val st = _state.value
+        val n = st.queue.size
+        if (n == 0) return -1
+        val seq = order.takeIf { _shuffle.value && it.size == n }
+        val pos = seq?.indexOf(st.index) ?: st.index
+        val target = pos + step
+        val i = when {
+            target in 0 until n -> target
+            wrap -> Math.floorMod(target, n)
+            else -> return -1
+        }
+        return seq?.get(i) ?: i
     }
 
     fun toggle() {
@@ -66,20 +133,20 @@ class Player {
         _state.update { it.copy(playing = !s.paused) }
     }
 
+    /** Siguiente a mano: con "repetir todo" vuelve a la primera tras la última. */
     fun next() {
-        val st = _state.value
-        if (st.index + 1 < st.queue.size) {
-            _state.update { it.copy(index = it.index + 1, error = null) }
-            startCurrent()
-        }
+        val target = neighbor(1, wrap = _repeat.value == RepeatMode.ALL)
+        if (target < 0) return
+        _state.update { it.copy(index = target, error = null) }
+        startCurrent()
     }
 
     fun previous() {
-        val st = _state.value
-        if (positionMs() > 3_000 || st.index == 0) {
+        val target = neighbor(-1, wrap = false)
+        if (positionMs() > 3_000 || target < 0) {
             seek(0)
-        } else if (st.index > 0) {
-            _state.update { it.copy(index = it.index - 1, error = null) }
+        } else {
+            _state.update { it.copy(index = target, error = null) }
             startCurrent()
         }
     }
@@ -88,12 +155,38 @@ class Player {
         session?.seekToMs = ms.coerceAtLeast(0)
     }
 
+    /** Avanza o retrocede [deltaMs] dentro de la pista actual. */
+    fun seekBy(deltaMs: Long) {
+        val s = session ?: return
+        val duration = _state.value.durationMs
+        val target = s.positionMs() + deltaMs
+        seek(if (duration > 0) target.coerceAtMost(duration - 500) else target)
+    }
+
+    /** Detiene la reproducción y vuelve al inicio de la pista (Reproducir la empieza de nuevo). */
+    fun stop() {
+        session?.stop()
+        session = null
+        _state.update { it.copy(playing = false, outputFormat = null) }
+    }
+
     fun positionMs(): Long = session?.positionMs() ?: 0
 
     fun setVolume(v: Float) {
-        volume = v.coerceIn(0f, 1f)
-        AppSettings.volume = volume
-        session?.applyVolume(volume)
+        val value = v.coerceIn(0f, 1f)
+        _volume.value = value
+        AppSettings.volume = value
+        session?.applyVolume(value)
+    }
+
+    /** Silencia, o vuelve al volumen que había antes de silenciar. */
+    fun toggleMute() {
+        if (volume > 0.001f) {
+            beforeMute = volume
+            setVolume(0f)
+        } else {
+            setVolume(beforeMute)
+        }
     }
 
     /**
@@ -126,10 +219,13 @@ class Player {
      */
     fun append(tracks: List<Track>) {
         if (tracks.isEmpty()) return
+        val firstNew = _state.value.queue.size
         _state.update { it.copy(queue = it.queue + tracks) }
+        // En aleatorio, las que llegan se suman al final del recorrido ya barajado.
+        if (_shuffle.value && order.size == firstNew) order = order + (firstNew until firstNew + tracks.size)
         if (endedAtTail && session == null) {
             endedAtTail = false
-            _state.update { it.copy(index = it.index + 1, error = null) }
+            _state.update { it.copy(index = firstNew, error = null) }
             startCurrent()
         }
     }
@@ -156,9 +252,12 @@ class Player {
 
     private fun onEnded(s: Session) {
         if (session !== s) return
-        val st = _state.value
-        if (st.index + 1 < st.queue.size) {
-            _state.update { it.copy(index = it.index + 1) }
+        val target = when (_repeat.value) {
+            RepeatMode.ONE -> _state.value.index
+            else -> neighbor(1, wrap = _repeat.value == RepeatMode.ALL)
+        }
+        if (target >= 0) {
+            _state.update { it.copy(index = target) }
             startCurrent()
         } else {
             session = null
@@ -214,6 +313,7 @@ class Player {
                 _state.update { it.copy(outputFormat = "$bits bits / ${khz(rate)} kHz", durationMs = durationOf(grabber)) }
                 opened.start()
                 val bytesPerFrame = channels * bits / 8
+                val eq = EqProcessor(rate, channels)
                 var buffer = ByteArray(0)
 
                 while (!stopped) {
@@ -224,6 +324,7 @@ class Player {
                         opened.flush()
                         baseMs = seek
                         baseFrame = opened.longFramePosition
+                        eq.reset()
                     }
                     if (paused) {
                         if (opened.isRunning) opened.stop()
@@ -234,6 +335,7 @@ class Player {
                     }
                     val frame = grabber.grabSamples() ?: break
                     val samples = Decoder.toInt32Interleaved(frame, channels) ?: continue
+                    eq.process(samples)
                     val needed = samples.size / channels * bytesPerFrame
                     if (buffer.size < needed) buffer = ByteArray(needed)
                     val n = Decoder.pack(samples, bits, buffer)
