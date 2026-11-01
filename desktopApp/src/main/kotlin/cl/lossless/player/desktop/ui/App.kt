@@ -45,6 +45,7 @@ import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.automirrored.rounded.MenuOpen
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.ui.draw.shadow
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material3.Icon
@@ -544,8 +545,10 @@ private fun Sidebar(selected: Tab, trackCount: Int, playlistCount: Int, onSelect
     val width by animateDpAsState(if (open) SIDEBAR_OPEN else SIDEBAR_RAIL)
     val card = RoundedCornerShape(14.dp)
     Column(
-        Modifier.padding(start = 8.dp, top = 2.dp, bottom = 8.dp).width(width).fillMaxHeight()
-            .clip(card).background(Neon.Surface).border(1.dp, Neon.Border.copy(alpha = 0.6f), card)
+        // Margen parejo y sombra para que la tarjeta se vea flotando sobre el fondo de la ventana.
+        Modifier.padding(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 10.dp).width(width).fillMaxHeight()
+            .shadow(if (Appearance.palette.dark) 18.dp else 10.dp, card, clip = false, ambientColor = Color.Black, spotColor = Color.Black)
+            .clip(card).background(Neon.Surface).border(1.dp, Neon.Border, card)
             .padding(horizontal = 8.dp, vertical = 10.dp),
     ) {
         // Botón para abrir o recoger el menú, siempre en el mismo lugar.
